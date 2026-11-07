@@ -158,8 +158,6 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         inline bool getDataLineLow() const override { return false; }
         inline bool getSRQAsserted() const override { return false; }
 
-        void forceSyncIEC() override {}
-
     protected:
         bool motorOn;
 

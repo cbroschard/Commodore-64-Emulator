@@ -86,7 +86,6 @@ class Drive : public Peripheral
         virtual bool getClkLineLow() const = 0;
         virtual bool getDataLineLow() const = 0;
         virtual bool getSRQAsserted() const = 0;
-        virtual void forceSyncIEC() = 0;
 
         enum class DriveError { NONE, NO_DISK, BAD_SECTOR, READ_ERROR, WRITE_ERROR } currentDriveError;
         enum class DriveStatus { IDLE, READY, READING, WRITING, SEEKING, ERROR } currentDriveStatus;
