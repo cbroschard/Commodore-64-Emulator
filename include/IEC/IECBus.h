@@ -142,6 +142,8 @@ class IECBus
 
         void setHostCpuHz(double hz);
 
+        IECDevice* getIECDevice(int deviceNumber) const;
+
         // ML Monitor Functions
         inline IECBusLines getBusLines() const { return busLines; }
         inline bool getSRQLine() const { return line_srqin; }
@@ -212,7 +214,6 @@ class IECBus
 
         // Peripheral Tracking
         std::map<int, Peripheral*> devices;
-        std::map<int, IECDevice*> iecDevices;
         std::map<int, RegisteredDevice> registeredDevices;
         std::vector<Peripheral*> currentListeners;
 

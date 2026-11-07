@@ -223,20 +223,21 @@ void IECBus::reset()
         cia2->srqChanged(line_srqin);
     }
 
-    for (auto const& [num, dev] : devices)
+    for (const auto& [num, registration] : registeredDevices)
     {
-        if (IECDevice* iecDevice = findIECDevice(num))
+        if (IECDevice* iecDevice = registration.iecDevice)
         {
+            // New IECDevice interface
             iecDevice->atnChanged(atnLow);
             iecDevice->clkChanged(clkLow);
             iecDevice->dataChanged(dataLow);
         }
-        else if (dev)
+        else if (Peripheral* peripheral = registration.peripheral)
         {
-            // Legacy Peripheral implementation
-            dev->atnChanged(atnLow);
-            dev->clkChanged(clkLow);
-            dev->dataChanged(dataLow);
+            // Legacy Peripheral interface
+            peripheral->atnChanged(atnLow);
+            peripheral->clkChanged(clkLow);
+            peripheral->dataChanged(dataLow);
         }
     }
 
@@ -451,40 +452,49 @@ void IECBus::peripheralControlSrq(IECDevice* device, bool state)
 
     const int deviceNumber = device->getIECDeviceNumber();
 
-    auto it = iecDevices.find(deviceNumber);
+    // Find the unified registration.
+    const RegisteredDevice* registration = findRegisteredDevice(deviceNumber);
 
-    if (it == iecDevices.end() || it->second != device)
+    // Verify this exact IECDevice is registered.
+    if (!registration || registration->iecDevice != device)
+        return;
+
+    // Get the associated legacy Peripheral.
+    Peripheral* peripheral = registration->peripheral;
+
+    if (!peripheral)
         return;
 
     // Preserve existing talker arbitration.
-    auto legacyIt = devices.find(deviceNumber);
-
-    if (legacyIt == devices.end())
-        return;
-
-    Peripheral* peripheral = legacyIt->second;
-
     if (!currentTalker)
         currentTalker = peripheral;
 
     if (currentTalker != peripheral)
         return;
 
+    // Update IEC-specific SRQ state.
     device->setSRQAsserted(state);
 
+    // Recalculate the resolved SRQ line.
     updateSrqLine();
     updateBusState();
 }
 
 void IECBus::registerDevice(int deviceNumber, Peripheral* device)
 {
-    if (!device) return;
-    if (devices.find(deviceNumber) != devices.end()) return;
+    if (!device)
+        return;
 
-    // FORCE consistency
+    if (devices.find(deviceNumber) != devices.end())
+        return;
+
     device->setDeviceNumber(deviceNumber);
 
     devices[deviceNumber] = device;
+
+    // Track legacy devices in the unified registry.
+    registeredDevices[deviceNumber] = { device, nullptr };
+
     device->attachIECBusInstance(this);
     driveCycleAccumulators[device] = 0.0;
 
@@ -497,38 +507,50 @@ void IECBus::registerDevice(int deviceNumber, Peripheral* device)
 
 void IECBus::unregisterDevice(int deviceNumber)
 {
-    auto iecIt = iecDevices.find(deviceNumber);
+    // Find the unified registration.
+    auto registration = registeredDevices.find(deviceNumber);
 
-    if (iecIt != iecDevices.end())
+    if (registration != registeredDevices.end())
     {
-        IECDevice* device = iecIt->second;
+        IECDevice* iecDevice = registration->second.iecDevice;
 
-        iecDevices.erase(iecIt);
-
-        if (device)
+        if (iecDevice)
         {
-            device->detachIECBusInstance();
-            device->iecDeviceNumber = -1;
+            // Clear the IECDevice connection.
+            iecDevice->detachIECBusInstance();
+            iecDevice->iecDeviceNumber = -1;
         }
+
+        registeredDevices.erase(registration);
     }
 
+    // Legacy Peripheral cleanup.
     auto it = devices.find(deviceNumber);
-    if (it == devices.end()) return;
+
+    if (it == devices.end())
+        return;
 
     Peripheral* device = it->second;
 
+    // Remove the device's electrical contributions.
     devDrivesClkLow.erase(device);
     devDrivesDataLow.erase(device);
     devDrivesAtnLow.erase(device);
+
+    // Remove drive timing information.
     driveCycleAccumulators.erase(device);
 
-    if (currentTalker == device) currentTalker = nullptr;
+    // Clear active talker if necessary.
+    if (currentTalker == device)
+        currentTalker = nullptr;
 
+    // Remove from active listeners.
     currentListeners.erase(std::remove(currentListeners.begin(), currentListeners.end(), device), currentListeners.end());
 
+    // Remove legacy registration.
     devices.erase(it);
-    registeredDevices.erase(deviceNumber);
 
+    // Recalculate bus signals after removal.
     recalcAndNotify();
 }
 
@@ -550,16 +572,18 @@ bool IECBus::registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice*
     if (it == devices.end() || it->second != peripheral)
         return false;
 
-    // Register the new IEC-specific interface.
-    iecDevices[deviceNumber] = iecDevice;
-
     // Assign IEC address.
     iecDevice->iecDeviceNumber = deviceNumber;
 
     // Attach to IECBus.
     iecDevice->attachIECBusInstance(this);
 
-    registeredDevices[deviceNumber] = { peripheral, iecDevice };
+    auto registration = registeredDevices.find(deviceNumber);
+
+    if (registration == registeredDevices.end())
+        return false;
+
+    registration->second.iecDevice = iecDevice;
 
     // Synchronize the IECDevice interface with current bus levels.
     iecDevice->atnChanged(!busLines.atn);
@@ -657,21 +681,19 @@ void IECBus::tick(uint64_t cyclesPassed)
         updateSrqLine();
         recalcAndNotify();
 
-        for (auto const& [num, dev] : devices)
+        for (const auto& [num, registration] : registeredDevices)
         {
-            auto* drive = dynamic_cast<Drive*>(dev);
+            Peripheral* peripheral = registration.peripheral;
+
+            if (!peripheral)
+                continue;
+
+            Drive* drive = peripheral->asDrive();
+
             if (!drive)
                 continue;
 
-            //
-            // Current drive timing model advances one drive cycle
-            // per host machine cycle.
-            //
-            // This keeps IEC/VIA/disk timing phase-aligned with the
-            // current emulator architecture. A future fully independent
-            // drive clock should use a shared event timeline rather than
-            // batching asynchronous drive cycles here.
-            //
+            // Preserve existing drive timing behavior.
             drive->tick(1);
 
             updateSrqLine();
@@ -687,6 +709,16 @@ void IECBus::setHostCpuHz(double hz)
 {
     if (hz > 0.0)
         hostCpuHz = hz;
+}
+
+IECDevice* IECBus::getIECDevice(int deviceNumber) const
+{
+    const RegisteredDevice* registration = findRegisteredDevice(deviceNumber);
+
+    if (!registration)
+        return nullptr;
+
+    return registration->iecDevice;
 }
 
 IECDevice* IECBus::findIECDevice(int deviceNumber) const
@@ -851,12 +883,12 @@ void IECBus::secondaryAddress(uint8_t devNum, uint8_t sa)
 
 Peripheral* IECBus::getDevice(int id) const
 {
-    auto it = devices.find(static_cast<uint8_t>(id));
-    if (it == devices.end())
-    {
+    const RegisteredDevice* registration = findRegisteredDevice(id);
+
+    if (!registration)
         return nullptr;
-    }
-    return it->second;
+
+    return registration->peripheral;
 }
 
 void IECBus::debugDumpDevices(const char* tag)
@@ -868,40 +900,49 @@ void IECBus::debugDumpDevices(const char* tag)
               << " state=" << (currentState == State::ATTENTION ? "ATTENTION" : "IDLE")
               << "\n";
 
-    for (auto const& [num, dev] : devices)
+    for (const auto& [num, registration] : registeredDevices)
     {
-        if (!dev) continue;
+        Peripheral* peripheral = registration.peripheral;
 
-        auto* drive = dynamic_cast<Drive*>(dev);
+        if (!peripheral)
+            continue;
+
+        Drive* drive = peripheral->asDrive();
+
         if (!drive)
         {
-            std::cout << "  dev " << int(num)
+            std::cout << "  dev " << num
                       << " (non-drive peripheral)\n";
             continue;
         }
 
-        auto s = drive->snapshotIEC();   // already implemented in D1541/D1571
+        auto s = drive->snapshotIEC();
 
-        std::cout << "  dev " << int(num)
-                  << " atnLow="   << s.atnLow
-                  << " clkLow="   << s.clkLow
-                  << " dataLow="  << s.dataLow
-                  << " drvAssertClk="  << s.drvAssertClk
+        std::cout << "  dev " << num
+                  << " atnLow=" << s.atnLow
+                  << " clkLow=" << s.clkLow
+                  << " dataLow=" << s.dataLow
+                  << " drvAssertClk=" << s.drvAssertClk
                   << " drvAssertData=" << s.drvAssertData
-                  << " listening="<< s.listening
-                  << " talking="  << s.talking
+                  << " listening=" << s.listening
+                  << " talking=" << s.talking
                   << " busState=" << int(s.busState)
                   << " waitingForAck=" << s.waitingForAck
-                  << " talkQueueLen="  << s.talkQueueLen
+                  << " talkQueueLen=" << s.talkQueueLen
                   << "\n";
     }
 }
 
 Drive* IECBus::getDriveWithBreakpointHit() const
 {
-    for (const auto& [num, dev] : devices)
+    for (const auto& [num, registration] : registeredDevices)
     {
-        auto* drive = dynamic_cast<Drive*>(dev);
+        Peripheral* peripheral = registration.peripheral;
+
+        if (!peripheral)
+            continue;
+
+        Drive* drive = peripheral->asDrive();
 
         if (drive && drive->isBreakpointHit())
             return drive;
@@ -912,11 +953,15 @@ Drive* IECBus::getDriveWithBreakpointHit() const
 
 Drive* IECBus::getDriveWithWatchpointHit()
 {
-    for (auto const& [num, dev] : devices)
+    for (const auto& [num, registration] : registeredDevices)
     {
-        (void)num;
+        Peripheral* peripheral = registration.peripheral;
 
-        auto* drive = dynamic_cast<Drive*>(dev);
+        if (!peripheral)
+            continue;
+
+        Drive* drive = peripheral->asDrive();
+
         if (drive && drive->isWatchpointHit())
             return drive;
     }
@@ -940,15 +985,16 @@ void IECBus::recalcAndNotify()
         if (cia2)
             cia2->atnChanged(atnLow);
 
-        for (auto const& [num, dev] : devices)
+        for (const auto& [num, registration] : registeredDevices)
         {
-            if (IECDevice* iecDevice = findIECDevice(num))
+            if (IECDevice* iecDevice = registration.iecDevice)
                 iecDevice->atnChanged(atnLow);
-            else if (dev)
-                dev->atnChanged(atnLow);
+            else if (Peripheral* peripheral = registration.peripheral)
+                peripheral->atnChanged(atnLow);
         }
     }
 
+    // CLK
     if (busLines.clk != oldClk)
     {
         const bool clkLow = !busLines.clk;
@@ -956,15 +1002,16 @@ void IECBus::recalcAndNotify()
         if (cia2)
             cia2->clkChanged(clkLow);
 
-        for (auto const& [num, dev] : devices)
+        for (const auto& [num, registration] : registeredDevices)
         {
-            if (IECDevice* iecDevice = findIECDevice(num))
+            if (IECDevice* iecDevice = registration.iecDevice)
                 iecDevice->clkChanged(clkLow);
-            else if (dev)
-                dev->clkChanged(clkLow);
+            else if (Peripheral* peripheral = registration.peripheral)
+                peripheral->clkChanged(clkLow);
         }
     }
 
+    // DATA
     if (busLines.data != oldData)
     {
         const bool dataLow = !busLines.data;
@@ -972,12 +1019,12 @@ void IECBus::recalcAndNotify()
         if (cia2)
             cia2->dataChanged(dataLow);
 
-        for (auto const& [num, dev] : devices)
+        for (const auto& [num, registration] : registeredDevices)
         {
-            if (IECDevice* iecDevice = findIECDevice(num))
+            if (IECDevice* iecDevice = registration.iecDevice)
                 iecDevice->dataChanged(dataLow);
-            else if (dev)
-                dev->dataChanged(dataLow);
+            else if (Peripheral* peripheral = registration.peripheral)
+                peripheral->dataChanged(dataLow);
         }
     }
 }
