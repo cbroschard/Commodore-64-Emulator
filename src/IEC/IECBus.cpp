@@ -992,6 +992,44 @@ void IECBus::updateBusState()
         peripheralDrivesAtnLow);
 }
 
+IECBus::DeviceElectricalSnapshot IECBus::snapshotDeviceElectrical(int deviceNumber) const
+{
+    DeviceElectricalSnapshot s{};
+
+    const RegisteredDevice* registration = findRegisteredDevice(deviceNumber);
+
+    if (!registration)
+        return s;
+
+    s.registered = true;
+
+    if (Peripheral* peripheral = registration->peripheral)
+    {
+        const auto clk = devDrivesClkLow.find(peripheral);
+        const auto data = devDrivesDataLow.find(peripheral);
+        const auto atn = devDrivesAtnLow.find(peripheral);
+
+        s.legacyClkLow = clk != devDrivesClkLow.end() && clk->second;
+        s.legacyDataLow = data != devDrivesDataLow.end() && data->second;
+        s.legacyAtnLow = atn != devDrivesAtnLow.end() && atn->second;
+    }
+
+    if (IECDevice* device = registration->iecDevice)
+    {
+        s.hasIECDevice = true;
+
+        const auto clk = iecDrivesClkLow.find(device);
+        const auto data = iecDrivesDataLow.find(device);
+        const auto atn = iecDrivesAtnLow.find(device);
+
+        s.iecClkLow = clk != iecDrivesClkLow.end() && clk->second;
+        s.iecDataLow = data != iecDrivesDataLow.end() && data->second;
+        s.iecAtnLow = atn != iecDrivesAtnLow.end() && atn->second;
+    }
+
+    return s;
+}
+
 IECBus::PhysicalSnapshot IECBus::snapshotPhysical() const
 {
     PhysicalSnapshot s{};

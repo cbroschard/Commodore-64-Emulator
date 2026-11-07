@@ -197,6 +197,26 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
         std::cout << "\n";
 
+        const auto electrical = iecBus->snapshotDeviceElectrical(devNum);
+
+        std::cout << "  Electrical signaling:\n";
+
+        std::cout << "    IECDevice registered: "
+                  << (electrical.hasIECDevice ? "yes" : "no")
+                  << "\n";
+
+        std::cout << "    Legacy Peripheral:\n"
+                  << "      CLK=" << electrical.legacyClkLow
+                  << " DATA=" << electrical.legacyDataLow
+                  << " ATN=" << electrical.legacyAtnLow
+                  << "\n";
+
+        std::cout << "    IECDevice:\n"
+                  << "      CLK=" << electrical.iecClkLow
+                  << " DATA=" << electrical.iecDataLow
+                  << " ATN=" << electrical.iecAtnLow
+                  << "\n";
+
         return; // 'device' doesn’t show the global sections
     }
 

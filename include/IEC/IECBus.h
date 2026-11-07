@@ -39,6 +39,20 @@ class IECBus
             BusChange
         };
 
+        struct DeviceElectricalSnapshot
+        {
+            bool registered = false;
+            bool hasIECDevice = false;
+
+            bool legacyClkLow = false;
+            bool legacyDataLow = false;
+            bool legacyAtnLow = false;
+
+            bool iecClkLow = false;
+            bool iecDataLow = false;
+            bool iecAtnLow = false;
+        };
+
         struct TraceEntry
         {
             bool valid = false;
@@ -84,6 +98,7 @@ class IECBus
             int legacyListenerCount = 0;
         };
 
+        DeviceElectricalSnapshot snapshotDeviceElectrical(int deviceNumber) const;
         PhysicalSnapshot snapshotPhysical() const;
 
         // Pointers
