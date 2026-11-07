@@ -1147,7 +1147,6 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
         }
         else
         {
-            // D1571 and D1581 still use legacy IEC registration.
             components_.iecBus->registerDevice(deviceNum, slot.get());
         }
 
