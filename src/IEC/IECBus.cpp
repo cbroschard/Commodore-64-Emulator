@@ -717,14 +717,11 @@ void IECBus::listen(int deviceNumber)
 
     const RegisteredDevice* registration = findRegisteredDevice(deviceNumber);
 
-    if (!registration)
+    if (!registration || !registration->iecDevice || !registration->peripheral)
         return;
 
     Peripheral* peripheral = registration->peripheral;
-    IECDevice* iecDevice = registration->iecDevice;
-
-    if (!peripheral)
-        return;
+    IECDevice* device = registration->iecDevice;
 
     // Preserve existing listener tracking.
     if (std::find(currentListeners.begin(), currentListeners.end(), peripheral) == currentListeners.end())
@@ -732,10 +729,7 @@ void IECBus::listen(int deviceNumber)
 
     currentState = State::LISTEN;
 
-    if (iecDevice)
-        iecDevice->onListen();
-    else
-        peripheral->onListen();
+    device->onListen();
 }
 
 void IECBus::unListen(int deviceNumber)
@@ -748,10 +742,8 @@ void IECBus::unListen(int deviceNumber)
 
     for (const auto& [num, registration] : registeredDevices)
     {
-        if (registration.iecDevice)
-            registration.iecDevice->onUnListen();
-        else if (registration.peripheral)
-            registration.peripheral->onUnListen();
+        if (IECDevice* device = registration.iecDevice)
+            device->onUnListen();
     }
 
     currentListeners.clear();
@@ -764,9 +756,10 @@ void IECBus::talk(int deviceNumber)
 
     const RegisteredDevice* registration = findRegisteredDevice(deviceNumber);
 
-    if (!registration || !registration->peripheral)
+    if (!registration || !registration->iecDevice || !registration->peripheral)
         return;
 
+    // Preserve existing talker tracking.
     currentTalker = registration->peripheral;
     currentState = State::TALK;
 
@@ -775,10 +768,7 @@ void IECBus::talk(int deviceNumber)
 
     recalcAndNotify();
 
-    if (registration->iecDevice)
-        registration->iecDevice->onTalk();
-    else
-        registration->peripheral->onTalk();
+    registration->iecDevice->onTalk();
 }
 
 void IECBus::unTalk(int deviceNumber)
@@ -791,10 +781,8 @@ void IECBus::unTalk(int deviceNumber)
 
     for (const auto& [num, registration] : registeredDevices)
     {
-        if (registration.iecDevice)
-            registration.iecDevice->onUnTalk();
-        else if (registration.peripheral)
-            registration.peripheral->onUnTalk();
+        if (IECDevice* device = registration.iecDevice)
+            device->onUnTalk();
     }
 
     currentTalker = nullptr;
@@ -1104,13 +1092,10 @@ void IECBus::secondaryAddress(uint8_t devNum, uint8_t sa)
 
     const RegisteredDevice* registration = findRegisteredDevice(devNum);
 
-    if (!registration)
+    if (!registration || !registration->iecDevice)
         return;
 
-    if (registration->iecDevice)
-        registration->iecDevice->onSecondaryAddress(sa);
-    else if (registration->peripheral)
-        registration->peripheral->onSecondaryAddress(sa);
+    registration->iecDevice->onSecondaryAddress(sa);
 }
 
 Peripheral* IECBus::getDevice(int id) const
