@@ -24,6 +24,7 @@
 #include "Drive/IDriveIndicatorView.h"
 #include "Drive/IDrivePositionView.h"
 #include "Drive/IDriveUiView.h"
+#include "IEC/IECDriveSync.h"
 #include "MachineComponents.h"
 #include "Debug/MLMonitorBackend.h"
 
@@ -1158,10 +1159,8 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
             if (!existing)
                 continue;
 
-            if (existing->getDriveModel() == DriveModel::D2031)
-                continue;
-
-            existing->forceSyncIEC();
+            if (auto* iecSync = dynamic_cast<IECDriveSync*>(existing))
+                iecSync->forceSyncIEC();
         }
 
         // Preserve deferred IEC bus priming.

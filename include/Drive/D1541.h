@@ -24,9 +24,11 @@
 #include "GCR/GCRTrackStream.h"
 #include "IEC/IECDevice.h"
 #include "IEC/IECDriveDiagnostics.h"
+#include "IEC/IECDriveSync.h"
 #include "IRQLine.h"
 
-class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
+class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public IECDriveSync, public IDriveIndicatorView,
+    public IDrivePositionView, public IDriveUiView
 {
     public:
         D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom);

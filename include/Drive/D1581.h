@@ -21,11 +21,13 @@
 #include "IEC/IECBus.h"
 #include "IEC/IECDevice.h"
 #include "IEC/IECDriveDiagnostics.h"
+#include "IEC/IECDriveSync.h"
 #include "IRQLine.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
-class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
+class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public IECDriveSync, public FloppyControllerHost,
+    public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1581(int deviceNumber, const std::string& romNAME);
