@@ -130,10 +130,13 @@ bool IECBus::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     uint8_t devCount = 0;
     if (!rdr.readU8(devCount))                                      { rdr.exitChunkPayload(chunk); return false; }
 
-    // Clear current contribution maps (IMPORTANT)
+    // Clear current contribution maps
     devDrivesClkLow.clear();
     devDrivesDataLow.clear();
     devDrivesAtnLow.clear();
+    iecDrivesClkLow.clear();
+    iecDrivesDataLow.clear();
+    iecDrivesAtnLow.clear();
 
     for (uint8_t i = 0; i < devCount; ++i)
     {
@@ -209,6 +212,9 @@ void IECBus::reset()
     devDrivesClkLow.clear();
     devDrivesDataLow.clear();
     devDrivesAtnLow.clear();
+    iecDrivesClkLow.clear();
+    iecDrivesDataLow.clear();
+    iecDrivesAtnLow.clear();
 
     // Recompute resolved line levels (should become HIGH/HIGH/HIGH)
     updateBusState();
@@ -387,34 +393,94 @@ void IECBus::peripheralControlSrq(Peripheral* device, bool state)
     updateBusState();
 
 }
-void IECBus::peripheralControlClk(IECDevice* device, bool state)
-{
-    Peripheral* peripheral = findRegisteredPeripheral(device);
 
-    if (!peripheral)
+void IECBus::peripheralControlClk(IECDevice* device, bool clkLow)
+{
+    if (!device)
         return;
 
-    peripheralControlClk(peripheral, state);
+    const RegisteredDevice* registration = findRegisteredDevice(device->getIECDeviceNumber());
+
+    if (!registration || registration->iecDevice != device)
+        return;
+
+    const bool old = iecDrivesClkLow[device];
+
+    if (old == clkLow)
+        return;
+
+    iecDrivesClkLow[device] = clkLow;
+
+    recalcAndNotify();
+
+    uint64_t cycle = 0;
+    uint16_t pc = 0;
+
+    if (Peripheral* peripheral = registration->peripheral)
+    {
+        if (Drive* drive = peripheral->asDrive())
+        {
+            if (const CPU* cpu = drive->getDriveCPU())
+            {
+                cycle = cpu->getTotalCycles();
+                pc = cpu->getPC();
+            }
+        }
+    }
+
+    recordTrace(TraceType::PeripheralClk, cycle, pc, device->getIECDeviceNumber(), static_cast<uint8_t>(clkLow ? 1 : 0));
 }
 
-void IECBus::peripheralControlData(IECDevice* device, bool state)
+void IECBus::peripheralControlData(IECDevice* device, bool dataLow)
 {
-    Peripheral* peripheral = findRegisteredPeripheral(device);
-
-    if (!peripheral)
+    if (!device)
         return;
 
-    peripheralControlData(peripheral, state);
+    const RegisteredDevice* registration = findRegisteredDevice(device->getIECDeviceNumber());
+
+    if (!registration || registration->iecDevice != device)
+        return;
+
+    const bool old = iecDrivesDataLow[device];
+
+    if (old == dataLow)
+        return;
+
+    iecDrivesDataLow[device] = dataLow;
+
+    recalcAndNotify();
+
+    uint64_t cycle = 0;
+    uint16_t pc = 0;
+
+    if (Peripheral* peripheral = registration->peripheral)
+    {
+        if (Drive* drive = peripheral->asDrive())
+        {
+            if (const CPU* cpu = drive->getDriveCPU())
+            {
+                cycle = cpu->getTotalCycles();
+                pc = cpu->getPC();
+            }
+        }
+    }
+
+    recordTrace(TraceType::PeripheralData, cycle, pc, device->getIECDeviceNumber(), static_cast<uint8_t>(dataLow ? 1 : 0));
 }
 
-void IECBus::peripheralControlAtn(IECDevice* device, bool state)
+void IECBus::peripheralControlAtn(IECDevice* device, bool atnLow)
 {
-    Peripheral* peripheral = findRegisteredPeripheral(device);
-
-    if (!peripheral)
+    if (!device)
         return;
 
-    peripheralControlAtn(peripheral, state);
+    const RegisteredDevice* registration = findRegisteredDevice(device->getIECDeviceNumber());
+
+    if (!registration || registration->iecDevice != device)
+        return;
+
+    iecDrivesAtnLow[device] = atnLow;
+
+    recalcAndNotify();
 }
 
 void IECBus::peripheralControlSrq(IECDevice* device, bool state)
@@ -491,6 +557,10 @@ void IECBus::unregisterDevice(int deviceNumber)
     // Clean up IECDevice.
     if (iecDevice)
     {
+        iecDrivesClkLow.erase(iecDevice);
+        iecDrivesDataLow.erase(iecDevice);
+        iecDrivesAtnLow.erase(iecDevice);
+
         iecDevice->detachIECBusInstance();
         iecDevice->iecDeviceNumber = -1;
     }
@@ -765,19 +835,32 @@ void IECBus::updateBusState()
     bool anyDataLow = false;
     bool anyAtnLow  = false;
 
-    for (auto& [dev, v] : devDrivesClkLow)  anyClkLow  |= v;
-    for (auto& [dev, v] : devDrivesDataLow) anyDataLow |= v;
-    for (auto& [dev, v] : devDrivesAtnLow)  anyAtnLow  |= v;
+    // Legacy Peripheral contributions.
+    for (const auto& [dev, low] : devDrivesClkLow)
+        anyClkLow |= low;
+
+    for (const auto& [dev, low] : devDrivesDataLow)
+        anyDataLow |= low;
+
+    for (const auto& [dev, low] : devDrivesAtnLow)
+        anyAtnLow |= low;
+
+    // New IECDevice contributions.
+    for (const auto& [dev, low] : iecDrivesClkLow)
+        anyClkLow |= low;
+
+    for (const auto& [dev, low] : iecDrivesDataLow)
+        anyDataLow |= low;
+
+    for (const auto& [dev, low] : iecDrivesAtnLow)
+        anyAtnLow |= low;
 
     peripheralDrivesClkLow  = anyClkLow;
     peripheralDrivesDataLow = anyDataLow;
     peripheralDrivesAtnLow  = anyAtnLow;
 
-    busLines.updateLineState(
-        c64DrivesClkLow, c64DrivesDataLow,
-        peripheralDrivesClkLow, peripheralDrivesDataLow,
-        c64DrivesAtnLow, peripheralDrivesAtnLow
-    );
+    busLines.updateLineState(c64DrivesClkLow, c64DrivesDataLow, peripheralDrivesClkLow, peripheralDrivesDataLow, c64DrivesAtnLow,
+        peripheralDrivesAtnLow);
 }
 
 IECBus::PhysicalSnapshot IECBus::snapshotPhysical() const

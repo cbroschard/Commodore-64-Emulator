@@ -207,6 +207,11 @@ class IECBus
         std::map<Peripheral*, bool> devDrivesDataLow;
         std::map<Peripheral*, bool> devDrivesAtnLow;
 
+        // IECDevice electrical contributions.
+        std::map<IECDevice*, bool> iecDrivesClkLow;
+        std::map<IECDevice*, bool> iecDrivesDataLow;
+        std::map<IECDevice*, bool> iecDrivesAtnLow;
+
         bool lastClk;
         bool lastData;
 
