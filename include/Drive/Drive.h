@@ -8,7 +8,6 @@
 #ifndef DRIVE_H
 #define DRIVE_H
 
-#include <queue>
 #include <memory>
 #include <vector>
 #include "Common/DriveTypes.h"
@@ -147,28 +146,12 @@ class Drive : public Peripheral
 
         // Talking state
         int currentSecondaryAddress;
-        bool waitingForAck;
-        int ackEdgeCountdown;
-        bool swallowPostHandshakeFalling;
-        bool waitingForClkRelease;
-        bool prevClkLevel;
-        bool ackHold;
-        bool byteAckHold;
-
-        // Data receive state
-        int ackDelay; // used to release data line after ACK (legacy use)
-
-        // Talking state
-        std::queue<uint8_t> talkQueue;
 
         bool checkBreakpoint();
 
     private:
         std::vector<DriveBreakpoint> breakpoints;
         std::vector<DriveWatchpoint> watchpoints;
-
-        // Serial receiver state (legacy bit-shift state)
-        bool lastClkHigh;
 
         bool breakpointHit;
         uint16_t breakpointHitAddress;

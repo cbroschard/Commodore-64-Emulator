@@ -1,7 +1,6 @@
 #ifndef IECSNAPSHOT_H_INCLUDED
 #define IECSNAPSHOT_H_INCLUDED
 
-#include <cstddef>
 #include <cstdint>
 
 enum class IECDriveBusState
@@ -35,17 +34,6 @@ struct IECDriveSnapshot
     // Bit shifting
     uint8_t shiftReg = 0;
     int bitsProcessed = 0;
-
-    // Handshake and transmission
-    bool waitingForAck = false;
-    int ackEdgeCountdown = 0;
-    bool swallowPostHandshakeFalling = false;
-    bool waitingForClkRelease = false;
-    bool prevClkLevel = true;
-    bool ackHold = false;
-    bool byteAckHold = false;
-    int ackDelay = 0;
-    std::size_t talkQueueLen = 0;
 };
 
 #endif // IECSNAPSHOT_H_INCLUDED

@@ -1134,17 +1134,6 @@ IECDriveSnapshot D1571::snapshotIEC() const
     s.shiftReg = shiftReg;
     s.bitsProcessed = bitsProcessed;
 
-    // Handshake + talk queue (from Drive)
-    s.waitingForAck = waitingForAck;
-    s.ackEdgeCountdown = ackEdgeCountdown;
-    s.swallowPostHandshakeFalling = swallowPostHandshakeFalling;
-    s.waitingForClkRelease = waitingForClkRelease;
-    s.prevClkLevel = prevClkLevel;
-    s.ackHold = ackHold;
-    s.byteAckHold = byteAckHold;
-    s.ackDelay = ackDelay;
-    s.talkQueueLen = talkQueue.size();
-
     return s;
 }
 
@@ -1664,19 +1653,7 @@ void D1571::resetForMediaChange()
     shiftReg                    = 0;
     bitsProcessed               = 0;
 
-    waitingForAck               = false;
-    ackEdgeCountdown            = 0;
-    swallowPostHandshakeFalling = false;
-    waitingForClkRelease        = false;
-    prevClkLevel                = true;
-    ackHold                     = false;
-    byteAckHold                 = false;
-    ackDelay                    = 0;
-
-    status                      = DriveStatus::IDLE;
-
-    while (!talkQueue.empty())
-        talkQueue.pop();
+   status                      = DriveStatus::IDLE;
 
     currentDriveBusState = IECDriveBusState::IDLE;
 

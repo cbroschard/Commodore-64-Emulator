@@ -241,18 +241,6 @@ void D1581::reset()
     shiftReg      = 0;
     bitsProcessed = 0;
 
-    waitingForAck               = false;
-    ackEdgeCountdown            = 0;
-    swallowPostHandshakeFalling = false;
-    waitingForClkRelease        = false;
-    prevClkLevel                = true;
-    ackHold                     = false;
-    byteAckHold                 = false;
-    ackDelay                    = 0;
-
-    while (!talkQueue.empty())
-        talkQueue.pop();
-
     currentDriveBusState = IECDriveBusState::IDLE;
 
     // UI activity
@@ -377,16 +365,6 @@ void D1581::onListen()
     // Clear stale transfer/handshake state inherited from Peripheral/Drive.
     shiftReg      = 0;
     bitsProcessed = 0;
-
-    waitingForAck               = false;
-    ackEdgeCountdown            = 0;
-    swallowPostHandshakeFalling = false;
-    waitingForClkRelease        = false;
-    prevClkLevel                = true;
-    ackHold                     = false;
-    byteAckHold                 = false;
-    ackDelay                    = 0;
-
 }
 
 void D1581::onUnListen()
@@ -395,15 +373,6 @@ void D1581::onUnListen()
 
     shiftReg      = 0;
     bitsProcessed = 0;
-
-    waitingForAck               = false;
-    ackEdgeCountdown            = 0;
-    swallowPostHandshakeFalling = false;
-    waitingForClkRelease        = false;
-    prevClkLevel                = true;
-    ackHold                     = false;
-    byteAckHold                 = false;
-    ackDelay                    = 0;
 
     peripheralAssertData(false);
     peripheralAssertClk(false);
@@ -426,15 +395,6 @@ void D1581::onTalk()
     shiftReg      = 0;
     bitsProcessed = 0;
 
-    waitingForAck               = false;
-    ackEdgeCountdown            = 0;
-    swallowPostHandshakeFalling = false;
-    waitingForClkRelease        = false;
-    prevClkLevel                = true;
-    ackHold                     = false;
-    byteAckHold                 = false;
-    ackDelay                    = 0;
-
     peripheralAssertClk(false);
 }
 
@@ -444,15 +404,6 @@ void D1581::onUnTalk()
 
     shiftReg      = 0;
     bitsProcessed = 0;
-
-    waitingForAck               = false;
-    ackEdgeCountdown            = 0;
-    swallowPostHandshakeFalling = false;
-    waitingForClkRelease        = false;
-    prevClkLevel                = true;
-    ackHold                     = false;
-    byteAckHold                 = false;
-    ackDelay                    = 0;
 
     peripheralAssertData(false);
     peripheralAssertClk(false);
@@ -741,18 +692,6 @@ void D1581::resetForMediaChange()
     shiftReg      = 0;
     bitsProcessed = 0;
 
-    waitingForAck               = false;
-    ackEdgeCountdown            = 0;
-    swallowPostHandshakeFalling = false;
-    waitingForClkRelease        = false;
-    prevClkLevel                = true;
-    ackHold                     = false;
-    byteAckHold                 = false;
-    ackDelay                    = 0;
-
-    while (!talkQueue.empty())
-        talkQueue.pop();
-
     currentDriveBusState        = IECDriveBusState::IDLE;
     currentDriveStatus          = DriveStatus::IDLE;
     lastError                   = DriveError::NONE;
@@ -822,19 +761,6 @@ IECDriveSnapshot D1581::snapshotIEC() const
     // Legacy serial receive state
     s.shiftReg = shiftReg;
     s.bitsProcessed = bitsProcessed;
-
-    // Handshake state
-    s.waitingForAck = waitingForAck;
-    s.ackEdgeCountdown = ackEdgeCountdown;
-    s.swallowPostHandshakeFalling = swallowPostHandshakeFalling;
-    s.waitingForClkRelease = waitingForClkRelease;
-    s.prevClkLevel = prevClkLevel;
-    s.ackHold = ackHold;
-    s.byteAckHold = byteAckHold;
-    s.ackDelay = ackDelay;
-
-    // Pending talker data
-    s.talkQueueLen = talkQueue.size();
 
     return s;
 }

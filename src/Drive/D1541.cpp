@@ -1348,20 +1348,7 @@ void D1541::resetForMediaChange()
     shiftReg                    = 0;
     bitsProcessed               = 0;
 
-    // Clear handshake state so next LISTEN/TALK starts fresh
-    waitingForAck               = false;
-    ackEdgeCountdown            = 0;
-    swallowPostHandshakeFalling = false;
-    waitingForClkRelease        = false;
-    prevClkLevel                = true;     // idle CLK high
-    ackHold                     = false;
-    byteAckHold                 = false;
-    ackDelay                    = 0;
-
     status                      = DriveStatus::IDLE;
-
-    // Clear any pending outgoing bytes
-    while (!talkQueue.empty()) talkQueue.pop();
 
     currentDriveBusState = IECDriveBusState::IDLE;
 
@@ -1612,17 +1599,6 @@ IECDriveSnapshot D1541::snapshotIEC() const
     // Legacy shifter (from Peripheral)
     s.shiftReg          = shiftReg;
     s.bitsProcessed     = bitsProcessed;
-
-    // Handshake + talk queue (from Drive)
-    s.waitingForAck     = waitingForAck;
-    s.ackEdgeCountdown  = ackEdgeCountdown;
-    s.swallowPostHandshakeFalling = swallowPostHandshakeFalling;
-    s.waitingForClkRelease = waitingForClkRelease;
-    s.prevClkLevel      = prevClkLevel;
-    s.ackHold           = ackHold;
-    s.byteAckHold       = byteAckHold;
-    s.ackDelay          = ackDelay;
-    s.talkQueueLen      = talkQueue.size();
 
     return s;
 }

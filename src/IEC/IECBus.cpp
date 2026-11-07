@@ -1228,8 +1228,6 @@ void IECBus::debugDumpDevices(const char* tag)
                   << " listening=" << s.listening
                   << " talking=" << s.talking
                   << " busState=" << int(s.busState)
-                  << " waitingForAck=" << s.waitingForAck
-                  << " talkQueueLen=" << s.talkQueueLen
                   << "\n";
     }
 }

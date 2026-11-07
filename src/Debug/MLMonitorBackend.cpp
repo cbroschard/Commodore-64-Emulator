@@ -3619,32 +3619,6 @@ void MLMonitorBackend::dumpDriveState(int id, DriveBusType busType)
                   << " bits=" << s.bitsProcessed
                   << "\n";
 
-        // ----------------------------------------------
-        // IEC handshake
-        // ----------------------------------------------
-        std::cout << "  Handshake: waitingForAck="
-                  << yn(s.waitingForAck)
-                  << " ackEdgeCountdown="
-                  << s.ackEdgeCountdown
-                  << " waitingForClkRelease="
-                  << yn(s.waitingForClkRelease)
-                  << " prevClkLevel="
-                  << yn(s.prevClkLevel)
-                  << "\n";
-
-        std::cout << "            ackHold="
-                  << yn(s.ackHold)
-                  << " byteAckHold="
-                  << yn(s.byteAckHold)
-                  << " ackDelay="
-                  << s.ackDelay
-                  << " swallowFalling="
-                  << yn(s.swallowPostHandshakeFalling)
-                  << "\n";
-
-        std::cout << "  Talk queue: "
-                  << s.talkQueueLen << "\n";
-
         return;
     }
 
