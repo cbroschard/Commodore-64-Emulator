@@ -81,12 +81,6 @@ class Drive : public Peripheral
         virtual DriveModel getDriveModel() const = 0;
         virtual std::string getCurrentDiskPath() const = 0;
 
-        // IEC Bus
-        virtual bool getAtnLineLow() const = 0;
-        virtual bool getClkLineLow() const = 0;
-        virtual bool getDataLineLow() const = 0;
-        virtual bool getSRQAsserted() const = 0;
-
         enum class DriveError { NONE, NO_DISK, BAD_SECTOR, READ_ERROR, WRITE_ERROR } currentDriveError;
         enum class DriveStatus { IDLE, READY, READING, WRITING, SEEKING, ERROR } currentDriveStatus;
 

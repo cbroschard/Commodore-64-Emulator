@@ -9,6 +9,7 @@
 #include "6502/Disassembler.h"
 #include "Drive/FDC177x.h"
 #include "IEC/IECBus.h"
+#include "IEC/IECDevice.h"
 #include "IEC/IECDriveDiagnostics.h"
 #include "MLMonitorBackend.h"
 #include "Peripheral.h"
@@ -3053,19 +3054,24 @@ void MLMonitorBackend::dumpDriveSummary(int id, DriveBusType busType)
     if (resolved.busType == DriveBusType::IEC)
     {
         // IEC serial bus signals.
-        oss << "  IEC Bus:\n";
+        if (const auto* iecDevice = dynamic_cast<const IECDevice*>(drive))
+        {
+            oss << "  IEC Bus:\n";
 
-        oss << "    ATN:       "
-            << (drive->getAtnLineLow() ? "Low" : "High") << "\n";
+            oss << "    ATN:       "
+                << (iecDevice->getAtnLineLow() ? "Low" : "High") << "\n";
 
-        oss << "    CLK:       "
-            << (drive->getClkLineLow() ? "Low" : "High") << "\n";
+            oss << "    CLK:       "
+                << (iecDevice->getClkLineLow() ? "Low" : "High") << "\n";
 
-        oss << "    DATA:      "
-            << (drive->getDataLineLow() ? "Low" : "High") << "\n";
+            oss << "    DATA:      "
+                << (iecDevice->getDataLineLow() ? "Low" : "High") << "\n";
 
-        oss << "    SRQ:       "
-            << (drive->getSRQAsserted() ? "Low" : "High") << "\n";
+            oss << "    SRQ:       "
+                << (iecDevice->getSRQAsserted() ? "Low" : "High") << "\n";
+        }
+        else
+            oss << "  IEC device interface unavailable.\n";
     }
     else if (resolved.busType == DriveBusType::IEEE488)
     {
@@ -3094,9 +3100,7 @@ void MLMonitorBackend::dumpDriveSummary(int id, DriveBusType busType)
                 << hex2(s.dio) << "\n";
         }
         else
-        {
             oss << "  IEEE-488 bus not attached.\n";
-        }
     }
 
     oss << "\n";

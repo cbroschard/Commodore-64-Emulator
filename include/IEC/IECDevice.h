@@ -39,6 +39,12 @@ class IECDevice
         virtual void onUnTalk() = 0;
         virtual void onSecondaryAddress(uint8_t sa) = 0;
 
+        // Getters
+        virtual bool getAtnLineLow() const = 0;
+        virtual bool getClkLineLow() const = 0;
+        virtual bool getDataLineLow() const = 0;
+        virtual bool getSRQAsserted() const = 0;
+
         virtual bool isSRQAsserted() const = 0;
         virtual void setSRQAsserted(bool state) = 0;
 

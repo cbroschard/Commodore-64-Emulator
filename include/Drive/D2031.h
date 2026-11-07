@@ -152,12 +152,6 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
 
         void setSRQAsserted(bool) override {}
 
-        // Drive IEC signal handling
-        inline bool getAtnLineLow() const override { return false; }
-        inline bool getClkLineLow() const override { return false; }
-        inline bool getDataLineLow() const override { return false; }
-        inline bool getSRQAsserted() const override { return false; }
-
     protected:
         bool motorOn;
 
