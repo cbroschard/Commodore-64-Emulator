@@ -1683,7 +1683,7 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
     const bool drivePresent = existingType != UiCommand::DriveType::None;
     const bool canUse1541 = !drivePresent || existingType == UiCommand::DriveType::D1541;
     const bool canUse1571 = !drivePresent || existingType == UiCommand::DriveType::D1571;
-    const bool canUse1581 = drivePresent || existingType == UiCommand::DriveType::D1581;
+    const bool canUse1581 = !drivePresent || existingType == UiCommand::DriveType::D1581;
     const bool canUse2031 = !drivePresent || existingType == UiCommand::DriveType::D2031;
 
     //
