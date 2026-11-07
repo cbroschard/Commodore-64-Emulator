@@ -123,8 +123,6 @@ class Drive : public Peripheral
         virtual const DriveVIABase* getVIA2() const = 0;
         virtual const DriveCIABase* getCIA() const { return nullptr; }
 
-        virtual IECDriveSnapshot snapshotIEC() const;
-
         // ML Monitor Breakpoints
         inline bool hasBreakpoints() const { return !breakpoints.empty(); }
         inline const std::vector<DriveBreakpoint>& getBreakpoints() const { return breakpoints; }
