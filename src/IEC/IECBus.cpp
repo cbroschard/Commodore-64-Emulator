@@ -9,6 +9,7 @@
 #include "Drive/Drive.h"
 #include "IEC/IECBus.h"
 #include "IEC/IECDevice.h"
+#include "IEC/IECDriveDiagnostics.h"
 
 IECBus::IECBus() :
     //Initialize to defaults
@@ -908,7 +909,16 @@ void IECBus::debugDumpDevices(const char* tag)
             continue;
         }
 
-        auto s = drive->snapshotIEC();
+        const auto* diagnostics = dynamic_cast<const IECDriveDiagnostics*>(drive);
+
+        if (!diagnostics)
+        {
+            std::cout << "  dev " << num
+                      << " (IEC diagnostics unavailable)\n";
+            continue;
+        }
+
+        const IECDriveSnapshot s = diagnostics->snapshotIEC();
 
         std::cout << "  dev " << num
                   << " atnLow=" << s.atnLow
