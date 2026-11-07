@@ -225,11 +225,19 @@ void IECBus::reset()
 
     for (auto const& [num, dev] : devices)
     {
-        if (!dev) continue;
-
-        dev->atnChanged(atnLow);
-        dev->clkChanged(clkLow);
-        dev->dataChanged(dataLow);
+        if (IECDevice* iecDevice = findIECDevice(num))
+        {
+            iecDevice->atnChanged(atnLow);
+            iecDevice->clkChanged(clkLow);
+            iecDevice->dataChanged(dataLow);
+        }
+        else if (dev)
+        {
+            // Legacy Peripheral implementation
+            dev->atnChanged(atnLow);
+            dev->clkChanged(clkLow);
+            dev->dataChanged(dataLow);
+        }
     }
 
     for (auto& [dev, acc] : driveCycleAccumulators)
@@ -406,6 +414,77 @@ void IECBus::peripheralControlSrq(Peripheral* device, bool state)
     updateBusState();
 }
 
+void IECBus::peripheralControlClk(IECDevice* device, bool state)
+{
+    if (!device)
+        return;
+
+    auto it = devices.find(device->getIECDeviceNumber());
+
+    if (it == devices.end())
+        return;
+
+    peripheralControlClk(it->second, state);
+}
+
+void IECBus::peripheralControlData(IECDevice* device, bool state)
+{
+    if (!device)
+        return;
+
+    auto it = devices.find(device->getIECDeviceNumber());
+
+    if (it == devices.end())
+        return;
+
+    peripheralControlData(it->second, state);
+}
+
+void IECBus::peripheralControlAtn(IECDevice* device, bool state)
+{
+    if (!device)
+        return;
+
+    auto it = devices.find(device->getIECDeviceNumber());
+
+    if (it == devices.end())
+        return;
+
+    peripheralControlAtn(it->second, state);
+}
+
+void IECBus::peripheralControlSrq(IECDevice* device, bool state)
+{
+    if (!device)
+        return;
+
+    const int deviceNumber = device->getIECDeviceNumber();
+
+    auto it = iecDevices.find(deviceNumber);
+
+    if (it == iecDevices.end() || it->second != device)
+        return;
+
+    // Preserve existing talker arbitration.
+    auto legacyIt = devices.find(deviceNumber);
+
+    if (legacyIt == devices.end())
+        return;
+
+    Peripheral* peripheral = legacyIt->second;
+
+    if (!currentTalker)
+        currentTalker = peripheral;
+
+    if (currentTalker != peripheral)
+        return;
+
+    device->setSRQAsserted(state);
+
+    updateSrqLine();
+    updateBusState();
+}
+
 void IECBus::registerDevice(int deviceNumber, Peripheral* device)
 {
     if (!device) return;
@@ -488,6 +567,11 @@ bool IECBus::registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice*
     // Attach to IECBus.
     iecDevice->attachIECBusInstance(this);
 
+    // Synchronize the IECDevice interface with current bus levels.
+    iecDevice->atnChanged(!busLines.atn);
+    iecDevice->clkChanged(!busLines.clk);
+    iecDevice->dataChanged(!busLines.data);
+
     return true;
 }
 
@@ -504,7 +588,10 @@ void IECBus::listen(int deviceNumber)
 
     currentState = State::LISTEN;
 
-    dev->onListen();
+    if (IECDevice* iecDevice = findIECDevice(deviceNumber))
+        iecDevice->onListen();
+    else
+        dev->onListen();
 }
 
 void IECBus::unListen(int deviceNumber)
@@ -515,7 +602,12 @@ void IECBus::unListen(int deviceNumber)
     currentState = State::UNLISTEN;
 
     for (auto const& [num, dev] : devices)
-        if (dev) dev->onUnListen();
+    {
+        if (IECDevice* iecDevice = findIECDevice(num))
+            iecDevice->onUnListen();
+        else if (dev)
+            dev->onUnListen();
+    }
 
     currentListeners.clear();
 }
@@ -534,7 +626,11 @@ void IECBus::talk(int deviceNumber)
     peripheralDrivesDataLow = false;
 
     recalcAndNotify();
-    currentTalker->onTalk();
+
+    if (IECDevice* iecDevice = findIECDevice(deviceNumber))
+        iecDevice->onTalk();
+    else if (currentTalker)
+        currentTalker->onTalk();
 }
 
 void IECBus::unTalk(int deviceNumber)
@@ -545,7 +641,12 @@ void IECBus::unTalk(int deviceNumber)
     currentState = State::UNTALK;
 
     for (auto const& [num, dev] : devices)
-        if (dev) dev->onUnTalk();
+    {
+        if (IECDevice* iecDevice = findIECDevice(num))
+            iecDevice->onUnTalk();
+        else if (dev)
+            dev->onUnTalk();
+    }
 
     currentTalker = nullptr;
 
@@ -592,6 +693,16 @@ void IECBus::setHostCpuHz(double hz)
 {
     if (hz > 0.0)
         hostCpuHz = hz;
+}
+
+IECDevice* IECBus::findIECDevice(int deviceNumber) const
+{
+    auto it = iecDevices.find(deviceNumber);
+
+    if (it == iecDevices.end())
+        return nullptr;
+
+    return it->second;
 }
 
 void IECBus::updateBusState()
@@ -666,18 +777,29 @@ IECBus::PhysicalSnapshot IECBus::snapshotPhysical() const
 void IECBus::updateSrqLine()
 {
     bool srqAsserted = false;
-    for (const auto& pair : devices)
+
+    for (const auto& [num, dev] : devices)
     {
-        Peripheral* device = pair.second;
-        if (device && device->isSRQAsserted())
+        if (IECDevice* iecDevice = findIECDevice(num))
         {
+            if (iecDevice->isSRQAsserted())
+            {
+                srqAsserted = true;
+                break;
+            }
+        }
+        else if (dev && dev->isSRQAsserted())
+        {
+            // Legacy Peripheral implementation
             srqAsserted = true;
             break;
         }
     }
+
     line_srqin = !srqAsserted;
-    // Update the CIA2
-    if(cia2) cia2->srqChanged(line_srqin);
+
+    if (cia2)
+        cia2->srqChanged(line_srqin);
 }
 
 void IECBus::secondaryAddress(uint8_t devNum, uint8_t sa)
@@ -689,7 +811,10 @@ void IECBus::secondaryAddress(uint8_t devNum, uint8_t sa)
     if (it == devices.end())
         return;
 
-   it->second->onSecondaryAddress(sa);
+   if (IECDevice* iecDevice = findIECDevice(devNum))
+        iecDevice->onSecondaryAddress(sa);
+    else
+        it->second->onSecondaryAddress(sa);
 }
 
 Peripheral* IECBus::getDevice(int id) const
@@ -784,7 +909,12 @@ void IECBus::recalcAndNotify()
             cia2->atnChanged(atnLow);
 
         for (auto const& [num, dev] : devices)
-            if (dev) dev->atnChanged(atnLow);
+        {
+            if (IECDevice* iecDevice = findIECDevice(num))
+                iecDevice->atnChanged(atnLow);
+            else if (dev)
+                dev->atnChanged(atnLow);
+        }
     }
 
     if (busLines.clk != oldClk)
@@ -795,7 +925,12 @@ void IECBus::recalcAndNotify()
             cia2->clkChanged(clkLow);
 
         for (auto const& [num, dev] : devices)
-            if (dev) dev->clkChanged(clkLow);
+        {
+            if (IECDevice* iecDevice = findIECDevice(num))
+                iecDevice->clkChanged(clkLow);
+            else if (dev)
+                dev->clkChanged(clkLow);
+        }
     }
 
     if (busLines.data != oldData)
@@ -806,7 +941,12 @@ void IECBus::recalcAndNotify()
             cia2->dataChanged(dataLow);
 
         for (auto const& [num, dev] : devices)
-            if (dev) dev->dataChanged(dataLow);
+        {
+            if (IECDevice* iecDevice = findIECDevice(num))
+                iecDevice->dataChanged(dataLow);
+            else if (dev)
+                dev->dataChanged(dataLow);
+        }
     }
 }
 

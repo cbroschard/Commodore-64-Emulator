@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "IEC/IECBus.h"
 #include "IEC/IECDevice.h"
 
 IECDevice::IECDevice() :
@@ -37,4 +38,48 @@ void IECDevice::detachIECBusInstance()
 uint8_t IECDevice::nextOutputByte()
 {
     return 0xFF;
+}
+
+void IECDevice::peripheralAssertClk(bool state)
+{
+    if (assertClk == state)
+        return;
+
+    assertClk = state;
+
+    if (iecBus)
+        iecBus->peripheralControlClk(this, state);
+}
+
+void IECDevice::peripheralAssertData(bool state)
+{
+    if (assertData == state)
+        return;
+
+    assertData = state;
+
+    if (iecBus)
+        iecBus->peripheralControlData(this, state);
+}
+
+void IECDevice::peripheralAssertAtn(bool state)
+{
+    if (assertAtn == state)
+        return;
+
+    assertAtn = state;
+
+    if (iecBus)
+        iecBus->peripheralControlAtn(this, state);
+}
+
+void IECDevice::peripheralAssertSrq(bool state)
+{
+    if (assertSrq == state)
+        return;
+
+    assertSrq = state;
+
+    if (iecBus)
+        iecBus->peripheralControlSrq(this, state);
 }

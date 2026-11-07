@@ -120,6 +120,10 @@ class IECBus
         void peripheralControlData(Peripheral* device, bool state);
         void peripheralControlAtn(Peripheral* device, bool state);
         void peripheralControlSrq(Peripheral* device, bool state);
+        void peripheralControlClk(IECDevice* device, bool state);
+        void peripheralControlData(IECDevice* device, bool state);
+        void peripheralControlAtn(IECDevice* device, bool state);
+        void peripheralControlSrq(IECDevice* device, bool state);
 
         // Device registration
         void registerDevice(int deviceNumber, Peripheral* device);
@@ -212,6 +216,7 @@ class IECBus
         size_t traceCount;
 
         // Helper Methods
+        IECDevice* findIECDevice(int deviceNumber) const;
         void updateBusState();
         void updateSrqLine();  // Polls peripherals for SRQ status
         void recalcAndNotify();
