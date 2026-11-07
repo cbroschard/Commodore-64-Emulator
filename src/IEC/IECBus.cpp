@@ -310,6 +310,20 @@ void IECBus::reset()
     iecDrivesDataLow.clear();
     iecDrivesAtnLow.clear();
 
+    // All device electrical contributions have been released.
+    // Synchronize IECDevice assertion flags.
+    for (const auto& [num, registration] : registeredDevices)
+    {
+        IECDevice* device = registration.iecDevice;
+
+        if (!device)
+            continue;
+
+        device->assertClk = false;
+        device->assertData = false;
+        device->assertAtn = false;
+    }
+
     // Recompute resolved line levels (should become HIGH/HIGH/HIGH)
     updateBusState();
 
@@ -651,10 +665,17 @@ void IECBus::unregisterDevice(int deviceNumber)
     // Clean up IECDevice.
     if (iecDevice)
     {
+        // Remove all electrical contributions from this device.
         iecDrivesClkLow.erase(iecDevice);
         iecDrivesDataLow.erase(iecDevice);
         iecDrivesAtnLow.erase(iecDevice);
 
+        // Reset the device's local electrical assertion state.
+        iecDevice->assertClk = false;
+        iecDevice->assertData = false;
+        iecDevice->assertAtn = false;
+
+        // Clear its connection to the IEC bus.
         iecDevice->detachIECBusInstance();
         iecDevice->iecDeviceNumber = -1;
     }
