@@ -503,6 +503,9 @@ void IECBus::unregisterDevice(int deviceNumber)
     // Clean up legacy Peripheral state.
     if (peripheral)
     {
+         // Clear the legacy connection without unregistering again.
+        peripheral->clearIECBusInstance(this);
+
         devDrivesClkLow.erase(peripheral);
         devDrivesDataLow.erase(peripheral);
         devDrivesAtnLow.erase(peripheral);

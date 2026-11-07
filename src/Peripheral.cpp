@@ -32,11 +32,18 @@ void Peripheral::attachIECBusInstance(IECBus* iecBus)
 
 void Peripheral::detachIECBusInstance()
 {
-    if (iecBus)
-    {
-        iecBus->unregisterDevice(deviceNumber);
+    IECBus* bus = iecBus;
+
+    if (!bus)
+        return;
+
+    bus->unregisterDevice(deviceNumber);
+}
+
+void Peripheral::clearIECBusInstance(IECBus* bus)
+{
+    if (iecBus == bus)
         iecBus = nullptr;
-    }
 }
 
 void Peripheral::peripheralAssertClk(bool state)

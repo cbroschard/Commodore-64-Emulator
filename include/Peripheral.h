@@ -36,6 +36,8 @@ class Peripheral
         // reset function
         virtual void reset() = 0;
 
+        void clearIECBusInstance(IECBus* bus);
+
         // Getters
         int getDeviceNumber() const { return deviceNumber; }
         virtual bool isSRQAsserted() const = 0;
