@@ -17,6 +17,7 @@ Drive::Drive() :
     currentSecondaryAddress(-1),
     waitingForAck(false),
     ackEdgeCountdown(0),
+    swallowPostHandshakeFalling(false),
     waitingForClkRelease(false),
     prevClkLevel(true),
     ackHold(false),
