@@ -1109,9 +1109,9 @@ void D1571::setDiskWriteGate(bool enabled)
     }
 }
 
-Drive::IECSnapshot D1571::snapshotIEC() const
+IECDriveSnapshot D1571::snapshotIEC() const
 {
-    Drive::IECSnapshot s{};
+    IECDriveSnapshot s{};
 
     s.atnLow  = getAtnLineLow();
     s.clkLow  = getClkLineLow();
@@ -1678,7 +1678,7 @@ void D1571::resetForMediaChange()
     while (!talkQueue.empty())
         talkQueue.pop();
 
-    currentDriveBusState = DriveBusState::IDLE;
+    currentDriveBusState = IECDriveBusState::IDLE;
 
     // --- 1571 transient clears ---
     d1571mem.getVIA2().clearMechBytePending();

@@ -253,7 +253,7 @@ void D1581::reset()
     while (!talkQueue.empty())
         talkQueue.pop();
 
-    currentDriveBusState = DriveBusState::IDLE;
+    currentDriveBusState = IECDriveBusState::IDLE;
 
     // UI activity
     uiTrack       = currentTrack;
@@ -409,7 +409,7 @@ void D1581::onUnListen()
     peripheralAssertClk(false);
     peripheralAssertSrq(false);
 
-    currentDriveBusState = DriveBusState::IDLE;
+    currentDriveBusState = IECDriveBusState::IDLE;
     currentDriveStatus   = DriveStatus::IDLE;
     activityLedOn        = false;
 }
@@ -458,7 +458,7 @@ void D1581::onUnTalk()
     peripheralAssertClk(false);
     peripheralAssertSrq(false);
 
-    currentDriveBusState = DriveBusState::IDLE;
+    currentDriveBusState = IECDriveBusState::IDLE;
     currentDriveStatus   = DriveStatus::IDLE;
     activityLedOn        = false;
 }
@@ -753,7 +753,7 @@ void D1581::resetForMediaChange()
     while (!talkQueue.empty())
         talkQueue.pop();
 
-    currentDriveBusState        = DriveBusState::IDLE;
+    currentDriveBusState        = IECDriveBusState::IDLE;
     currentDriveStatus          = DriveStatus::IDLE;
     lastError                   = DriveError::NONE;
 

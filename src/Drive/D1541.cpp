@@ -1363,7 +1363,7 @@ void D1541::resetForMediaChange()
     // Clear any pending outgoing bytes
     while (!talkQueue.empty()) talkQueue.pop();
 
-    currentDriveBusState = DriveBusState::IDLE;
+    currentDriveBusState = IECDriveBusState::IDLE;
 
     // --- VIA transient clears ---
     d1541mem.getVIA1().clearIECTransientState();
@@ -1588,9 +1588,9 @@ const CBMImage* D1541::getCBMImage() const
     return dynamic_cast<const CBMImage*>(diskImage.get());
 }
 
-Drive::IECSnapshot D1541::snapshotIEC() const
+IECDriveSnapshot D1541::snapshotIEC() const
 {
-    Drive::IECSnapshot s{};
+    IECDriveSnapshot s{};
 
     s.atnLow            = getAtnLineLow();
     s.clkLow            = getClkLineLow();

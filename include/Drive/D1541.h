@@ -145,7 +145,7 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         inline const D1541VIA* getVIA2() const override { return &d1541mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
         const char* getDriveTypeName() const noexcept override { return "1541"; }
-        IECSnapshot snapshotIEC() const override;
+        IECDriveSnapshot snapshotIEC() const override;
 
     protected:
         bool motorOn;

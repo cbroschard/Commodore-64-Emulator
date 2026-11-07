@@ -145,7 +145,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         inline const D1571VIA* getVIA2() const override { return &d1571mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
         inline const char* getDriveTypeName() const noexcept override { return "1571"; }
-        IECSnapshot snapshotIEC() const override;
+        IECDriveSnapshot snapshotIEC() const override;
 
     protected:
         bool motorOn;

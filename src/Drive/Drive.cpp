@@ -12,7 +12,7 @@
 Drive::Drive() :
     currentDriveError(DriveError::NONE),
     currentDriveStatus(DriveStatus::IDLE),
-    currentDriveBusState(DriveBusState::IDLE),
+    currentDriveBusState(IECDriveBusState::IDLE),
     diskImage(),
     currentSecondaryAddress(-1),
     waitingForAck(false),
@@ -89,9 +89,9 @@ bool Drive::insert(const std::string &path)
     return true;
 }
 
-Drive::IECSnapshot Drive::snapshotIEC() const
+IECDriveSnapshot Drive::snapshotIEC() const
 {
-    IECSnapshot s{};
+    IECDriveSnapshot s{};
 
     s.atnLow  = getAtnLineLow();
     s.clkLow  = getClkLineLow();

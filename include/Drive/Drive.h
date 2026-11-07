@@ -8,9 +8,6 @@
 #ifndef DRIVE_H
 #define DRIVE_H
 
-// Forward declarations
-class FDC177x;
-
 #include <queue>
 #include <memory>
 #include <vector>
@@ -18,7 +15,10 @@ class FDC177x;
 #include "cpu.h"
 #include "Drive/DriveChips.h"
 #include "Floppy/DiskFactory.h"
+#include "IEC/IECSnapshot.h"
 #include "Peripheral.h"
+
+class FDC177x;
 
 class Drive : public Peripheral
 {
@@ -91,7 +91,7 @@ class Drive : public Peripheral
 
         enum class DriveError { NONE, NO_DISK, BAD_SECTOR, READ_ERROR, WRITE_ERROR } currentDriveError;
         enum class DriveStatus { IDLE, READY, READING, WRITING, SEEKING, ERROR } currentDriveStatus;
-        enum class DriveBusState { IDLE, AWAITING_COMMAND, TALKING, LISTENING } currentDriveBusState;
+        IECDriveBusState currentDriveBusState;
 
         // Timing simulation.
         virtual void tick(uint32_t cycles) = 0; // Called each emulation cycle
@@ -123,43 +123,7 @@ class Drive : public Peripheral
         virtual const DriveVIABase* getVIA2() const = 0;
         virtual const DriveCIABase* getCIA() const { return nullptr; }
 
-        struct IECSnapshot
-        {
-            // Observed bus levels (as seen by the drive)
-            bool atnLow;
-            bool clkLow;
-            bool dataLow;
-            bool srqLow;
-
-            // What the drive is actively pulling low (from Peripheral::assert*)
-            bool drvAssertAtn;
-            bool drvAssertClk;
-            bool drvAssertData;
-            bool drvAssertSrq;
-
-            // Protocol mode
-            DriveBusState busState;
-            bool listening;
-            bool talking;
-            int secondaryAddress;
-
-            // Legacy bit shift state (from Peripheral)
-            uint8_t shiftReg;
-            int bitsProcessed;
-
-            // Handshake / talker state (from Drive)
-            bool waitingForAck;
-            int  ackEdgeCountdown;
-            bool swallowPostHandshakeFalling;
-            bool waitingForClkRelease;
-            bool prevClkLevel;
-            bool ackHold;
-            bool byteAckHold;
-            int  ackDelay;
-            size_t talkQueueLen;
-        };
-
-        virtual IECSnapshot snapshotIEC() const;
+        virtual IECDriveSnapshot snapshotIEC() const;
 
         // ML Monitor Breakpoints
         inline bool hasBreakpoints() const { return !breakpoints.empty(); }

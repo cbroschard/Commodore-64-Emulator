@@ -3532,22 +3532,22 @@ void MLMonitorBackend::dumpDriveState(int id, DriveBusType busType)
     // ==================================================
     if (resolved.busType == DriveBusType::IEC)
     {
-        const Drive::IECSnapshot s = drive->snapshotIEC();
+        const IECDriveSnapshot s = drive->snapshotIEC();
 
-        auto busStateToStr = [](Drive::DriveBusState st)
+        auto busStateToStr = [](IECDriveBusState st)
         {
             switch (st)
             {
-                case Drive::DriveBusState::IDLE:
+                case IECDriveBusState::IDLE:
                     return "IDLE";
 
-                case Drive::DriveBusState::AWAITING_COMMAND:
+                case IECDriveBusState::AWAITING_COMMAND:
                     return "AWAITING_COMMAND";
 
-                case Drive::DriveBusState::LISTENING:
+                case IECDriveBusState::LISTENING:
                     return "LISTENING";
 
-                case Drive::DriveBusState::TALKING:
+                case IECDriveBusState::TALKING:
                     return "TALKING";
 
                 default:
