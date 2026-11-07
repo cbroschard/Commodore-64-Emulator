@@ -227,6 +227,7 @@ class IECBus
         IECDevice* findIECDevice(int deviceNumber) const;
         Peripheral* findRegisteredPeripheral(const IECDevice* device) const;
         RegisteredDevice* findRegisteredDevice(int deviceNumber);
+        int findDeviceNumber(const Peripheral* peripheral) const;
         const RegisteredDevice* findRegisteredDevice(int deviceNumber) const;
         void updateBusState();
         void updateSrqLine();  // Polls peripherals for SRQ status
