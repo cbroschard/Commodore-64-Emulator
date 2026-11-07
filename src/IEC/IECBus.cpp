@@ -34,13 +34,6 @@ IECBus::IECBus() :
 
 IECBus::~IECBus() = default;
 
-static int deviceNumberOf(const Peripheral* p, const std::map<int, Peripheral*>& devices)
-{
-    for (const auto& [num, dev] : devices)
-        if (dev == p) return num;
-    return -1;
-}
-
 void IECBus::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("IEC0");
@@ -463,15 +456,16 @@ void IECBus::registerDevice(int deviceNumber, Peripheral* device)
     if (!device)
         return;
 
-    if (devices.find(deviceNumber) != devices.end())
+    if (findRegisteredDevice(deviceNumber))
         return;
 
     device->setDeviceNumber(deviceNumber);
 
-    devices[deviceNumber] = device;
-
-    // Track legacy devices in the unified registry.
+    // Authoritative registration.
     registeredDevices[deviceNumber] = { device, nullptr };
+
+    // Temporary compatibility map.
+    devices[deviceNumber] = device;
 
     device->attachIECBusInstance(this);
     driveCycleAccumulators[device] = 0.0;
@@ -485,50 +479,42 @@ void IECBus::registerDevice(int deviceNumber, Peripheral* device)
 
 void IECBus::unregisterDevice(int deviceNumber)
 {
-    // Find the unified registration.
-    auto registration = registeredDevices.find(deviceNumber);
+    auto it = registeredDevices.find(deviceNumber);
 
-    if (registration != registeredDevices.end())
-    {
-        IECDevice* iecDevice = registration->second.iecDevice;
-
-        if (iecDevice)
-        {
-            // Clear the IECDevice connection.
-            iecDevice->detachIECBusInstance();
-            iecDevice->iecDeviceNumber = -1;
-        }
-
-        registeredDevices.erase(registration);
-    }
-
-    // Legacy Peripheral cleanup.
-    auto it = devices.find(deviceNumber);
-
-    if (it == devices.end())
+    if (it == registeredDevices.end())
         return;
 
-    Peripheral* device = it->second;
+    Peripheral* peripheral = it->second.peripheral;
+    IECDevice* iecDevice = it->second.iecDevice;
 
-    // Remove the device's electrical contributions.
-    devDrivesClkLow.erase(device);
-    devDrivesDataLow.erase(device);
-    devDrivesAtnLow.erase(device);
+    // Remove the registration first.
+    registeredDevices.erase(it);
 
-    // Remove drive timing information.
-    driveCycleAccumulators.erase(device);
+    // Temporary compatibility map.
+    devices.erase(deviceNumber);
 
-    // Clear active talker if necessary.
-    if (currentTalker == device)
-        currentTalker = nullptr;
+    // Clean up IECDevice.
+    if (iecDevice)
+    {
+        iecDevice->detachIECBusInstance();
+        iecDevice->iecDeviceNumber = -1;
+    }
 
-    // Remove from active listeners.
-    currentListeners.erase(std::remove(currentListeners.begin(), currentListeners.end(), device), currentListeners.end());
+    // Clean up legacy Peripheral state.
+    if (peripheral)
+    {
+        devDrivesClkLow.erase(peripheral);
+        devDrivesDataLow.erase(peripheral);
+        devDrivesAtnLow.erase(peripheral);
 
-    // Remove legacy registration.
-    devices.erase(it);
+        driveCycleAccumulators.erase(peripheral);
 
-    // Recalculate bus signals after removal.
+        if (currentTalker == peripheral)
+            currentTalker = nullptr;
+
+        currentListeners.erase(std::remove(currentListeners.begin(), currentListeners.end(), peripheral), currentListeners.end());
+    }
+
     recalcAndNotify();
 }
 
@@ -537,37 +523,24 @@ bool IECBus::registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice*
     if (!peripheral || !iecDevice)
         return false;
 
-    // Reject duplicate device numbers.
-    if (devices.find(deviceNumber) != devices.end())
+    if (findRegisteredDevice(deviceNumber))
         return false;
 
-    // Preserve existing registration behavior.
+    // Register using the existing legacy path.
     registerDevice(deviceNumber, peripheral);
 
-    // Verify legacy registration succeeded.
-    auto it = devices.find(deviceNumber);
+    RegisteredDevice* registration = findRegisteredDevice(deviceNumber);
 
-    if (it == devices.end() || it->second != peripheral)
+    if (!registration || registration->peripheral != peripheral)
         return false;
 
-    // Assign IEC address.
-    iecDevice->iecDeviceNumber = deviceNumber;
+    // Attach the IEC-specific interface.
+    registration->iecDevice = iecDevice;
 
-    // Attach to IECBus.
+    iecDevice->iecDeviceNumber = deviceNumber;
     iecDevice->attachIECBusInstance(this);
 
-    auto registration = registeredDevices.find(deviceNumber);
-
-    if (registration == registeredDevices.end())
-        return false;
-
-    registration->second.iecDevice = iecDevice;
-
-    // Synchronize the IECDevice interface with current bus levels.
-    iecDevice->atnChanged(!busLines.atn);
-    iecDevice->clkChanged(!busLines.clk);
-    iecDevice->dataChanged(!busLines.data);
-
+    // Do not dispatch initial callbacks a second time.
     return true;
 }
 
@@ -836,9 +809,7 @@ IECBus::PhysicalSnapshot IECBus::snapshotPhysical() const
 
     // Existing software protocol state.
     s.legacyState = currentState;
-    s.legacyTalkerDevice = currentTalker
-        ? deviceNumberOf(currentTalker, devices)
-        : -1;
+    s.legacyTalkerDevice = currentTalker ? findDeviceNumber(currentTalker) : -1;
     s.legacyListenerCount = static_cast<int>(currentListeners.size());
 
     return s;
