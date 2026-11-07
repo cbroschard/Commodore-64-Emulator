@@ -122,36 +122,6 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         inline DriveStatus getDriveStatus() const override { return status; }
         inline const char* getDriveTypeName() const noexcept override { return "2031"; }
 
-        // =========================================================
-        // Temporary IEC Compatibility
-        //
-        // D2031 uses IEEE-488, not serial IEC.
-        //
-        // These overrides are required because Drive currently
-        // inherits from Peripheral.
-        //
-        // TODO: Refactor Drive/Peripheral inheritance later.
-        // =========================================================
-
-        // Legacy Peripheral IEC callbacks.
-        // D2031 communicates through IEEE-488, not IEC.
-        void atnChanged(bool) override {}
-        void clkChanged(bool) override {}
-        void dataChanged(bool) override {}
-
-        void onListen() override {}
-        void onUnListen() override {}
-
-        void onTalk() override {}
-        void onUnTalk() override {}
-
-        void onSecondaryAddress(uint8_t) override {}
-
-        // Peripheral SRQ handling
-        bool isSRQAsserted() const override { return false; }
-
-        void setSRQAsserted(bool) override {}
-
     protected:
         bool motorOn;
 

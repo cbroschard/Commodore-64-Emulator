@@ -895,18 +895,9 @@ void IECBus::updateSrqLine()
 
     for (const auto& [num, registration] : registeredDevices)
     {
-        if (IECDevice* iecDevice = registration.iecDevice)
+        if (IECDevice* device = registration.iecDevice)
         {
-            if (iecDevice->isSRQAsserted())
-            {
-                srqAsserted = true;
-                break;
-            }
-        }
-        else if (Peripheral* peripheral = registration.peripheral)
-        {
-            // Legacy Peripheral implementation
-            if (peripheral->isSRQAsserted())
+            if (device->isSRQAsserted())
             {
                 srqAsserted = true;
                 break;
@@ -914,6 +905,7 @@ void IECBus::updateSrqLine()
         }
     }
 
+    // SRQ is active-low.
     line_srqin = !srqAsserted;
 
     // Preserve existing CIA2 notification behavior.

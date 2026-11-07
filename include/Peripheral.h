@@ -22,28 +22,14 @@ class Peripheral
         Peripheral();
         virtual ~Peripheral();
 
-        // Signal handlers
-        virtual void atnChanged(bool atnAsserted) = 0;
-        virtual void clkChanged(bool clkState)  = 0;
-        virtual void dataChanged(bool dataState) = 0;
-
         // reset function
         virtual void reset() = 0;
 
         // Getters
         int getDeviceNumber() const { return deviceNumber; }
-        virtual bool isSRQAsserted() const = 0;
 
         // Helper methods for derived classes to control bus lines
         inline void setDeviceNumber(int num) { deviceNumber = num; }
-        virtual void setSRQAsserted(bool state) = 0;
-
-        // IEC BUS commands
-        virtual void onListen() = 0;
-        virtual void onUnListen() = 0;
-        virtual void onTalk() = 0;
-        virtual void onUnTalk() = 0;
-        virtual void onSecondaryAddress(uint8_t sa) = 0;
 
         // ML Monitor
         virtual bool isDrive() const { return false; }
