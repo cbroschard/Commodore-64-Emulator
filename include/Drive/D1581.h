@@ -19,11 +19,12 @@
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "IEC/IECBus.h"
+#include "IEC/IECDriveDiagnostics.h"
 #include "IRQLine.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
-class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
+class D1581 : public Drive, public IECDriveDiagnostics, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1581(int deviceNumber, const std::string& romNAME);
@@ -120,10 +121,7 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
         // Helpers
         uint16_t mapFdcTrackToD81Track(uint8_t fdcTrack) const;
-        bool mapFdcSectorToD81Sectors(uint8_t side,
-                              uint8_t fdcSector,
-                              uint8_t& logicalSector0,
-                              uint8_t& logicalSector1) const;
+        bool mapFdcSectorToD81Sectors(uint8_t side, uint8_t fdcSector, uint8_t& logicalSector0, uint8_t& logicalSector1) const;
 
         // Drive Mechanics
         inline void startMotor() override { motorOn = true; }

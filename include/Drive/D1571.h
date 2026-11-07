@@ -24,12 +24,13 @@
 #include "Floppy/G64.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
-#include "IECBus.h"
+#include "IEC/IECBus.h"
+#include "IEC/IECDriveDiagnostics.h"
 #include "IRQLine.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
-class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
+class D1571 : public Drive, public IECDriveDiagnostics, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1571(int deviceNumber, const std::string& romName);

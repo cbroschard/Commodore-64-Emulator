@@ -22,9 +22,10 @@
 #include "Drive/D1541VIA.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
+#include "IEC/IECDriveDiagnostics.h"
 #include "IRQLine.h"
 
-class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
+class D1541 : public Drive, public IECDriveDiagnostics, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom);
