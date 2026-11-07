@@ -883,6 +883,7 @@ IECBus::PhysicalSnapshot IECBus::snapshotPhysical() const
     s.peripheralClkLow  = peripheralDrivesClkLow;
     s.peripheralDataLow = peripheralDrivesDataLow;
 
+    // Legacy Peripheral contributions.
     for (const auto& [dev, low] : devDrivesAtnLow)
     {
         if (dev && low)
@@ -896,6 +897,25 @@ IECBus::PhysicalSnapshot IECBus::snapshotPhysical() const
     }
 
     for (const auto& [dev, low] : devDrivesDataLow)
+    {
+        if (dev && low)
+            ++s.peripheralDataPullers;
+    }
+
+    // New IECDevice contributions.
+    for (const auto& [dev, low] : iecDrivesAtnLow)
+    {
+        if (dev && low)
+            ++s.peripheralAtnPullers;
+    }
+
+    for (const auto& [dev, low] : iecDrivesClkLow)
+    {
+        if (dev && low)
+            ++s.peripheralClkPullers;
+    }
+
+    for (const auto& [dev, low] : iecDrivesDataLow)
     {
         if (dev && low)
             ++s.peripheralDataPullers;
