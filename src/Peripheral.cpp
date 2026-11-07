@@ -10,15 +10,7 @@
 
 Peripheral::Peripheral() :
     iecBus(nullptr),
-    deviceNumber(-1),
-    assertClk(false),
-    assertData(false),
-    assertAtn(false),
-    assertSrq(false),
-    listening(false),
-    talking(false),
-    shiftReg(0),
-    bitsProcessed(0)
+    deviceNumber(-1)
 {
 
 }
@@ -44,9 +36,4 @@ void Peripheral::clearIECBusInstance(IECBus* bus)
 {
     if (iecBus == bus)
         iecBus = nullptr;
-}
-
-uint8_t Peripheral::nextOutputByte()
-{
-    return 0xFF; // Overriden by derived device
 }

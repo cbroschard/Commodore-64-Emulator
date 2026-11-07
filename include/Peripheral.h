@@ -64,22 +64,6 @@ class Peripheral
 
     protected:
         int deviceNumber;
-
-        // Assert status
-        bool assertClk;
-        bool assertData;
-        bool assertAtn;
-        bool assertSrq;
-
-        bool listening;
-        bool talking;
-        uint8_t shiftReg;
-        int bitsProcessed;
-
-        virtual uint8_t nextOutputByte();
-
-    private:
-
 };
 
 #endif // IECPERIPHERAL_H
