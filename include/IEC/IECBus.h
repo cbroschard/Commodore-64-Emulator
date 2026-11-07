@@ -178,6 +178,12 @@ class IECBus
         CIA2* cia2;
         Peripheral* currentTalker;
 
+        struct RegisteredDevice
+        {
+            Peripheral* peripheral = nullptr;
+            IECDevice* iecDevice = nullptr;
+        };
+
         // Clock
         double hostCpuHz;
         std::map<Peripheral*, double> driveCycleAccumulators;
@@ -207,6 +213,7 @@ class IECBus
         // Peripheral Tracking
         std::map<int, Peripheral*> devices;
         std::map<int, IECDevice*> iecDevices;
+        std::map<int, RegisteredDevice> registeredDevices;
         std::vector<Peripheral*> currentListeners;
 
         // Logging
@@ -217,6 +224,9 @@ class IECBus
 
         // Helper Methods
         IECDevice* findIECDevice(int deviceNumber) const;
+        Peripheral* findRegisteredPeripheral(const IECDevice* device) const;
+        RegisteredDevice* findRegisteredDevice(int deviceNumber);
+        const RegisteredDevice* findRegisteredDevice(int deviceNumber) const;
         void updateBusState();
         void updateSrqLine();  // Polls peripherals for SRQ status
         void recalcAndNotify();

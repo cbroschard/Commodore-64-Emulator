@@ -416,41 +416,32 @@ void IECBus::peripheralControlSrq(Peripheral* device, bool state)
 
 void IECBus::peripheralControlClk(IECDevice* device, bool state)
 {
-    if (!device)
+    Peripheral* peripheral = findRegisteredPeripheral(device);
+
+    if (!peripheral)
         return;
 
-    auto it = devices.find(device->getIECDeviceNumber());
-
-    if (it == devices.end())
-        return;
-
-    peripheralControlClk(it->second, state);
+    peripheralControlClk(peripheral, state);
 }
 
 void IECBus::peripheralControlData(IECDevice* device, bool state)
 {
-    if (!device)
+    Peripheral* peripheral = findRegisteredPeripheral(device);
+
+    if (!peripheral)
         return;
 
-    auto it = devices.find(device->getIECDeviceNumber());
-
-    if (it == devices.end())
-        return;
-
-    peripheralControlData(it->second, state);
+    peripheralControlData(peripheral, state);
 }
 
 void IECBus::peripheralControlAtn(IECDevice* device, bool state)
 {
-    if (!device)
+    Peripheral* peripheral = findRegisteredPeripheral(device);
+
+    if (!peripheral)
         return;
 
-    auto it = devices.find(device->getIECDeviceNumber());
-
-    if (it == devices.end())
-        return;
-
-    peripheralControlAtn(it->second, state);
+    peripheralControlAtn(peripheral, state);
 }
 
 void IECBus::peripheralControlSrq(IECDevice* device, bool state)
@@ -536,6 +527,7 @@ void IECBus::unregisterDevice(int deviceNumber)
     currentListeners.erase(std::remove(currentListeners.begin(), currentListeners.end(), device), currentListeners.end());
 
     devices.erase(it);
+    registeredDevices.erase(deviceNumber);
 
     recalcAndNotify();
 }
@@ -566,6 +558,8 @@ bool IECBus::registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice*
 
     // Attach to IECBus.
     iecDevice->attachIECBusInstance(this);
+
+    registeredDevices[deviceNumber] = { peripheral, iecDevice };
 
     // Synchronize the IECDevice interface with current bus levels.
     iecDevice->atnChanged(!busLines.atn);
@@ -697,12 +691,50 @@ void IECBus::setHostCpuHz(double hz)
 
 IECDevice* IECBus::findIECDevice(int deviceNumber) const
 {
-    auto it = iecDevices.find(deviceNumber);
+    const RegisteredDevice* registration =
+        findRegisteredDevice(deviceNumber);
 
-    if (it == iecDevices.end())
+    if (!registration)
         return nullptr;
 
-    return it->second;
+    return registration->iecDevice;
+}
+
+Peripheral* IECBus::findRegisteredPeripheral(const IECDevice* device) const
+{
+    if (!device)
+        return nullptr;
+
+    const RegisteredDevice* registration =
+        findRegisteredDevice(device->getIECDeviceNumber());
+
+    if (!registration)
+        return nullptr;
+
+    if (registration->iecDevice != device)
+        return nullptr;
+
+    return registration->peripheral;
+}
+
+IECBus::RegisteredDevice* IECBus::findRegisteredDevice(int deviceNumber)
+{
+    auto it = registeredDevices.find(deviceNumber);
+
+    if (it == registeredDevices.end())
+        return nullptr;
+
+    return &it->second;
+}
+
+const IECBus::RegisteredDevice* IECBus::findRegisteredDevice(int deviceNumber) const
+{
+    auto it = registeredDevices.find(deviceNumber);
+
+    if (it == registeredDevices.end())
+        return nullptr;
+
+    return &it->second;
 }
 
 void IECBus::updateBusState()
