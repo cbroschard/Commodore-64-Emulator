@@ -1133,7 +1133,7 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
     else
     {
         // Register IEC drives using the appropriate interface.
-        if (model == DriveModel::D1541  || model == DriveModel::D1571)
+        if (model == DriveModel::D1541  || model == DriveModel::D1571 || model == DriveModel::D1581)
         {
             Drive* drive = slot.get();
 

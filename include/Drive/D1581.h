@@ -19,16 +19,23 @@
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "IEC/IECBus.h"
+#include "IEC/IECDevice.h"
 #include "IEC/IECDriveDiagnostics.h"
 #include "IRQLine.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
-class D1581 : public Drive, public IECDriveDiagnostics, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
+class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1581(int deviceNumber, const std::string& romNAME);
         virtual ~D1581();
+
+        using IECDevice::iecBus;
+        using IECDevice::peripheralAssertClk;
+        using IECDevice::peripheralAssertData;
+        using IECDevice::peripheralAssertAtn;
+        using IECDevice::peripheralAssertSrq;
 
         inline const CPUBus* getDriveBus() const override { return &d1581Bus; }
         inline CPUBus* getDriveBus() override { return &d1581Bus; }
@@ -153,6 +160,18 @@ class D1581 : public Drive, public IECDriveDiagnostics, public FloppyControllerH
 
     protected:
         bool motorOn;
+
+        using IECDevice::assertClk;
+        using IECDevice::assertData;
+        using IECDevice::assertAtn;
+        using IECDevice::assertSrq;
+
+        // IEC protocol state now belongs to IECDevice.
+        using IECDevice::listening;
+        using IECDevice::talking;
+        using IECDevice::shiftReg;
+        using IECDevice::bitsProcessed;
+        using IECDevice::currentDriveBusState;
 
     private:
         // CHIPS
