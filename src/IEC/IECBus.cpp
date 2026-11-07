@@ -18,6 +18,7 @@ IECBus::IECBus() :
     currentTalker(nullptr),
     hostCpuHz(1022727.0),
     line_srqin(true),
+    c64DrivesSrqLow(false),
     c64DrivesAtnLow(false),
     c64DrivesClkLow(false),
     c64DrivesDataLow(false),
@@ -277,7 +278,10 @@ void IECBus::reset()
     c64DrivesClkLow  = false;
     c64DrivesDataLow = false;
 
-    // Release SRQ (idle = HIGH)
+    // Release C64-side SRQ contribution.
+    c64DrivesSrqLow = false;
+
+    // Reset resolved SRQ level.
     line_srqin = true;
 
     // Clear all device pull-low contributions
@@ -358,11 +362,17 @@ void IECBus::setDataLine(bool state)
 
 void IECBus::setSrqLine(bool state)
 {
-    bool old = line_srqin;
-    line_srqin = state;
-    updateBusState();
-    // Only notify CIA2 if it actually changed
-    if (old != line_srqin && cia2) cia2->srqChanged(line_srqin);
+    // state = true means HIGH/released.
+    // state = false means LOW/asserted.
+    const bool newC64DrivesSrqLow = !state;
+
+    if (c64DrivesSrqLow == newC64DrivesSrqLow)
+        return;
+
+    c64DrivesSrqLow = newC64DrivesSrqLow;
+
+    // Resolve SRQ from all contributors.
+    updateSrqLine();
 }
 
 void IECBus::setC64IECOutputs(bool atnReleased, bool clkReleased, bool dataReleased)
@@ -876,32 +886,30 @@ IECBus::PhysicalSnapshot IECBus::snapshotPhysical() const
 
 void IECBus::updateSrqLine()
 {
-    bool srqAsserted = false;
+    bool deviceSrqLow = false;
 
-    // Determine whether any registered IEC device asserts SRQ.
+    // Check whether any registered IEC device asserts SRQ.
     for (const auto& [num, registration] : registeredDevices)
     {
         if (IECDevice* device = registration.iecDevice)
         {
             if (device->isSRQAsserted())
             {
-                srqAsserted = true;
+                deviceSrqLow = true;
                 break;
             }
         }
     }
 
-    // SRQ is active-low: asserted = LOW, released = HIGH.
-    const bool newSrqHigh = !srqAsserted;
+    // Shared active-low SRQ line.
+    const bool newSrqHigh = !(c64DrivesSrqLow || deviceSrqLow);
 
-    // No electrical transition occurred.
+    // Notify CIA2 only on an actual transition.
     if (line_srqin == newSrqHigh)
         return;
 
-    // Update the resolved physical SRQ level.
     line_srqin = newSrqHigh;
 
-    // Notify CIA2 only when SRQ changes.
     if (cia2)
         cia2->srqChanged(line_srqin);
 }

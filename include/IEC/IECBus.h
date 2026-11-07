@@ -203,6 +203,7 @@ class IECBus
         // Internal state
         IECBusLines busLines;
         bool line_srqin; // SRQ Line state (true=high/false=inactive)
+        bool c64DrivesSrqLow;  // C64-side output contribution
 
         // Driver intentions (true = intends to drive LOW)
         bool c64DrivesAtnLow;
