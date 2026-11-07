@@ -470,33 +470,18 @@ void IECBus::peripheralControlSrq(IECDevice* device, bool state)
     if (!device)
         return;
 
-    const int deviceNumber = device->getIECDeviceNumber();
+    const RegisteredDevice* registration = findRegisteredDevice(device->getIECDeviceNumber());
 
-    // Find the unified registration.
-    const RegisteredDevice* registration = findRegisteredDevice(deviceNumber);
-
-    // Verify this exact IECDevice is registered.
     if (!registration || registration->iecDevice != device)
         return;
 
-    // Get the associated legacy Peripheral.
-    Peripheral* peripheral = registration->peripheral;
-
-    if (!peripheral)
-        return;
-
-    // Preserve existing talker arbitration.
-    if (!currentTalker)
-        currentTalker = peripheral;
-
-    if (currentTalker != peripheral)
-        return;
-
-    // Update IEC-specific SRQ state.
+    // Update the device's SRQ state.
     device->setSRQAsserted(state);
 
-    // Recalculate the resolved SRQ line.
+    // Resolve the shared SRQ line from all registered IEC devices.
     updateSrqLine();
+
+    // Keep existing bus state update behavior.
     updateBusState();
 }
 
