@@ -166,13 +166,12 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         using Peripheral::assertAtn;
         using Peripheral::assertSrq;
 
-        using Peripheral::listening;
-        using Peripheral::talking;
-
-        using Peripheral::shiftReg;
-        using Peripheral::bitsProcessed;
-
-        using Drive::currentDriveBusState;
+        // IEC protocol state is now owned by IECDevice.
+        using IECDevice::listening;
+        using IECDevice::talking;
+        using IECDevice::shiftReg;
+        using IECDevice::bitsProcessed;
+        using IECDevice::currentDriveBusState;
 
     private:
         // Owning pointers
