@@ -135,23 +135,6 @@ bool Drive::insert(const std::string &path)
     return true;
 }
 
-void Drive::tick(uint32_t cycles)
-{
-    while(cycles-- > 0)
-    {
-        if (ackDelay > 0)
-        {
-            --ackDelay;
-            if (ackDelay == 0)
-            {
-                // Release DATA back to not-driving state if some legacy code used it.
-                peripheralAssertData(false);
-                byteAckHold = false;
-            }
-        }
-    }
-}
-
 Drive::IECSnapshot Drive::snapshotIEC() const
 {
     IECSnapshot s{};

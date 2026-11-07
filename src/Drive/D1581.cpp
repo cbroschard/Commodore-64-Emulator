@@ -299,8 +299,6 @@ void D1581::tick(uint32_t cycles)
 
         updateIRQ();
 
-        Drive::tick(1);
-
         const bool visibleActivity = activityLedOn || activityPulseFrames > 0;
 
         if (visibleActivity)
