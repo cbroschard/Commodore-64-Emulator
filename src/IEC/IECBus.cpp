@@ -290,8 +290,8 @@ bool IECBus::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 void IECBus::reset()
 {
     // Reset bus-level state machine
-    currentState   = State::IDLE;
-    currentTalker  = nullptr;
+    currentState = State::IDLE;
+    currentTalker = nullptr;
     currentListeners.clear();
 
     // Release C64-driven open-collector lines (idle = HIGH)
@@ -302,40 +302,38 @@ void IECBus::reset()
     // Release SRQ (idle = HIGH)
     line_srqin = true;
 
-    // Clear *all* device pull-low contributions so nothing "sticks low"
+    // Clear all device pull-low contributions
     devDrivesClkLow.clear();
     devDrivesDataLow.clear();
     devDrivesAtnLow.clear();
+
     iecDrivesClkLow.clear();
     iecDrivesDataLow.clear();
     iecDrivesAtnLow.clear();
 
-    // All device electrical contributions have been released.
-    // Synchronize IECDevice assertion flags.
+    // Synchronize IECDevice assertion flags with the cleared maps.
     for (const auto& [num, registration] : registeredDevices)
     {
-        IECDevice* device = registration.iecDevice;
-
-        if (!device)
-            continue;
-
-        device->assertClk = false;
-        device->assertData = false;
-        device->assertAtn = false;
+        if (IECDevice* device = registration.iecDevice)
+        {
+            device->assertClk  = false;
+            device->assertData = false;
+            device->assertAtn  = false;
+        }
     }
 
-    // Recompute resolved line levels (should become HIGH/HIGH/HIGH)
+    // Recompute resolved line levels (idle = HIGH)
     updateBusState();
 
-    // Sync CIA2 + devices to the resolved state so they have correct baseline.
-    // We do NOT want to rely on edge detection during reset.
+    // Capture resolved bus levels
     const bool atnLow  = !busLines.atn;
     const bool clkLow  = !busLines.clk;
     const bool dataLow = !busLines.data;
 
-    // Compatibility mode
+    // Reset compatibility mode
     romControlledIEC = false;
 
+    // Synchronize CIA2 first
     if (cia2)
     {
         cia2->atnChanged(atnLow);
@@ -344,24 +342,18 @@ void IECBus::reset()
         cia2->srqChanged(line_srqin);
     }
 
+    // Notify all registered IEC devices exactly once
     for (const auto& [num, registration] : registeredDevices)
     {
-        if (IECDevice* iecDevice = registration.iecDevice)
+        if (IECDevice* device = registration.iecDevice)
         {
-            // New IECDevice interface
-            iecDevice->atnChanged(atnLow);
-            iecDevice->clkChanged(clkLow);
-            iecDevice->dataChanged(dataLow);
-        }
-        else if (Peripheral* peripheral = registration.peripheral)
-        {
-            // Legacy Peripheral interface
-            peripheral->atnChanged(atnLow);
-            peripheral->clkChanged(clkLow);
-            peripheral->dataChanged(dataLow);
+            device->atnChanged(atnLow);
+            device->clkChanged(clkLow);
+            device->dataChanged(dataLow);
         }
     }
 
+    // Reset drive timing accumulators
     for (auto& [dev, acc] : driveCycleAccumulators)
         acc = 0.0;
 
@@ -1263,10 +1255,8 @@ void IECBus::recalcAndNotify()
 
         for (const auto& [num, registration] : registeredDevices)
         {
-            if (IECDevice* iecDevice = registration.iecDevice)
-                iecDevice->atnChanged(atnLow);
-            else if (Peripheral* peripheral = registration.peripheral)
-                peripheral->atnChanged(atnLow);
+            if (IECDevice* device = registration.iecDevice)
+                device->atnChanged(atnLow);
         }
     }
 
@@ -1280,10 +1270,8 @@ void IECBus::recalcAndNotify()
 
         for (const auto& [num, registration] : registeredDevices)
         {
-            if (IECDevice* iecDevice = registration.iecDevice)
-                iecDevice->clkChanged(clkLow);
-            else if (Peripheral* peripheral = registration.peripheral)
-                peripheral->clkChanged(clkLow);
+            if (IECDevice* device = registration.iecDevice)
+                device->clkChanged(clkLow);
         }
     }
 
@@ -1297,10 +1285,8 @@ void IECBus::recalcAndNotify()
 
         for (const auto& [num, registration] : registeredDevices)
         {
-            if (IECDevice* iecDevice = registration.iecDevice)
-                iecDevice->dataChanged(dataLow);
-            else if (Peripheral* peripheral = registration.peripheral)
-                peripheral->dataChanged(dataLow);
+            if (IECDevice* device = registration.iecDevice)
+                device->dataChanged(dataLow);
         }
     }
 }
