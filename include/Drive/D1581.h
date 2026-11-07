@@ -116,6 +116,8 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         inline bool getDataLineLow() const override  { return iecBus ? !iecBus->readDataLine() :dataLineLow; }
         inline bool getSRQAsserted() const override { return srqAsserted; }
 
+        IECDriveSnapshot snapshotIEC() const override;
+
         // Helpers
         uint16_t mapFdcTrackToD81Track(uint8_t fdcTrack) const;
         bool mapFdcSectorToD81Sectors(uint8_t side,

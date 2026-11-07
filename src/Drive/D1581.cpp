@@ -796,3 +796,45 @@ void D1581::syncLiveIECInputs()
 
     d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, srqAsserted);
 }
+
+IECDriveSnapshot D1581::snapshotIEC() const
+{
+    IECDriveSnapshot s{};
+
+    // Observed IEC bus levels
+    s.atnLow  = getAtnLineLow();
+    s.clkLow  = getClkLineLow();
+    s.dataLow = getDataLineLow();
+    s.srqLow  = getSRQAsserted();
+
+    // Lines asserted by this drive
+    s.drvAssertAtn  = assertAtn;
+    s.drvAssertClk  = assertClk;
+    s.drvAssertData = assertData;
+    s.drvAssertSrq  = assertSrq;
+
+    // IEC protocol state
+    s.busState = currentDriveBusState;
+    s.listening = listening;
+    s.talking = talking;
+    s.secondaryAddress = currentSecondaryAddress;
+
+    // Legacy serial receive state
+    s.shiftReg = shiftReg;
+    s.bitsProcessed = bitsProcessed;
+
+    // Handshake state
+    s.waitingForAck = waitingForAck;
+    s.ackEdgeCountdown = ackEdgeCountdown;
+    s.swallowPostHandshakeFalling = swallowPostHandshakeFalling;
+    s.waitingForClkRelease = waitingForClkRelease;
+    s.prevClkLevel = prevClkLevel;
+    s.ackHold = ackHold;
+    s.byteAckHold = byteAckHold;
+    s.ackDelay = ackDelay;
+
+    // Pending talker data
+    s.talkQueueLen = talkQueue.size();
+
+    return s;
+}
