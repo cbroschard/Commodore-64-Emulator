@@ -32,13 +32,13 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom);
         virtual ~D1541();
 
-        // Temporary legacy IEC compatibility during migration.
-        using Peripheral::iecBus;
+        // IECDevice owns the IEC bus connection and line signaling.
+        using IECDevice::iecBus;
 
-        using Peripheral::peripheralAssertClk;
-        using Peripheral::peripheralAssertData;
-        using Peripheral::peripheralAssertAtn;
-        using Peripheral::peripheralAssertSrq;
+        using IECDevice::peripheralAssertClk;
+        using IECDevice::peripheralAssertData;
+        using IECDevice::peripheralAssertAtn;
+        using IECDevice::peripheralAssertSrq;
 
         inline const CPUBus* getDriveBus() const override { return &d1541Bus; }
         inline CPUBus* getDriveBus() override { return &d1541Bus; }
@@ -160,13 +160,11 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
     protected:
         bool motorOn;
 
-        // Temporary legacy protocol state.
-        using Peripheral::assertClk;
-        using Peripheral::assertData;
-        using Peripheral::assertAtn;
-        using Peripheral::assertSrq;
+        using IECDevice::assertClk;
+        using IECDevice::assertData;
+        using IECDevice::assertAtn;
+        using IECDevice::assertSrq;
 
-        // IEC protocol state is now owned by IECDevice.
         using IECDevice::listening;
         using IECDevice::talking;
         using IECDevice::shiftReg;

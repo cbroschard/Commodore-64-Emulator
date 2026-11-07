@@ -1132,10 +1132,26 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
     }
     else
     {
-        // Existing IEC drive registration.
-        components_.iecBus->registerDevice(
-            deviceNum,
-            slot.get());
+        // Register IEC drives using the appropriate interface.
+        if (model == DriveModel::D1541)
+        {
+            auto* d1541 = static_cast<D1541*>(slot.get());
+
+            // D1541 now supports the IECDevice interface.
+            if (!components_.iecBus->registerDevice(
+                    deviceNum,
+                    static_cast<Peripheral*>(d1541),
+                    static_cast<IECDevice*>(d1541)))
+            {
+                slot.reset();
+                return false;
+            }
+        }
+        else
+        {
+            // D1571 and D1581 still use legacy IEC registration.
+            components_.iecBus->registerDevice(deviceNum, slot.get());
+        }
 
         // Synchronize IEC devices only.
         for (int dev = 8; dev <= 11; ++dev)
