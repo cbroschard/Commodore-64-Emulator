@@ -15,7 +15,6 @@
 #include "cpu.h"
 #include "Drive/DriveChips.h"
 #include "Floppy/DiskFactory.h"
-#include "IEC/IECSnapshot.h"
 #include "Peripheral.h"
 
 class FDC177x;
@@ -91,7 +90,6 @@ class Drive : public Peripheral
 
         enum class DriveError { NONE, NO_DISK, BAD_SECTOR, READ_ERROR, WRITE_ERROR } currentDriveError;
         enum class DriveStatus { IDLE, READY, READING, WRITING, SEEKING, ERROR } currentDriveStatus;
-        IECDriveBusState currentDriveBusState;
 
         // Timing simulation.
         virtual void tick(uint32_t cycles) = 0; // Called each emulation cycle

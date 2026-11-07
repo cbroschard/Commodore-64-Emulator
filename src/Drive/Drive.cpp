@@ -12,7 +12,6 @@
 Drive::Drive() :
     currentDriveError(DriveError::NONE),
     currentDriveStatus(DriveStatus::IDLE),
-    currentDriveBusState(IECDriveBusState::IDLE),
     diskImage(),
     currentSecondaryAddress(-1),
     waitingForAck(false),
