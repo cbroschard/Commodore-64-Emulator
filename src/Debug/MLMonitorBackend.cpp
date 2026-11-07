@@ -2983,7 +2983,7 @@ void MLMonitorBackend::dumpDriveList()
     // ---------------------------------------------------
     if (iecBus)
     {
-        for (const auto& [id, peripheral] : iecBus->getDevices())
+        for (const auto& [id, peripheral] : iecBus->getRegisteredPeripherals())
         {
             if (!peripheral || !peripheral->isDrive())
                 continue;

@@ -464,9 +464,6 @@ void IECBus::registerDevice(int deviceNumber, Peripheral* device)
     // Authoritative registration.
     registeredDevices[deviceNumber] = { device, nullptr };
 
-    // Temporary compatibility map.
-    devices[deviceNumber] = device;
-
     device->attachIECBusInstance(this);
     driveCycleAccumulators[device] = 0.0;
 
@@ -489,9 +486,6 @@ void IECBus::unregisterDevice(int deviceNumber)
 
     // Remove the registration first.
     registeredDevices.erase(it);
-
-    // Temporary compatibility map.
-    devices.erase(deviceNumber);
 
     // Clean up IECDevice.
     if (iecDevice)
@@ -687,6 +681,19 @@ IECDevice* IECBus::getIECDevice(int deviceNumber) const
         return nullptr;
 
     return registration->iecDevice;
+}
+
+std::map<int, Peripheral*> IECBus::getRegisteredPeripherals() const
+{
+    std::map<int, Peripheral*> result;
+
+    for (const auto& [deviceNumber, registration] : registeredDevices)
+    {
+        if (registration.peripheral)
+            result.emplace(deviceNumber, registration.peripheral);
+    }
+
+    return result;
 }
 
 IECDevice* IECBus::findIECDevice(int deviceNumber) const

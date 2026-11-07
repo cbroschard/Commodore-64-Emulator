@@ -143,6 +143,7 @@ class IECBus
         void setHostCpuHz(double hz);
 
         IECDevice* getIECDevice(int deviceNumber) const;
+        std::map<int, Peripheral*> getRegisteredPeripherals() const;
 
         // ML Monitor Functions
         inline IECBusLines getBusLines() const { return busLines; }
@@ -156,7 +157,6 @@ class IECBus
         inline State getState() const { return currentState; }
         inline Peripheral* getCurrentTalker() const { return currentTalker; }
         inline const std::vector<Peripheral*>& getCurrentListeners() const { return currentListeners; }
-        inline const std::map<int, Peripheral*>& getDevices() const { return devices; }
         Peripheral* getDevice(int id) const;
         std::string debugPhysicalSnapshotString() const;
         Drive* getDriveWithBreakpointHit() const;
@@ -213,7 +213,6 @@ class IECBus
         bool romControlledIEC;
 
         // Peripheral Tracking
-        std::map<int, Peripheral*> devices;
         std::map<int, RegisteredDevice> registeredDevices;
         std::vector<Peripheral*> currentListeners;
 

@@ -145,7 +145,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
 
-        const auto& devMap = iecBus->getDevices();
+        const auto devMap = iecBus->getRegisteredPeripherals();
         auto it = devMap.find(static_cast<uint8_t>(devNum));
 
         if (it == devMap.end() || !it->second)
@@ -408,7 +408,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     // === DEVICES ===
     if (wantAll || sub == "devices")
     {
-        const auto& devMap = iecBus->getDevices();
+        const auto devMap = iecBus->getRegisteredPeripherals();
         std::cout << "Devices:\n";
         if (devMap.empty())
         {
