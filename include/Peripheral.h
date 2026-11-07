@@ -10,23 +10,17 @@
 
 // Forward declarations
 class Drive;
-class IECBus;
 
 #include <cstdint>
 #include <vector>
 #include <string>
 #include <iostream>
-#include "IECTypes.h"
 
 class Peripheral
 {
     public:
         Peripheral();
         virtual ~Peripheral();
-
-        // Pointer attachment
-        void attachIECBusInstance(IECBus* iecBus);
-        void detachIECBusInstance();
 
         // Signal handlers
         virtual void atnChanged(bool atnAsserted) = 0;
@@ -35,8 +29,6 @@ class Peripheral
 
         // reset function
         virtual void reset() = 0;
-
-        void clearIECBusInstance(IECBus* bus);
 
         // Getters
         int getDeviceNumber() const { return deviceNumber; }
@@ -58,9 +50,6 @@ class Peripheral
         virtual Drive* asDrive() { return nullptr; }
         virtual const std::string& getLoadedDiskName() const = 0;
         virtual const char* getDriveTypeName() const noexcept = 0;
-
-        // Non-owning pointer
-        IECBus* iecBus;
 
     protected:
         int deviceNumber;

@@ -9,31 +9,9 @@
 #include "IEC/IECBus.h"
 
 Peripheral::Peripheral() :
-    iecBus(nullptr),
     deviceNumber(-1)
 {
 
 }
 
 Peripheral::~Peripheral() = default;
-
-void Peripheral::attachIECBusInstance(IECBus* iecBus)
-{
-    this->iecBus = iecBus;
-}
-
-void Peripheral::detachIECBusInstance()
-{
-    IECBus* bus = iecBus;
-
-    if (!bus)
-        return;
-
-    bus->unregisterDevice(deviceNumber);
-}
-
-void Peripheral::clearIECBusInstance(IECBus* bus)
-{
-    if (iecBus == bus)
-        iecBus = nullptr;
-}

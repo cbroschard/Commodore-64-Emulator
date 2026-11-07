@@ -512,9 +512,7 @@ bool IECBus::registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice*
     // Register both interfaces together.
     registeredDevices[deviceNumber] = {peripheral, iecDevice};
 
-    // Preserve the legacy Peripheral identity and connection.
     peripheral->setDeviceNumber(deviceNumber);
-    peripheral->attachIECBusInstance(this);
 
     // Initialize the IECDevice identity and connection.
     iecDevice->iecDeviceNumber = deviceNumber;
@@ -574,9 +572,6 @@ void IECBus::unregisterDevice(int deviceNumber)
     // Clean up legacy Peripheral state.
     if (peripheral)
     {
-         // Clear the legacy connection without unregistering again.
-        peripheral->clearIECBusInstance(this);
-
         driveCycleAccumulators.erase(peripheral);
 
         if (currentTalker == peripheral)
