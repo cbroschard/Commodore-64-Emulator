@@ -35,42 +35,6 @@ Drive::Drive() :
 
 Drive::~Drive() = default;
 
-void Drive::atnChanged(bool atnAsserted)
-{
-    if (atnAsserted)
-    {
-        // Enter a generic "command phase". The drive ROM will decode
-        // what actually happens while ATN is low.
-        currentDriveBusState = DriveBusState::AWAITING_COMMAND;
-
-        // Clear old bit/handshake bookkeeping.
-        waitingForAck        = false;
-        waitingForClkRelease = false;
-        byteAckHold          = false;
-        ackEdgeCountdown     = 0;
-        lastClkHigh          = true;
-    }
-    else
-    {
-        // Leaving ATN. ROM is responsible for deciding whether this
-        // resulted in LISTEN, TALK, etc.
-        if (currentDriveBusState == DriveBusState::AWAITING_COMMAND)
-        {
-            currentDriveBusState = DriveBusState::IDLE;
-        }
-
-        waitingForAck        = false;
-        waitingForClkRelease = false;
-        byteAckHold          = false;
-        ackEdgeCountdown     = 0;
-    }
-}
-
-void Drive::dataChanged(bool level)
-{
- // No-op
-}
-
 bool Drive::insert(const std::string &path)
 {
     // Detect disk format

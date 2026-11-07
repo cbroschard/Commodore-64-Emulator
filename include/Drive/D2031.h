@@ -133,8 +133,11 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // TODO: Refactor Drive/Peripheral inheritance later.
         // =========================================================
 
-        // Peripheral IEC callbacks
+        // Legacy Peripheral IEC callbacks.
+        // D2031 communicates through IEEE-488, not IEC.
+        void atnChanged(bool) override {}
         void clkChanged(bool) override {}
+        void dataChanged(bool) override {}
 
         void onListen() override {}
         void onUnListen() override {}

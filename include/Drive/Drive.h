@@ -65,10 +65,6 @@ class Drive : public Peripheral
         virtual uint32_t clockMultiplier() const { return 1; }
         virtual double clockHz() const { return 1000000.0; }
 
-        // Level Changed (callbacks from IEC bus)
-        void atnChanged(bool atnAsserted) override;
-        void dataChanged(bool level) override;
-
         // Check the compatibility for the drive and floppy type
         virtual bool canMount(DiskFormat fmt) const = 0;
 
