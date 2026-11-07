@@ -71,16 +71,6 @@ void Drive::dataChanged(bool level)
  // No-op
 }
 
-void Drive::driveControlClkLine(bool clkLow)
-{
-    peripheralAssertClk(clkLow);
-}
-
-void Drive::driveControlDataLine(bool dataLow)
-{
-    peripheralAssertData(dataLow);
-}
-
 bool Drive::insert(const std::string &path)
 {
     // Detect disk format

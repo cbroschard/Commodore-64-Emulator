@@ -65,9 +65,6 @@ class Drive : public Peripheral
         virtual uint32_t clockMultiplier() const { return 1; }
         virtual double clockHz() const { return 1000000.0; }
 
-        virtual void driveControlClkLine(bool clkLow);
-        virtual void driveControlDataLine(bool dataLow);
-
         // Level Changed (callbacks from IEC bus)
         void atnChanged(bool atnAsserted) override;
         void dataChanged(bool level) override;
