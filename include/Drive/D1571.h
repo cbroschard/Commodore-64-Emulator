@@ -25,16 +25,24 @@
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
 #include "IEC/IECBus.h"
+#include "IEC/IECDevice.h"
 #include "IEC/IECDriveDiagnostics.h"
 #include "IRQLine.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
-class D1571 : public Drive, public IECDriveDiagnostics, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
+class D1571 : public Drive, public IECDevice, public IECDriveDiagnostics, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1571(int deviceNumber, const std::string& romName);
         virtual ~D1571();
+
+        using IECDevice::iecBus;
+
+        using IECDevice::peripheralAssertClk;
+        using IECDevice::peripheralAssertData;
+        using IECDevice::peripheralAssertAtn;
+        using IECDevice::peripheralAssertSrq;
 
         inline const CPUBus* getDriveBus() const override { return &d1571Bus; }
         inline CPUBus* getDriveBus() override { return &d1571Bus; }
@@ -150,6 +158,18 @@ class D1571 : public Drive, public IECDriveDiagnostics, public FloppyControllerH
 
     protected:
         bool motorOn;
+
+        using IECDevice::assertClk;
+        using IECDevice::assertData;
+        using IECDevice::assertAtn;
+        using IECDevice::assertSrq;
+
+        // IEC protocol state now comes from IECDevice.
+        using IECDevice::listening;
+        using IECDevice::talking;
+        using IECDevice::shiftReg;
+        using IECDevice::bitsProcessed;
+        using IECDevice::currentDriveBusState;
 
     private:
         // Drive chips
