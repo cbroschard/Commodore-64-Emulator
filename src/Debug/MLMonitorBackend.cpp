@@ -9,6 +9,7 @@
 #include "6502/Disassembler.h"
 #include "Drive/FDC177x.h"
 #include "IEC/IECBus.h"
+#include "IEC/IECDriveDiagnostics.h"
 #include "MLMonitorBackend.h"
 #include "Peripheral.h"
 
@@ -3532,7 +3533,15 @@ void MLMonitorBackend::dumpDriveState(int id, DriveBusType busType)
     // ==================================================
     if (resolved.busType == DriveBusType::IEC)
     {
-        const IECDriveSnapshot s = drive->snapshotIEC();
+        const auto* diagnostics = dynamic_cast<const IECDriveDiagnostics*>(drive);
+
+        if (!diagnostics)
+        {
+            std::cout << "IEC diagnostics are not available for this drive.\n";
+            return;
+        }
+
+        const IECDriveSnapshot s = diagnostics->snapshotIEC();
 
         auto busStateToStr = [](IECDriveBusState st)
         {
