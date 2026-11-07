@@ -260,6 +260,24 @@ bool IECBus::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             currentListeners.push_back(registration->peripheral);
     }
 
+    // Synchronize IECDevice internal assertion flags with
+    // the electrical contributions restored from the snapshot.
+    for (const auto& [num, registration] : registeredDevices)
+    {
+        IECDevice* device = registration.iecDevice;
+
+        if (!device)
+            continue;
+
+        const auto clk = iecDrivesClkLow.find(device);
+        const auto data = iecDrivesDataLow.find(device);
+        const auto atn = iecDrivesAtnLow.find(device);
+
+        device->assertClk = clk != iecDrivesClkLow.end() && clk->second;
+        device->assertData = data != iecDrivesDataLow.end() && data->second;
+        device->assertAtn = atn != iecDrivesAtnLow.end() && atn->second;
+    }
+
     // Re-resolve and notify everyone
     updateSrqLine();
     recalcAndNotify();
