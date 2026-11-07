@@ -42,7 +42,8 @@ class IECDevice
         virtual bool isSRQAsserted() const = 0;
         virtual void setSRQAsserted(bool state) = 0;
 
-        int getIECDeviceNumber() const { return iecDeviceNumber; }
+        inline int getIECDeviceNumber() const { return iecDeviceNumber; }
+        inline IECDriveBusState getIECDriveBusState() const { return currentDriveBusState; }
 
     protected:
         IECBus* iecBus;
