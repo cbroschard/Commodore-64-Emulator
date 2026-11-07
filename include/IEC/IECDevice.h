@@ -9,6 +9,7 @@
 #define IECDEVICE_H
 
 #include <cstdint>
+#include "IEC/IECSnapshot.h"
 
 class IECBus;
 
@@ -63,6 +64,8 @@ class IECDevice
         void peripheralAssertData(bool state);
         void peripheralAssertAtn(bool state);
         void peripheralAssertSrq(bool state);
+
+        IECDriveBusState currentDriveBusState = IECDriveBusState::IDLE;
 
     private:
         int iecDeviceNumber;
