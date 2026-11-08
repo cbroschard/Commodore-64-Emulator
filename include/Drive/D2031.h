@@ -16,7 +16,7 @@
 #include "Drive/Drive.h"
 #include "Drive/IDriveIndicatorView.h"
 #include "Drive/IDrivePositionView.h"
-#include "Drive/IDriveUIView.h"
+#include "Drive/IDriveUiView.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
 #include "IEEE488/IEEE488Device.h"
