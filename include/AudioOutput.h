@@ -9,7 +9,7 @@
 #define AUDIOOUTPUT_H
 
 #include <SDL3/SDL.h>
-#include "SID/sid.h"
+#include "SID/SID.h"
 
 class AudioOutput
 {

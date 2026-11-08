@@ -6,7 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Bus.h"
-#include "cia1.h"
+#include "CIA1.h"
 #include "CPU.h"
 #include <cstring>
 #include <sstream>

@@ -5,7 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Cartridge.H"
+#include "Cartridge.h"
 #include "Cartridge/SDBoxMapper.h"
 
 SDBoxMapper::SDBoxMapper() :
