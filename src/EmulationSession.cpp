@@ -12,7 +12,7 @@
 #include "EmulationSession.h"
 #include "MachineComponents.h"
 #include "MachineRomConfig.h"
-#include "MachineRuntimeState.h"
+#include "MachineRunTimeState.h"
 #include "MonitorController.h"
 #include "UIBridge.h"
 
