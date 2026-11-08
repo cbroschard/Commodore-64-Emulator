@@ -16,7 +16,7 @@
 #include "Drive/D1541Memory.h"
 #include "Drive/IDriveIndicatorView.h"
 #include "Drive/IDrivePositionView.h"
-#include "Drive/IDriveUIView.h"
+#include "Drive/IDriveUiView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "Drive/D1541VIA.h"

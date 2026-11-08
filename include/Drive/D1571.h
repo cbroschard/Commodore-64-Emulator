@@ -18,7 +18,7 @@
 #include "Drive/FloppyControllerHost.h"
 #include "Drive/IDriveIndicatorView.h"
 #include "Drive/IDrivePositionView.h"
-#include "Drive/IDriveUIView.h"
+#include "Drive/IDriveUiView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "Floppy/G64.h"

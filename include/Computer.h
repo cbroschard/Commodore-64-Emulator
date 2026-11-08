@@ -17,7 +17,7 @@
 #include "CPUTiming.h"
 #include "MachineComponents.h"
 #include "MachineRomConfig.h"
-#include "MachineRuntimeState.h"
+#include "MachineRunTimeState.h"
 
 // Forward declarations
 class DebugManager;
