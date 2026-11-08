@@ -23,14 +23,13 @@
 #include "CPUBus.h"
 #include "IEC/IECBus.h"
 #include "IEEE488/IEEE488Bus.h"
-#include "IO.h"
 #include "IRQLine.h"
 #include "keyboard.h"
 #include "PLA.h"
 #include "REU.h"
 #include "SID/SID.h"
 #include "Vic.h"
-#include "computer.h"
+#include "Computer.h"
 
 DebugManager::DebugManager(std::atomic<bool>& uiPausedRef)
     : uiPaused_(uiPausedRef),

@@ -11,7 +11,7 @@
 #include "DataBusLatch.h"
 #include "Common/ExecutionHistory.h"
 #include "IRQLine.h"
-#include "NMILIne.h"
+#include "NMILine.h"
 #include "StateWriter.h"
 #include "Vic.h"
 
