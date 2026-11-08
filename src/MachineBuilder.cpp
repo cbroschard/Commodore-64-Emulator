@@ -10,7 +10,7 @@
 #include "MachineBuilder.h"
 #include "MachineRomConfig.h"
 #include "MachineComponents.h"
-#include "MachineRuntimeState.h"
+#include "MachineRunTimeState.h"
 #include "MonitorController.h"
 #include "ResetController.h"
 #include "StateManager.h"

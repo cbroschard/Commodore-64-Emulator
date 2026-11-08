@@ -7,7 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include <algorithm>
 #include <iostream>
-#include "tape/DMP.h"
+#include "Tape/DMP.h"
 
 DMP::DMP() :
     pulseIndex(0),

@@ -10,7 +10,7 @@
 #include "CPUTiming.h"
 #include "Drive/Drive.h"
 #include "MachineComponents.h"
-#include "MachineRuntimeState.h"
+#include "MachineRunTimeState.h"
 #include "StateManager.h"
 
 StateManager::StateManager(MachineComponents& components, MachineRuntimeState& runtime) :
