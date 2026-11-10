@@ -19,7 +19,10 @@ PLA::PLA() :
     lasthiram(false),
     lastcharen(false),
     lastexROMLine(false),
-    lastgameLine(false)
+    lastgameLine(false),
+    cachedModeIndex(0xFF),
+    cachedGameKillerOverride(false),
+    bankCacheValid(false)
 {
     reset();
 }
@@ -35,6 +38,9 @@ void PLA::reset()
 
     // Default memory control register state on power on
     updateMemoryControlRegister(0x37);
+
+    // Force cache reconstruction after reset.
+    bankCacheValid = false;
 }
 
 void PLA::updateMemoryControlRegister(uint8_t value)
@@ -84,9 +90,10 @@ bool PLA::isUltimax() const
 
 PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
 {
+    // Read the current cartridge control lines.
+    // These may change dynamically during cartridge operation.
     if (cart && cartridgeAttached)
     {
-        // Get current exROMLine and gameLine from the cartridge
         exROMLine = cart->getExROMLine();
         gameLine = cart->getGameLine();
     }
@@ -96,23 +103,27 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
         gameLine = true;
     }
 
-    // Compute the mode index by combining control bits:
-    // Bit 4: exROMLine, Bit 3: gameLine, Bit 2: charen, Bit 1: hiram, Bit 0: loram.
-    uint8_t modeIndex = ((exROMLine ? 1 : 0) << 4) |
-                        ((gameLine   ? 1 : 0) << 3) |
-                        ((charen     ? 1 : 0) << 2) |
-                        ((hiram      ? 1 : 0) << 1) |
-                        (loram      ? 1 : 0);
+    // Compute current PLA mode.
+    const uint8_t modeIndex =
+        ((exROMLine ? 1 : 0) << 4) |
+        ((gameLine  ? 1 : 0) << 3) |
+        ((charen    ? 1 : 0) << 2) |
+        ((hiram     ? 1 : 0) << 1) |
+        (loram      ? 1 : 0);
 
-    const bool changed = (modeIndex != lastModeIndex || loram != lastloram || hiram != lasthiram ||
-    charen != lastcharen || exROMLine != lastexROMLine || gameLine != lastgameLine);
+    // Game Killer has special memory mapping when configured
+    // as Ultimax. Detect it separately from the PLA mode.
+    const bool gameKillerOverride = cart && cartridgeAttached && cart->getType() == Cartridge::CartridgeType::GAME_KILLER &&
+        !gameLine && exROMLine;
+
+    // Preserve the existing mode-change tracing behavior.
+    const bool changed = modeIndex != lastModeIndex || loram != lastloram || hiram != lasthiram || charen != lastcharen ||
+        exROMLine != lastexROMLine || gameLine != lastgameLine;
 
     if (changed && traceMgr && traceMgr->plaDetailOn(TraceManager::TraceDetail::PLA_MODE))
     {
-        TraceManager::Stamp stamp = traceMgr->makeStamp(
-            cpu ? cpu->getTotalCycles() : 0,
-            vic ? vic->getCurrentRaster() : 0,
-            vic ? vic->getRasterDot() : 0);
+        const TraceManager::Stamp stamp = traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0,
+                vic ? vic->getCurrentRaster() : 0, vic ? vic->getRasterDot() : 0);
 
         traceMgr->recordPlaMode(modeIndex, gameLine, exROMLine, charen, hiram, loram, stamp);
     }
@@ -124,40 +135,60 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
     lastexROMLine = exROMLine;
     lastgameLine = gameLine;
 
-    memoryAccessInfo info;
+    // Rebuild the cache only when the effective PLA
+    // configuration changes.
+    if (!bankCacheValid || modeIndex != cachedModeIndex || gameKillerOverride != cachedGameKillerOverride)
+        rebuildBankCache(modeIndex, gameKillerOverride);
 
-    info.bank = resolveBank(address);
+    memoryAccessInfo info{};
 
+    // Fast cached bank lookup.
+    info.bank = bankCache[address >> 12];
+
+    // Calculate the offset within the selected bank.
     switch (info.bank)
     {
-        case BASIC_ROM:         info.offset = address - 0xA000; break;
-        case KERNAL_ROM:        info.offset = address - 0xE000; break;
-        case CHARACTER_ROM:     info.offset = address - 0xD000; break;
-        case CARTRIDGE_LO:      info.offset = address - 0x8000; break;
-        case CARTRIDGE_HI:      info.offset = address - 0xA000; break;
-        case CARTRIDGE_HI_E000: info.offset = address - 0xE000; break;
+        case BASIC_ROM:
+            info.offset = address - 0xA000;
+            break;
+
+        case KERNAL_ROM:
+            info.offset = address - 0xE000;
+            break;
+
+        case CHARACTER_ROM:
+            info.offset = address - 0xD000;
+            break;
+
+        case CARTRIDGE_LO:
+            info.offset = address - 0x8000;
+            break;
+
+        case CARTRIDGE_HI:
+            info.offset = address - 0xA000;
+            break;
+
+        case CARTRIDGE_HI_E000:
+            info.offset = address - 0xE000;
+            break;
 
         default:
             info.offset = address;
             break;
     }
 
+    // Preserve address-resolution tracing.
     if (traceMgr && traceMgr->plaDetailOn(TraceManager::TraceDetail::PLA_RESOLVE))
     {
-        const bool interesting =
-            address <= 0x0007 ||
-            (address >= 0x8000 && address <= 0xFFFF);
+        const bool interesting = address <= 0x0007 || address >= 0x8000;
 
         if (interesting)
         {
-            TraceManager::Stamp stamp = traceMgr->makeStamp(
-                cpu ? cpu->getTotalCycles() : 0,
-                vic ? vic->getCurrentRaster() : 0xFFFF,
-                vic ? vic->getRasterDot() : 0xFFFF);
+            const TraceManager::Stamp stamp = traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0,
+                    vic ? vic->getCurrentRaster() : 0xFFFF, vic ? vic->getRasterDot() : 0xFFFF);
 
-            traceMgr->recordPlaResolve(address, bankToString(info.bank), info.offset,
-                                       memoryControlRegister, modeIndex,
-                                       gameLine, exROMLine, charen, hiram, loram, stamp);
+            traceMgr->recordPlaResolve(address, bankToString(info.bank), info.offset, memoryControlRegister,
+                modeIndex, gameLine, exROMLine, charen, hiram, loram, stamp);
         }
     }
 
@@ -263,9 +294,7 @@ PLA::memoryBank PLA::resolveBank(uint16_t addr) const
 
     // Game Killer uses normal C64 mapping below $E000,
     // but its cartridge ROM replaces the KERNAL at $E000-$FFFF.
-    if (cart && cartridgeAttached &&
-        cart->getType() == Cartridge::CartridgeType::GAME_KILLER &&
-        cfg == CartCfg::Ultimax)
+    if (cart && cartridgeAttached && cart->getType() == Cartridge::CartridgeType::GAME_KILLER && cfg == CartCfg::Ultimax)
     {
         if (addr >= 0xE000)
             return CARTRIDGE_HI_E000;
@@ -357,4 +386,19 @@ const char* PLA::bankToString(PLA::memoryBank bank)
         case PLA::UNMAPPED:             return "Unmapped";
         default:                        return "Unmapped";
     }
+}
+
+void PLA::rebuildBankCache(uint8_t modeIndex, bool gameKillerOverride)
+{
+    // The existing resolveBank() is the single source of truth.
+    // Every 4 KB region has a uniform PLA bank selection.
+    for (size_t region = 0; region < bankCache.size(); ++region)
+    {
+        const uint16_t address = static_cast<uint16_t>(region << 12);
+        bankCache[region] = resolveBank(address);
+    }
+
+    cachedModeIndex = modeIndex;
+    cachedGameKillerOverride = gameKillerOverride;
+    bankCacheValid = true;
 }

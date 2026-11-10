@@ -13,6 +13,7 @@ class CPU;
 class TraceManager;
 class Vic;
 
+#include <array>
 #include <cstdint>
 #include <iostream>
 #include "Cartridge.h"
@@ -78,10 +79,7 @@ class PLA
         std::string describeAddress(uint16_t addr);
         std::string describeMode();
 
-    protected:
-
     private:
-
         // Non-owning pointers
         Cartridge* cart;
         CPU* cpu;
@@ -115,8 +113,22 @@ class PLA
         bool lastexROMLine;
         bool lastgameLine;
 
+        // Cached PLA mapping for sixteen 4 KB CPU address regions.
+        std::array<memoryBank, 16> bankCache{};
+
+        // The mode for which the cache was last built.
+        uint8_t cachedModeIndex;
+
+        // Game Killer requires a mapping different from normal Ultimax.
+        bool cachedGameKillerOverride;
+
+        // Whether the cache contains valid entries.
+        bool bankCacheValid;
+
         memoryBank resolveBank(uint16_t address) const;
         const char* bankToString(PLA::memoryBank bank);
+
+        void rebuildBankCache(uint8_t modeIndex, bool gameKillerOverride);
 };
 
 #endif // PLA_H
