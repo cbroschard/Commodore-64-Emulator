@@ -43,7 +43,7 @@ class IRQLine
     private:
 
         bool IRQActive;
-        uint8_t IRQSources;
+        uint32_t IRQSources;
 
         inline void updateIRQ() { IRQActive = (IRQSources != 0); }
 
