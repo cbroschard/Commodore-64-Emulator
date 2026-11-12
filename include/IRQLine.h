@@ -16,23 +16,27 @@ class IRQLine
         IRQLine();
         virtual ~IRQLine();
 
-        enum Source
+        enum Source : uint32_t
         {
-            NONE        = 0x00,
-            CIA1        = 0x01,
-            D1541_IRQ   = 0x02,
-            D1571_IRQ   = 0x04,
-            D1581_IRQ   = 0x08,
-            VICII       = 0x10,
-            MONITOR     = 0x20,
-            REU         = 0x40,
-            D2031_IRQ   = 0x80
+            NONE        = 0,
+            CIA1        = 1u << 0,
+            D1541_IRQ   = 1u << 1,
+            D1571_IRQ   = 1u << 2,
+            D1581_IRQ   = 1u << 3,
+            VICII       = 1u << 4,
+            MONITOR     = 1u << 5,
+            REU         = 1u << 6,
+            D2031_IRQ   = 1u << 7,
+
+            D4040_IRQ   = 1u << 8,
+            D8050_IRQ   = 1u << 9,
+            D8250_IRQ   = 1u << 10
         };
 
         void raiseIRQ(Source source);
         void clearIRQ(Source source);
         inline bool isIRQActive() { return IRQActive; }
-        inline uint8_t getActiveSources() { return IRQSources; }
+        inline uint32_t getActiveSources() { return IRQSources; }
 
     protected:
 
