@@ -109,8 +109,8 @@ class Drive : public Peripheral
         virtual const FDC177x* getFDC() const { return nullptr; }
         virtual DriveMemoryBase* getMemory() = 0;
         virtual const DriveMemoryBase* getMemory() const = 0;
-        virtual const DriveVIABase* getVIA1() const = 0;
-        virtual const DriveVIABase* getVIA2() const = 0;
+        virtual const DriveVIABase* getVIA1() const { return nullptr; }
+        virtual const DriveVIABase* getVIA2() const { return nullptr; }
         virtual const DriveCIABase* getCIA() const { return nullptr; }
 
         // ML Monitor Breakpoints
