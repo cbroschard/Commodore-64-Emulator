@@ -205,38 +205,53 @@ void Computer::setPaddlesAttached(int port, bool flag)
 
 void Computer::set1541LoROM(const std::string& loROM)
 {
-    roms_.d1541LoRom = loROM;
+    roms_.d1541LoROM = loROM;
     if (components_.media) components_.media->setD1541LoROM(loROM);
 }
 
 void Computer::set1541HiROM(const std::string& hiROM)
 {
-    roms_.d1541HiRom = hiROM;
+    roms_.d1541HiROM = hiROM;
     if (components_.media) components_.media->setD1541HiROM(hiROM);
 }
 
 void Computer::set1571ROM(const std::string& rom)
 {
-    roms_.d1571Rom = rom;
+    roms_.d1571ROM = rom;
     if (components_.media) components_.media->setD1571ROM(rom);
 }
 
 void Computer::set1581ROM(const std::string& rom)
 {
-    roms_.d1581Rom = rom;
+    roms_.d1581ROM = rom;
     if (components_.media) components_.media->setD1581ROM(rom);
 }
 
 void Computer::set2031LoROM(const std::string& loROM)
 {
-    roms_.d2031LoRom = loROM;
+    roms_.d2031LoROM = loROM;
     if (components_.media) components_.media->setD2031LoROM(loROM);
 }
 
 void Computer::set2031HiROM(const std::string& hiROM)
 {
-    roms_.d2031HiRom = hiROM;
+    roms_.d2031HiROM = hiROM;
     if (components_.media) components_.media->setD2031HiROM(hiROM);
+}
+
+void Computer::set4040LoROM(const std::string& loROM)
+{
+
+}
+
+void Computer::set4040HiROM1(const std::string& hiROM)
+{
+
+}
+
+void Computer::set4040HiROM2(const std::string& hiROM)
+{
+
 }
 
 void Computer::attachVirtualModem()

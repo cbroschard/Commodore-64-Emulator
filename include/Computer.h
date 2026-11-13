@@ -73,9 +73,9 @@ class Computer : public ICartridgeHost
         void setPaddlesConfig(int port, const PaddlesMapping& cfg);
 
         // Setters for C64 ROM locations
-        inline void setKernalROM(const std::string& kernal) { roms_.kernalRom = kernal; }
-        inline void setBASIC_ROM(const std::string& basic) { roms_.basicRom = basic; }
-        inline void setCHAR_ROM(const std::string& character) { roms_.charRom = character; }
+        inline void setKernalROM(const std::string& kernal) { roms_.kernalROM = kernal; }
+        inline void setBASIC_ROM(const std::string& basic) { roms_.basicROM = basic; }
+        inline void setCHAR_ROM(const std::string& character) { roms_.charROM = character; }
 
         // Setters for Drive model ROM locations
         void set1541LoROM(const std::string& loROM);
@@ -84,6 +84,9 @@ class Computer : public ICartridgeHost
         void set1581ROM(const std::string& rom);
         void set2031LoROM(const std::string& loROM);
         void set2031HiROM(const std::string& hiROM);
+        void set4040LoROM(const std::string& loROM);
+        void set4040HiROM1(const std::string& hiROM);
+        void set4040HiROM2(const std::string& hiROM);
 
         // Expansion port devices
         void attachVirtualModem();
