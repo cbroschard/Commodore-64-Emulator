@@ -15,7 +15,8 @@ enum class DriveModel : uint8_t
     D1541 = 1,
     D1571 = 2,
     D1581 = 3,
-    D2031 = 4
+    D2031 = 4,
+    D4040 = 5
 };
 
 inline const char* driveModelToString(DriveModel m)
@@ -27,6 +28,7 @@ inline const char* driveModelToString(DriveModel m)
         case DriveModel::D1571: return "1571";
         case DriveModel::D1581: return "1581";
         case DriveModel::D2031: return "2031";
+        case DriveModel::D4040: return "4040";
         default: return "None";
     }
 }
@@ -40,6 +42,7 @@ static inline bool isValidDriveModelId(uint8_t id)
         case DriveModel::D1571:
         case DriveModel::D1581:
         case DriveModel::D2031:
+        case DriveModel::D4040:
             return true;
     }
     return false;

@@ -50,6 +50,9 @@ MediaManager::MediaManager(MachineComponents& components,
       D1581ROM_(std::move(D1581ROM)),
       D2031LoROM_(std::move(D2031LoROM)),
       D2031HiROM_(std::move(D2031HiROM)),
+      D4040LoROM_(std::move(D4040LoROM)),
+      D4040HiROM1_(std::move(D4040HiROM1)),
+      D4040HiROM2_(std::move(D4040HiROM2)),
       t64LoadPending_(false),
       t64LoadDelay_(0),
       requestBusPrime_(std::move(requestBusPrimeCallback)),
@@ -245,6 +248,8 @@ bool MediaManager::isExtCompatible(DriveModel model, const std::string& ext)
         case DriveModel::D1581:
             return (ext == ".d81");
         case DriveModel::D2031:
+            return ext == ".d64" || ext == ".g64" || ext == ".nib";
+        case DriveModel::D4040:
             return ext == ".d64" || ext == ".g64" || ext == ".nib";
     }
     return false;
@@ -1050,7 +1055,7 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
         return false;
 
     // Validate the required bus before modifying an existing drive.
-    if (model == DriveModel::D2031)
+    if (model == DriveModel::D2031 || model == DriveModel::D4040)
     {
         if (!components_.ieee488Bus)
             return false;

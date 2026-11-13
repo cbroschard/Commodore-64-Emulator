@@ -101,7 +101,8 @@ struct UiCommand
         D1541,
         D1571,
         D1581,
-        D2031
+        D2031,
+        D4040
     };
 
     int deviceNum                   = 8;

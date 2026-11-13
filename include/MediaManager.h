@@ -100,6 +100,9 @@ public:
     void setD1581ROM(const std::string& p) { D1581ROM_ = p; }
     void setD2031LoROM(const std::string& p) { D2031LoROM_ = p; }
     void setD2031HiROM(const std::string& p) { D2031HiROM_ = p; }
+    void setD4040LoROM(const std::string& p) { D4040LoROM_ = p; }
+    void setD4040HiROM1(const std::string& p) { D4040HiROM1_ = p; }
+    void setD4040HiROM2(const std::string& p) { D4040HiROM2_ = p; }
     void setDiskPath(const std::string& p) { state_.diskPath = p; }
     void setPrgPath(const std::string& p)  { state_.prgPath  = p; }
     void setCartPath(const std::string& p) { state_.cartPath = p; }
@@ -179,6 +182,9 @@ private:
     std::string D1581ROM_;
     std::string D2031LoROM_;
     std::string D2031HiROM_;
+    std::string D4040LoROM_;
+    std::string D4040HiROM1_;
+    std::string D4040HiROM2_;
 
     VideoMode videoMode_{};
 
