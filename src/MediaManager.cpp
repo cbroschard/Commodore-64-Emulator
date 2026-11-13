@@ -1115,6 +1115,16 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
             break;
         }
 
+        case DriveModel::D4040:
+        {
+            slot = std::make_unique<D4040>(
+                deviceNum,
+                D4040LoROM_,
+                D4040HiROM1_,
+                D4040HiROM2_);
+            break;
+        }
+
         case DriveModel::None:
         default:
             return false;
