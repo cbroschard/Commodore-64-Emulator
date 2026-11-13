@@ -14,9 +14,10 @@
 #include <iostream>
 #include <vector>
 #include "Chip/MOS6532.h"
+#include "Drive/DriveChips.h"
 #include "Peripheral.h"
 
-class D4040Memory
+class D4040Memory : public DriveMemoryBase
 {
     public:
         D4040Memory();
