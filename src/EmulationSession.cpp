@@ -85,7 +85,7 @@ bool EmulationSession::run()
 
 bool EmulationSession::initializeMachine()
 {
-    if (!mem_.Initialize(roms_.basicRom, roms_.kernalRom, roms_.charRom))
+    if (!mem_.Initialize(roms_.basicROM, roms_.kernalROM, roms_.charROM))
     {
         throw std::runtime_error("Error: Problem encountered initializing memory!");
     }
