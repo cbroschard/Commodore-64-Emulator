@@ -12,16 +12,19 @@
 
 struct MachineRomConfig
 {
-    std::string kernalRom;
-    std::string basicRom;
-    std::string charRom;
+    std::string kernalROM;
+    std::string basicROM;
+    std::string charROM;
 
-    std::string d1541LoRom;
-    std::string d1541HiRom;
-    std::string d1571Rom;
-    std::string d1581Rom;
-    std::string d2031LoRom;
-    std::string d2031HiRom;
+    std::string d1541LoROM;
+    std::string d1541HiROM;
+    std::string d1571ROM;
+    std::string d1581ROM;
+    std::string d2031LoROM;
+    std::string d2031HiROM;
+    std::string d4040LoROM;
+    std::string d4040HiROM1;
+    std::string d4040HiROM2;
 };
 
 #endif // MACHINE_ROM_CONFIG_H
