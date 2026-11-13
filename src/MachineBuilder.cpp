@@ -130,9 +130,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.vic->attachIRQLineInstance(components.irq.get());
     components.vic->attachTraceManagerInstance(&components.debug->trace());
 
-    components.media = std::make_unique<MediaManager>(components, host, roms.d1541LoRom, roms.d1541HiRom, roms.d1571Rom, roms.d1581Rom,
-                                                      roms.d2031LoRom, roms.d2031HiRom, [&pendingBusPrime = runtime.pendingBusPrime,
-                                                       &busPrimedAfterBoot = runtime.busPrimedAfterBoot]()
+    components.media = std::make_unique<MediaManager>(components, host, roms.d1541LoROM, roms.d1541HiROM, roms.d1571ROM, roms.d1581ROM,
+                                                      roms.d2031LoROM, roms.d2031HiROM, roms.d4040LoROM, roms.d4040HiROM1, roms.d4040HiROM2,
+                                                      [&pendingBusPrime = runtime.pendingBusPrime, &busPrimedAfterBoot = runtime.busPrimedAfterBoot]()
                                                        { if (!busPrimedAfterBoot) pendingBusPrime = true; }, [host]() { host->coldReset(); });
 
     if (components.media) components.media->setVideoMode(runtime.videoMode);
@@ -144,8 +144,8 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.resetCtl = std::make_unique<ResetController>(*components.audioOutput, *components.bus, *components.cpu, *components.mem,
                                                             *components.pla, *components.cia1, *components.cia2, *components.vic,
                                                             *components.sid, *components.iecBus, *components.inputMgr, *components.cart,
-                                                            *components.userPort, components.media.get(), roms.basicRom, roms.kernalRom,
-                                                            roms.charRom, runtime.videoMode, runtime.sidModel, runtime.cpuCfg);
+                                                            *components.userPort, components.media.get(), roms.basicROM, roms.kernalROM,
+                                                            roms.charROM, runtime.videoMode, runtime.sidModel, runtime.cpuCfg);
 
     components.uiBridge = std::make_unique<UIBridge>(*components.ui, *components.expansionManager.get(), components.media.get(),
                                                       components.inputMgr.get(), runtime.uiPaused, runtime.running,
