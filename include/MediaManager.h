@@ -39,6 +39,9 @@ public:
                  std::string D1581ROM,
                  std::string D2031LoROM,
                  std::string D2031HiROM,
+                 std::string D4040LoROM,
+                 std::string D4040HiROM1,
+                 std::string D4040HiROM2,
                  std::function<void()> requestBusPrimeCallback,
                  std::function<void()> coldResetCallback);
 

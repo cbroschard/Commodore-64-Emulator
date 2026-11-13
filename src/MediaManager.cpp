@@ -20,6 +20,7 @@
 #include "Drive/D1571.h"
 #include "Drive/D1581.h"
 #include "Drive/D2031.h"
+#include "Drive/D4040.h"
 #include "Drive/Drive.h"
 #include "Drive/IDriveIndicatorView.h"
 #include "Drive/IDrivePositionView.h"
@@ -36,6 +37,9 @@ MediaManager::MediaManager(MachineComponents& components,
                            std::string D1581ROM,
                            std::string D2031LoROM,
                            std::string D2031HiROM,
+                           std::string D4040LoROM,
+                           std::string D4040HiROM1,
+                           std::string D4040HiROM2,
                            std::function<void()> requestBusPrimeCallback,
                            std::function<void()> coldResetCallback)
     : components_(components),
