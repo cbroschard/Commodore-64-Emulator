@@ -41,8 +41,11 @@ po::options_description get_config_file_options()
         ("1541.HI.ROM", po::value<std::string>(), "Full path and filename of the 1541 E000 ROM to load")
         ("1571.ROM", po::value<std::string>(), "Full path and filename of the 1571 ROM to load")
         ("1581.ROM", po::value<std::string>(), "Full path and filename of the 1581 ROM to load")
-        ("2031.LO.ROM", po::value<std::string>(), "Full path and filename of the 2031 C000 ROM to laod")
+        ("2031.LO.ROM", po::value<std::string>(), "Full path and filename of the 2031 C000 ROM to load")
         ("2031.HI.ROM", po::value<std::string>(), "Full path and filename of the 2031 E000 ROM to load")
+        ("4040.LO.ROM", po::value<std::string>(), "Full path and filename of the 4040 D000 ROM to load")
+        ("4040.HI.ROM1", po::value<std::string>(), "Full path and filename of the 4040 E000 ROM to load")
+        ("4040.HI.ROM2", po::value<std::string>(), "Full path and filename of the 4040 F000 ROM to load")
         ("c64.Joy1", po::value<std::string>(), "Joystick 1 key bindings: Up,Down,Left,Right,Fire")
         ("c64.Joy2", po::value<std::string>(), "Joystick 2 key bindings: Up,Down,Left,Right,Fire")
         ("c64.Paddles1", po::value<std::string>(),
@@ -115,6 +118,13 @@ int main(int argc, char* argv[])
         {
             c64.set2031LoROM(vmConfig["2031.LO.ROM"].as<std::string>());
             c64.set2031HiROM(vmConfig["2031.HI.ROM"].as<std::string>());
+        }
+
+        if (vmConfig.count("4040.LO.ROM") && vmConfig.count("4040.HI.ROM1") && vmConfig.count("4040.HI.ROM2"))
+        {
+            c64.set4040LoROM(vmConfig["4040.LO.ROM"].as<std::string>());
+            c64.set4040HiROM1(vmConfig["4040.HI.ROM1"].as<std::string>());
+            c64.set4040HiROM1(vmConfig["4040.HI.ROM2"].as<std::string>());
         }
 
         if (vmConfig.count("c64.Joy1"))
