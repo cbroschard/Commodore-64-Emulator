@@ -287,6 +287,10 @@ void EmulatorUI::startDiskFileDialog(int deviceNum, UiCommand::DriveType driveTy
             startFileDialog("Select D64/G64/NIB Image (2031)", { ".d64", ".g64", ".nib" }, UiCommand::Type::AttachDisk);
             break;
 
+        case UiCommand::DriveType::D4040:
+            startFileDialog("Select D64/G64/NIB Image (4040)", { ".d64", ".g64", ".nib" }, UiCommand::Type::AttachDisk);
+            break;
+
         case UiCommand::DriveType::None:
         default:
             return;
@@ -340,6 +344,13 @@ void EmulatorUI::startCreateBlankDiskDialog(int deviceNum, UiCommand::DriveType 
 
         case UiCommand::DriveType::D2031:
             startSaveFileDialog("Create Blank D64 Image (2031)",
+                                { ".d64" },
+                                UiCommand::Type::CreateBlankDisk,
+                                false);
+            break;
+
+        case UiCommand::DriveType::D4040:
+            startSaveFileDialog("Create Blank D64 Image (4040)",
                                 { ".d64" },
                                 UiCommand::Type::CreateBlankDisk,
                                 false);
@@ -1685,6 +1696,7 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
     const bool canUse1571 = !drivePresent || existingType == UiCommand::DriveType::D1571;
     const bool canUse1581 = !drivePresent || existingType == UiCommand::DriveType::D1581;
     const bool canUse2031 = !drivePresent || existingType == UiCommand::DriveType::D2031;
+    const bool canUse4040 = !drivePresent || existingType == UiCommand::DriveType::D4040;
 
     //
     // Insert Disk Image
@@ -1694,10 +1706,13 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
         if (ieee488Active)
         {
             // IEEE-488 cartridge active:
-            // Only expose the Commodore 2031.
+            // Only expose the Commodore 2031 or 4040.
 
             if (ImGui::MenuItem("2031 (D64/G64/NIB)", nullptr, false, canUse2031))
                 startDiskFileDialog(dev, UiCommand::DriveType::D2031);
+
+            if (ImGui::MenuItem("4040 (D64/G64/NIB)", nullptr, false, canUse4040))
+                startDiskFileDialog(dev, UiCommand::DriveType::D4040);
         }
         else
         {
@@ -1727,6 +1742,9 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
 
             if (ImGui::MenuItem("D64 (2031)", nullptr, false, canUse2031))
                 startCreateBlankDiskDialog(dev, UiCommand::DriveType::D2031);
+
+            if (ImGui::MenuItem("D64 (4040)", nullptr, false, canUse4040))
+                startCreateBlankDiskDialog(dev, UiCommand::DriveType::D4040);
         }
         else
         {
