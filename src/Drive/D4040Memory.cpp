@@ -11,12 +11,158 @@ D4040Memory::D4040Memory() :
     parentPeripheral(nullptr)
 {
     D4040RAM.resize(RAM_SIZE);
-    D4040ROM1.resize(ROM_SIZE, 0);
-    D4040ROM2.resize(ROM_SIZE, 0);
-    D4040ROM3.resize(ROM_SIZE, 0);
+    D4040ROM1.resize(ROM_SIZE, 0xFF);
+    D4040ROM2.resize(ROM_SIZE, 0xFF);
+    D4040ROM3.resize(ROM_SIZE, 0xFF);
 }
 
 D4040Memory::~D4040Memory() = default;
+
+void D4040Memory::reset()
+{
+    riot1.reset();
+    riot2.reset();
+}
+
+uint8_t D4040Memory::read(uint16_t address)
+{
+    address = normalizeAddress(address);
+
+     // RIOT RAM and stack-page mirrors
+    if (address <= RIOT_RAM_MIRROR_END)
+    {
+        if ((address & 0x80) == 0)
+            return riot1.readRAM(address & 0x7F);
+
+        return riot2.readRAM(address & 0x7F);
+    }
+
+    // RIOT I/O registers and mirrors
+    if (address >= RIOT1_IO_START && address <= RIOT_IO_MIRROR_END)
+    {
+        // Normalize the mirrored address
+        uint16_t offset = address & 0xFF;
+
+        if ((offset & 0x80) == 0)
+            return riot1.read(offset & 0x1F);
+
+        return riot2.read(offset & 0x1F);
+    }
+
+    if (address >= SHARED_RAM1_START && address <= SHARED_RAM4_MIRROR_END)
+    {
+        uint16_t bank = (address - SHARED_RAM1_START) >> 12;
+        uint16_t offset = (bank << 10) | (address & 0x03FF);
+
+        return D4040RAM[offset];
+    }
+
+    // DOS ROM 1
+    if (address >= ROM1_START && address <= ROM1_END)
+        return D4040ROM1[address - ROM1_START];
+
+    // DOS ROM 2
+    if (address >= ROM2_START && address <= ROM2_END)
+        return D4040ROM2[address - ROM2_START];
+
+    // DOS ROM 3
+    if (address >= ROM3_START && address <= ROM3_END)
+        return D4040ROM3[address - ROM3_START];
+
+    return 0xFF;
+}
+
+
+void D4040Memory::write(uint16_t address, uint8_t value)
+{
+    address = normalizeAddress(address);
+
+    // RIOT RAM and stack-page mirrors
+    if (address <= RIOT_RAM_MIRROR_END)
+    {
+        if ((address & 0x80) == 0)
+            riot1.writeRAM(address & 0x7F, value);
+        else
+            riot2.writeRAM(address & 0x7F, value);
+
+        return;
+    }
+
+    // RIOT I/O registers and mirrors
+    if (address >= RIOT1_IO_START && address <= RIOT_IO_MIRROR_END)
+    {
+        uint16_t offset = address & 0xFF;
+
+        if ((offset & 0x80) == 0)
+            riot1.write(offset & 0x1F, value);
+        else
+            riot2.write(offset & 0x1F, value);
+
+        return;
+    }
+
+    // Shared RAM and mirrors
+    if (address >= SHARED_RAM1_START && address <= SHARED_RAM4_MIRROR_END)
+    {
+        uint16_t bank = (address - SHARED_RAM1_START) >> 12;
+        uint16_t offset = (bank << 10) | (address & 0x03FF);
+
+        D4040RAM[offset] = value;
+        return;
+    }
+
+    // ROM and unmapped addresses: ignore writes
+}
+
+
+uint8_t D4040Memory::peek(uint16_t address) const
+{
+    address = normalizeAddress(address);
+
+    // RIOT RAM and stack-page mirrors
+    if (address <= RIOT_RAM_MIRROR_END)
+    {
+        if ((address & 0x80) == 0)
+            return riot1.readRAM(address & 0x7F);
+
+        return riot2.readRAM(address & 0x7F);
+    }
+
+    // RIOT I/O registers and mirrors
+    if (address >= RIOT1_IO_START && address <= RIOT_IO_MIRROR_END)
+    {
+        uint16_t offset = address & 0xFF;
+
+        if ((offset & 0x80) == 0)
+            return riot1.peek(offset & 0x1F);
+
+        return riot2.peek(offset & 0x1F);
+    }
+
+    // Shared RAM and mirrors
+    if (address >= SHARED_RAM1_START && address <= SHARED_RAM4_MIRROR_END)
+    {
+        uint16_t bank = (address - SHARED_RAM1_START) >> 12;
+        uint16_t offset = (bank << 10) | (address & 0x03FF);
+
+        return D4040RAM[offset];
+    }
+
+    // DOS ROM 1
+    if (address >= ROM1_START && address <= ROM1_END)
+        return D4040ROM1[address - ROM1_START];
+
+    // DOS ROM 2
+    if (address >= ROM2_START && address <= ROM2_END)
+        return D4040ROM2[address - ROM2_START];
+
+    // DOS ROM 3
+    if (address >= ROM3_START && address <= ROM3_END)
+        return D4040ROM3[address - ROM3_START];
+
+    // Unmapped memory
+    return 0xFF;
+}
 
 bool D4040Memory::initialize(const std::string& D4040LoROM, const std::string& D4040HiROM1, const std::string& D4040HiROM2)
 {
@@ -24,13 +170,13 @@ bool D4040Memory::initialize(const std::string& D4040LoROM, const std::string& D
     std::fill(D4040RAM.begin(), D4040RAM.end(), 0x00);
 
     // Initialize both ROMS to 0's before loading
-    std::fill(D4040ROM1.begin(), D4040ROM1.end(), 0x00);
-    std::fill(D4040ROM2.begin(), D4040ROM2.end(), 0x00);
-    std::fill(D4040ROM3.begin(), D4040ROM3.end(), 0x00);
+    std::fill(D4040ROM1.begin(), D4040ROM1.end(), 0xFF);
+    std::fill(D4040ROM2.begin(), D4040ROM2.end(), 0xFF);
+    std::fill(D4040ROM3.begin(), D4040ROM3.end(), 0xFF);
 
     // Try to load in ROM files passed in via config
     if (!loadROM(D4040LoROM, D4040ROM1, ROM_SIZE, "4040 ROM Lo") || !loadROM(D4040HiROM1, D4040ROM2, ROM_SIZE, "4040 ROM Hi1")
-        || !loadROM(D4040HiROM2, D4040ROM3, ROM_SIZE, "4040 ROM Hi2"));
+        || !loadROM(D4040HiROM2, D4040ROM3, ROM_SIZE, "4040 ROM Hi2"))
     {
         return false;
     }
@@ -55,4 +201,22 @@ bool D4040Memory::loadROM(const std::string& filename, std::vector<uint8_t>& tar
 
     file.close();
     return true;
+}
+
+
+uint16_t D4040Memory::normalizeAddress(uint16_t address)
+{
+    // Additional RIOT mirrors
+    if ((address >= RIOT_MIRROR2_START && address <= RIOT_MIRROR2_END) || (address >= RIOT_MIRROR3_START && address <= RIOT_MIRROR3_END))
+        return address & 0x03FF;
+
+    // Additional shared RAM mirrors
+    if (address >= RAM_MIRROR_START && address <= RAM_MIRROR_END)
+        return address & 0x7FFF;
+
+    // DOS ROM mirrors
+    if (address >= ROM_MIRROR_START && address <= ROM_MIRROR_END)
+        return address | 0x8000;
+
+    return address;
 }
