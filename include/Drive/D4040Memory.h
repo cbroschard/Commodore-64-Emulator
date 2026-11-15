@@ -33,6 +33,12 @@ class D4040Memory : public DriveMemoryBase
         // Initialize function to load all ROMS passed in via config file, initialize RAM
         bool initialize(const std::string& D4040LoROM, const std::string& D4040HiROM1, const std::string& D4040HiROM2);
 
+        inline MOS6532& getRIOT1() { return riot1; }
+        inline const MOS6532& getRIOT1() const { return riot1; }
+
+        inline MOS6532& getRIOT2() { return riot2; }
+        inline const MOS6532& getRIOT2() const { return riot2; }
+
     private:
         // Non-owning pointers
         Peripheral* parentPeripheral;
