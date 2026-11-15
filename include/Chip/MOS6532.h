@@ -34,7 +34,7 @@ class MOS6532
         void writeRAM(uint8_t address, uint8_t value);
 
         // External port inputs
-        inline void setPortAInput(uint8_t value) { portAInput = value; }
+        void setPortAInput(uint8_t value);
         inline void setPortBInput(uint8_t value) { portBInput = value; }
 
         // Output state
@@ -78,6 +78,10 @@ class MOS6532
         uint8_t portBInput;
 
         std::array<uint8_t, 128> ram{};
+
+        // Helpers
+        bool getPA7Level() const;
+        void updatePA7();
 };
 
 #endif // MOS6532_H

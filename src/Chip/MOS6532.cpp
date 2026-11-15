@@ -208,12 +208,14 @@ void MOS6532::write(uint8_t address, uint8_t value)
     {
         switch (address & 0x03)
         {
-            case 0x00:
+            case 0x00: // Port A output latch
                 registers.portA = value;
+                updatePA7();
                 return;
 
-            case 0x01:
+            case 0x01: // Port A data direction
                 registers.ddrA = value;
+                updatePA7();
                 return;
 
             case 0x02:
@@ -310,10 +312,48 @@ void MOS6532::writeRAM(uint8_t address, uint8_t value)
     ram[address & 0x7F] = value;
 }
 
+void MOS6532::setPortAInput(uint8_t value)
+{
+    portAInput = value;
+    updatePA7();
+}
+
 bool MOS6532::isIRQActive() const
 {
     const bool timerIRQ = (registers.interruptFlags & 0x80) != 0 && registers.timerIRQEnabled;
     const bool pa7IRQ = (registers.interruptFlags & 0x40) != 0 && registers.pa7IRQEnabled;
 
     return timerIRQ || pa7IRQ;
+}
+
+bool MOS6532::getPA7Level() const
+{
+    // PA7 configured as output
+    if (registers.ddrA & 0x80)
+        return (registers.portA & 0x80) != 0;
+
+    // PA7 configured as input
+    return (portAInput & 0x80) != 0;
+}
+
+void MOS6532::updatePA7()
+{
+    const bool currentPA7 = getPA7Level();
+
+    // Detect rising or falling transition
+    const bool risingEdge = !previousPA7 && currentPA7;
+    const bool fallingEdge = previousPA7 && !currentPA7;
+
+    if (registers.pa7PositiveEdge)
+    {
+        if (risingEdge)
+            registers.interruptFlags |= 0x40;
+    }
+    else
+    {
+        if (fallingEdge)
+            registers.interruptFlags |= 0x40;
+    }
+
+    previousPA7 = currentPA7;
 }
