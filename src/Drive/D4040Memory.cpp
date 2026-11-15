@@ -24,6 +24,12 @@ void D4040Memory::reset()
     riot2.reset();
 }
 
+void D4040Memory::tick(uint32_t cycles)
+{
+    riot1.tick(cycles);
+    riot2.tick(cycles);
+}
+
 uint8_t D4040Memory::read(uint16_t address)
 {
     address = normalizeAddress(address);

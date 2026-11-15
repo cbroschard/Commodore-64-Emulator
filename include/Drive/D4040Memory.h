@@ -23,7 +23,11 @@ class D4040Memory : public DriveMemoryBase
         D4040Memory();
         virtual ~D4040Memory();
 
+        inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
+
         void reset();
+
+        void tick(uint32_t cycles) override;
 
         uint8_t read(uint16_t address);
         void write(uint16_t address, uint8_t value);
