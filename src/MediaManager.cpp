@@ -1121,6 +1121,7 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
         {
             slot = std::make_unique<D4040>(
                 deviceNum,
+                D4040FDCROM_,
                 D4040LoROM_,
                 D4040HiROM1_,
                 D4040HiROM2_);
