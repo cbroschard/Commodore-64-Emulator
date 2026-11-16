@@ -10,7 +10,7 @@
 
 D4040Bus::D4040Bus(Processor processor) :
     mem(nullptr),
-    processor(Processor::DOS6502)
+    processor(processor)
 {
 
 }
