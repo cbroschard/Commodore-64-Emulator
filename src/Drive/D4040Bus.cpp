@@ -8,8 +8,9 @@
 #include "Drive/D4040Bus.h"
 #include "Drive/D4040Memory.h"
 
-D4040Bus::D4040Bus() :
-    mem(nullptr)
+D4040Bus::D4040Bus(Processor processor) :
+    mem(nullptr),
+    processor(Processor::DOS6502)
 {
 
 }
@@ -21,6 +22,12 @@ uint8_t D4040Bus::read(uint16_t address)
     if (!mem)
         return 0xFF;
 
+    if (processor == Processor::FDC6504)
+    {
+        address &= 0x1FFF;
+        return mem->read6504(address);
+    }
+
     return mem->read(address);
 }
 
@@ -28,6 +35,13 @@ void D4040Bus::write(uint16_t address, uint8_t value)
 {
     if (!mem)
         return;
+
+    if (processor == Processor::FDC6504)
+    {
+        address &= 0x1FFF;
+        mem->write6504(address, value);
+        return;
+    }
 
     mem->write(address, value);
 }
@@ -37,5 +51,23 @@ uint8_t D4040Bus::peek(uint16_t address) const
     if (!mem)
         return 0xFF;
 
+    if (processor == Processor::FDC6504)
+    {
+        address &= 0x1FFF;
+        return mem->peek6504(address);
+    }
+
     return mem->peek(address);
+}
+
+void D4040Bus::updateRIOTInputs()
+{
+    MOS6532& riot1 = mem->getRIOT1();
+    MOS6532& riot2 = mem->getRIOT2();
+}
+
+void D4040Bus::updateIEEE488Outputs()
+{
+    const MOS6532& riot1 = mem->getRIOT1();
+    const MOS6532& riot2 = mem->getRIOT2();
 }
