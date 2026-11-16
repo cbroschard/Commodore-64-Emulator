@@ -131,8 +131,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.vic->attachTraceManagerInstance(&components.debug->trace());
 
     components.media = std::make_unique<MediaManager>(components, host, roms.d1541LoROM, roms.d1541HiROM, roms.d1571ROM, roms.d1581ROM,
-                                                      roms.d2031LoROM, roms.d2031HiROM, roms.d4040LoROM, roms.d4040HiROM1, roms.d4040HiROM2,
-                                                      [&pendingBusPrime = runtime.pendingBusPrime, &busPrimedAfterBoot = runtime.busPrimedAfterBoot]()
+                                                      roms.d2031LoROM, roms.d2031HiROM, roms.d4040FDCROM, roms.d4040LoROM, roms.d4040HiROM1,
+                                                      roms.d4040HiROM2, [&pendingBusPrime = runtime.pendingBusPrime,
+                                                      &busPrimedAfterBoot = runtime.busPrimedAfterBoot]()
                                                        { if (!busPrimedAfterBoot) pendingBusPrime = true; }, [host]() { host->coldReset(); });
 
     if (components.media) components.media->setVideoMode(runtime.videoMode);
