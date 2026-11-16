@@ -14,6 +14,7 @@
 #include <iostream>
 #include <vector>
 #include "Chip/MOS6532.h"
+#include "Drive/D4040VIA.h"
 #include "Drive/DriveChips.h"
 #include "Peripheral.h"
 
@@ -40,7 +41,8 @@ class D4040Memory : public DriveMemoryBase
         uint8_t peek6504(uint16_t address) const;
 
         // Initialize function to load all ROMS passed in via config file, initialize RAM
-        bool initialize(const std::string& D4040LoROM, const std::string& D4040HiROM1, const std::string& D4040HiROM2);
+        bool initialize(const std::string& fdcROM, const std::string& D4040LoROM, const std::string& D4040HiROM1,
+                         const std::string& D4040HiROM2);
 
         inline MOS6532& getRIOT1() { return riot1; }
         inline const MOS6532& getRIOT1() const { return riot1; }
@@ -52,9 +54,9 @@ class D4040Memory : public DriveMemoryBase
         // Non-owning pointers
         Peripheral* parentPeripheral;
 
+        D4040VIA via;
         MOS6532 riot1;
         MOS6532 riot2;
-
 
         // 6532 RIOT RAM
         static constexpr uint16_t RIOT1_START             = 0x0000;
@@ -154,6 +156,7 @@ class D4040Memory : public DriveMemoryBase
 
         std::vector<uint8_t> D4040RAM;
         std::vector<uint8_t> D4040RAM6504;
+        std::vector<uint8_t> D4040FDCROM;
         std::vector<uint8_t> D4040ROM1;
         std::vector<uint8_t> D4040ROM2;
         std::vector<uint8_t> D4040ROM3;

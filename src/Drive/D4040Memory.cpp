@@ -12,6 +12,7 @@ D4040Memory::D4040Memory() :
 {
     D4040RAM.resize(RAM_SIZE);
     D4040RAM6504.resize(RAM_SIZE);
+    D4040FDCROM.resize(FDC_ROM_SIZE, 0xFF);
     D4040ROM1.resize(ROM_SIZE, 0xFF);
     D4040ROM2.resize(ROM_SIZE, 0xFF);
     D4040ROM3.resize(ROM_SIZE, 0xFF);
@@ -194,18 +195,20 @@ uint8_t D4040Memory::peek6504(uint16_t address) const
         return D4040RAM[address - FDC_SHARED_RAM_START];
 }
 
-bool D4040Memory::initialize(const std::string& D4040LoROM, const std::string& D4040HiROM1, const std::string& D4040HiROM2)
+bool D4040Memory::initialize(const std::string& fdcROM, const std::string& D4040LoROM, const std::string& D4040HiROM1,
+                              const std::string& D4040HiROM2)
 {
     // Initialize Drive RAM to 0's
     std::fill(D4040RAM.begin(), D4040RAM.end(), 0x00);
 
-    // Initialize both ROMS to 0's before loading
+    // Initialize all ROMS before loading
     std::fill(D4040ROM1.begin(), D4040ROM1.end(), 0xFF);
     std::fill(D4040ROM2.begin(), D4040ROM2.end(), 0xFF);
     std::fill(D4040ROM3.begin(), D4040ROM3.end(), 0xFF);
 
     // Try to load in ROM files passed in via config
-    if (!loadROM(D4040LoROM, D4040ROM1, ROM_SIZE, "4040 ROM Lo") || !loadROM(D4040HiROM1, D4040ROM2, ROM_SIZE, "4040 ROM Hi1")
+    if (!loadROM(fdcROM, D4040FDCROM, FDC_ROM_SIZE, "4040 Controller ROM") ||
+        !loadROM(D4040LoROM, D4040ROM1, ROM_SIZE, "4040 ROM Lo") || !loadROM(D4040HiROM1, D4040ROM2, ROM_SIZE, "4040 ROM Hi1")
         || !loadROM(D4040HiROM2, D4040ROM3, ROM_SIZE, "4040 ROM Hi2"))
     {
         return false;
