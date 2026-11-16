@@ -11,6 +11,7 @@ D4040Memory::D4040Memory() :
     parentPeripheral(nullptr)
 {
     D4040RAM.resize(RAM_SIZE);
+    D4040RAM6504.resize(RAM_SIZE);
     D4040ROM1.resize(ROM_SIZE, 0xFF);
     D4040ROM2.resize(ROM_SIZE, 0xFF);
     D4040ROM3.resize(ROM_SIZE, 0xFF);
@@ -168,6 +169,29 @@ uint8_t D4040Memory::peek(uint16_t address) const
 
     // Unmapped memory
     return 0xFF;
+}
+
+uint8_t D4040Memory::read6504(uint16_t address)
+{
+    if (address >= FDC_SHARED_RAM_START && address <= FDC_SHARED_RAM_END)
+        return D4040RAM[address - FDC_SHARED_RAM_START];
+
+    return 0xFF;
+}
+
+void D4040Memory::write6504(uint16_t address, uint8_t value)
+{
+    if (address >= FDC_SHARED_RAM_START && address <= FDC_SHARED_RAM_END)
+    {
+        D4040RAM[address - FDC_SHARED_RAM_START] = value;
+        return;
+    }
+}
+
+uint8_t D4040Memory::peek6504(uint16_t address) const
+{
+    if (address >= FDC_SHARED_RAM_START && address <= FDC_SHARED_RAM_END)
+        return D4040RAM[address - FDC_SHARED_RAM_START];
 }
 
 bool D4040Memory::initialize(const std::string& D4040LoROM, const std::string& D4040HiROM1, const std::string& D4040HiROM2)

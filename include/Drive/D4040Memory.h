@@ -21,7 +21,7 @@ class D4040Memory : public DriveMemoryBase
 {
     public:
         D4040Memory();
-        virtual ~D4040Memory();
+        ~D4040Memory();
 
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
@@ -29,10 +29,15 @@ class D4040Memory : public DriveMemoryBase
 
         void tick(uint32_t cycles) override;
 
+        // Main 6502 DOS processor
         uint8_t read(uint16_t address);
         void write(uint16_t address, uint8_t value);
-
         uint8_t peek(uint16_t address) const;
+
+        // Secondary 6504 controller processor
+        uint8_t read6504(uint16_t address);
+        void write6504(uint16_t address, uint8_t value);
+        uint8_t peek6504(uint16_t address) const;
 
         // Initialize function to load all ROMS passed in via config file, initialize RAM
         bool initialize(const std::string& D4040LoROM, const std::string& D4040HiROM1, const std::string& D4040HiROM2);
@@ -103,6 +108,34 @@ class D4040Memory : public DriveMemoryBase
         static constexpr uint16_t RAM_MIRROR_START        = 0x9000;
         static constexpr uint16_t RAM_MIRROR_END          = 0xCFFF;
 
+        // =====================================================
+        // 6504 Disk Controller Memory Map
+        // =====================================================
+
+        static constexpr uint16_t CPU6504_ADDRESS_MASK = 0x1FFF;
+
+        // MOS 6530 internal RAM (64 bytes)
+        static constexpr uint16_t FDC_RAM_START        = 0x0000;
+        static constexpr uint16_t FDC_RAM_END          = 0x003F;
+        static constexpr uint16_t FDC_RAM_SIZE         = 0x0040;
+
+        // MOS 6522 VIA
+        static constexpr uint16_t FDC_VIA_START        = 0x0040;
+        static constexpr uint16_t FDC_VIA_END          = 0x004F;
+
+        // MOS 6530 I/O
+        static constexpr uint16_t FDC_RRIOT_IO_START   = 0x0080;
+        static constexpr uint16_t FDC_RRIOT_IO_END     = 0x008F;
+
+        // Shared RAM as seen by 6504
+        static constexpr uint16_t FDC_SHARED_RAM_START = 0x0400;
+        static constexpr uint16_t FDC_SHARED_RAM_END   = 0x13FF;
+
+        // MOS 6530 controller firmware
+        static constexpr uint16_t FDC_ROM_START        = 0x1C00;
+        static constexpr uint16_t FDC_ROM_END          = 0x1FFF;
+        static constexpr uint16_t FDC_ROM_SIZE         = 0x0400;
+
         // DOS ROMs (4 KB each)
         static constexpr uint16_t ROM_SIZE                = 0x1000;
 
@@ -119,18 +152,8 @@ class D4040Memory : public DriveMemoryBase
         static constexpr uint16_t ROM_MIRROR_START        = 0x5000;
         static constexpr uint16_t ROM_MIRROR_END          = 0x7FFF;
 
-        // Shared FDC job memory (6502 addresses)
-        static constexpr uint16_t FDC_JOB_START           = 0x1003;
-        static constexpr uint16_t FDC_JOB_END             = 0x1011;
-
-        static constexpr uint16_t FDC_HEADER_START        = 0x1021;
-        static constexpr uint16_t FDC_HEADER_END          = 0x1098;
-
-        static constexpr uint16_t FDC_HEADER_SIZE         = 8;
-        static constexpr uint16_t FDC_JOB_COUNT           = 15;
-        static constexpr uint16_t FDC_BUFFER_SIZE         = 256;
-
         std::vector<uint8_t> D4040RAM;
+        std::vector<uint8_t> D4040RAM6504;
         std::vector<uint8_t> D4040ROM1;
         std::vector<uint8_t> D4040ROM2;
         std::vector<uint8_t> D4040ROM3;
