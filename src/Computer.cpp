@@ -239,19 +239,28 @@ void Computer::set2031HiROM(const std::string& hiROM)
     if (components_.media) components_.media->setD2031HiROM(hiROM);
 }
 
+void Computer::set4040FDCROM(const std::string& fdcROM)
+{
+    roms_.d4040FDCROM = fdcROM;
+    if (components_.media) components_.media->setD4040FDCROM(fdcROM);
+}
+
 void Computer::set4040LoROM(const std::string& loROM)
 {
-
+    roms_.d4040LoROM = loROM;
+    if (components_.media) components_.media->setD4040LoROM(loROM);
 }
 
 void Computer::set4040HiROM1(const std::string& hiROM)
 {
-
+    roms_.d4040HiROM1 = hiROM;
+    if (components_.media) components_.media->setD4040HiROM1(hiROM);
 }
 
 void Computer::set4040HiROM2(const std::string& hiROM)
 {
-
+    roms_.d4040HiROM2 = hiROM;
+    if (components_.media) components_.media->setD4040HiROM2(hiROM);
 }
 
 void Computer::attachVirtualModem()

@@ -39,6 +39,7 @@ public:
                  std::string D1581ROM,
                  std::string D2031LoROM,
                  std::string D2031HiROM,
+                 std::string D4040FDCROM,
                  std::string D4040LoROM,
                  std::string D4040HiROM1,
                  std::string D4040HiROM2,
@@ -100,6 +101,7 @@ public:
     void setD1581ROM(const std::string& p) { D1581ROM_ = p; }
     void setD2031LoROM(const std::string& p) { D2031LoROM_ = p; }
     void setD2031HiROM(const std::string& p) { D2031HiROM_ = p; }
+    void setD4040FDCROM(const std::string& p) { D4040FDCROM_ = p; }
     void setD4040LoROM(const std::string& p) { D4040LoROM_ = p; }
     void setD4040HiROM1(const std::string& p) { D4040HiROM1_ = p; }
     void setD4040HiROM2(const std::string& p) { D4040HiROM2_ = p; }
@@ -182,6 +184,7 @@ private:
     std::string D1581ROM_;
     std::string D2031LoROM_;
     std::string D2031HiROM_;
+    std::string D4040FDCROM_;
     std::string D4040LoROM_;
     std::string D4040HiROM1_;
     std::string D4040HiROM2_;

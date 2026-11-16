@@ -22,6 +22,7 @@ struct MachineRomConfig
     std::string d1581ROM;
     std::string d2031LoROM;
     std::string d2031HiROM;
+    std::string d4040FDCROM;
     std::string d4040LoROM;
     std::string d4040HiROM1;
     std::string d4040HiROM2;

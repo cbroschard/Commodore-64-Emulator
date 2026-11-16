@@ -84,6 +84,7 @@ class Computer : public ICartridgeHost
         void set1581ROM(const std::string& rom);
         void set2031LoROM(const std::string& loROM);
         void set2031HiROM(const std::string& hiROM);
+        void set4040FDCROM(const std::string& fdcROM);
         void set4040LoROM(const std::string& loROM);
         void set4040HiROM1(const std::string& hiROM);
         void set4040HiROM2(const std::string& hiROM);
