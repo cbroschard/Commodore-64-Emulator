@@ -218,11 +218,11 @@ void MOS6532::write(uint8_t address, uint8_t value)
                 updatePA7();
                 return;
 
-            case 0x02:
+            case 0x02: // Port B output latch
                 registers.portB = value;
                 return;
 
-            case 0x03:
+            case 0x03: // Port B data direction
                 registers.ddrB = value;
                 return;
         }
@@ -294,9 +294,6 @@ uint8_t MOS6532::peek(uint8_t address) const
 
         return registers.interruptFlags & 0xC0;
     }
-
-    return 0xFF;
-
 
     return 0xFF;
 }
