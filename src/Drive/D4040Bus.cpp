@@ -9,8 +9,7 @@
 #include "Drive/D4040Memory.h"
 
 D4040Bus::D4040Bus(Processor processor) :
-    mem(nullptr),
-    processor(Processor::DOS6502)
+    mem(nullptr)
 {
 
 }
@@ -62,12 +61,18 @@ uint8_t D4040Bus::peek(uint16_t address) const
 
 void D4040Bus::updateRIOTInputs()
 {
+    if (processor != Processor::DOS6502 || !mem)
+        return;
+
     MOS6532& riot1 = mem->getRIOT1();
     MOS6532& riot2 = mem->getRIOT2();
 }
 
 void D4040Bus::updateIEEE488Outputs()
 {
+    if (processor != Processor::DOS6502 || !mem)
+        return;
+
     const MOS6532& riot1 = mem->getRIOT1();
     const MOS6532& riot2 = mem->getRIOT2();
 }
