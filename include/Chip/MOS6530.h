@@ -34,8 +34,45 @@ class MOS6530
         uint8_t readRAM(uint8_t address) const;
         void writeRAM(uint8_t address, uint8_t value);
 
+        void setPortAInput(uint8_t value);
+        void setPortBInput(uint8_t value);
+
+        inline uint8_t getPortAOutput() const { return registers.portA; }
+        inline uint8_t getPortBOutput() const { return registers.portB; }
+
+        inline uint8_t getDDRA() const { return registers.ddrA; }
+        inline uint8_t getDDRB() const { return registers.ddrB; }
+
+        inline bool isIRQActive() const { return registers.timerIRQEnabled && (registers.interruptFlags & 0x80) != 0; }
+
     private:
         static constexpr size_t RAM_SIZE = 0x40;
+
+        struct Registers
+        {
+            // I/O ports
+            uint8_t portA = 0x00;
+            uint8_t ddrA = 0x00;
+            uint8_t portB = 0x00;
+            uint8_t ddrB = 0x00;
+
+            // Timer
+            uint8_t timer = 0x00;
+
+            // Interrupt state
+            uint8_t interruptFlags = 0x00;
+            bool timerIRQEnabled = false;
+        } registers;
+
+        // Timer runtime state
+        uint16_t timerPrescaler;
+        uint16_t timerDivider;
+        bool timerRunning;
+        bool timerUnderflowed;
+
+        // External port inputs
+        uint8_t portAInput;
+        uint8_t portBInput;
 
         std::array<uint8_t, RAM_SIZE> ram{};
 };
