@@ -17,7 +17,7 @@ class MOS6532
 {
     public:
         MOS6532();
-        virtual ~MOS6532();
+        ~MOS6532();
 
         void save(StateWriter& wrtr) const;
         bool load(StateReader& rdr);
