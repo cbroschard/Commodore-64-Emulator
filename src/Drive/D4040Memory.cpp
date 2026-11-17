@@ -11,7 +11,6 @@ D4040Memory::D4040Memory() :
     parentPeripheral(nullptr)
 {
     D4040RAM.resize(RAM_SIZE);
-    D4040RAM6504.resize(RAM_SIZE);
     D4040FDCROM.resize(FDC_ROM_SIZE, 0xFF);
     D4040ROM1.resize(ROM_SIZE, 0xFF);
     D4040ROM2.resize(ROM_SIZE, 0xFF);
@@ -20,16 +19,25 @@ D4040Memory::D4040Memory() :
 
 D4040Memory::~D4040Memory() = default;
 
+
+void D4040Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
+{
+    this->parentPeripheral = parentPeripheral;
+    via.attachPeripheralInstance(parentPeripheral, DriveVIA6522::VIARole::VIA2_Mechanics);
+}
+
 void D4040Memory::reset()
 {
     riot1.reset();
     riot2.reset();
+    via.reset();
 }
 
 void D4040Memory::tick(uint32_t cycles)
 {
     riot1.tick(cycles);
     riot2.tick(cycles);
+    via.tick(cycles);
 }
 
 uint8_t D4040Memory::read(uint16_t address)
@@ -122,7 +130,6 @@ void D4040Memory::write(uint16_t address, uint8_t value)
     // ROM and unmapped addresses: ignore writes
 }
 
-
 uint8_t D4040Memory::peek(uint16_t address) const
 {
     address = normalizeAddress(address);
@@ -172,27 +179,90 @@ uint8_t D4040Memory::peek(uint16_t address) const
     return 0xFF;
 }
 
+
 uint8_t D4040Memory::read6504(uint16_t address)
 {
+    // MOS6530 private RAM (64 bytes)
+    if (address >= FDC_RAM_START && address <= FDC_RAM_END)
+        return rriot.readRAM(address - FDC_RAM_START);
+
+    // MOS6522 controller VIA
+    if (address >= FDC_VIA_START && address <= FDC_VIA_END)
+        return via.readRegister(address - FDC_VIA_START);
+
+    // MOS6530 I/O registers
+    if (address >= FDC_RRIOT_IO_START && address <= FDC_RRIOT_IO_END)
+        return rriot.read(address - FDC_RRIOT_IO_START);
+
+    // Shared 4 KB RAM
     if (address >= FDC_SHARED_RAM_START && address <= FDC_SHARED_RAM_END)
         return D4040RAM[address - FDC_SHARED_RAM_START];
+
+    // MOS6530 controller ROM
+    if (address >= FDC_ROM_START && address <= FDC_ROM_END)
+        return D4040FDCROM[address - FDC_ROM_START];
 
     return 0xFF;
 }
 
+
 void D4040Memory::write6504(uint16_t address, uint8_t value)
 {
+    // MOS6530 private RAM
+    if (address >= FDC_RAM_START && address <= FDC_RAM_END)
+    {
+        rriot.writeRAM(address - FDC_RAM_START, value);
+        return;
+    }
+
+    // MOS6522 controller VIA
+    if (address >= FDC_VIA_START && address <= FDC_VIA_END)
+    {
+        via.writeRegister(address - FDC_VIA_START, value);
+        return;
+    }
+
+    // MOS6530 I/O registers
+    if (address >= FDC_RRIOT_IO_START && address <= FDC_RRIOT_IO_END)
+    {
+        rriot.write(address - FDC_RRIOT_IO_START, value);
+        return;
+    }
+
+    // Shared 4 KB RAM
     if (address >= FDC_SHARED_RAM_START && address <= FDC_SHARED_RAM_END)
     {
         D4040RAM[address - FDC_SHARED_RAM_START] = value;
         return;
     }
+
+    // ROM and unmapped addresses: ignore writes
 }
+
 
 uint8_t D4040Memory::peek6504(uint16_t address) const
 {
+    // MOS6530 private RAM
+    if (address >= FDC_RAM_START && address <= FDC_RAM_END)
+        return rriot.readRAM(address - FDC_RAM_START);
+
+    // MOS6522 controller VIA
+    if (address >= FDC_VIA_START && address <= FDC_VIA_END)
+        return via.peek(address - FDC_VIA_START);
+
+    // MOS6530 I/O registers
+    if (address >= FDC_RRIOT_IO_START && address <= FDC_RRIOT_IO_END)
+        return rriot.peek(address - FDC_RRIOT_IO_START);
+
+    // Shared 4 KB RAM
     if (address >= FDC_SHARED_RAM_START && address <= FDC_SHARED_RAM_END)
         return D4040RAM[address - FDC_SHARED_RAM_START];
+
+    // MOS6530 controller ROM
+    if (address >= FDC_ROM_START && address <= FDC_ROM_END)
+        return D4040FDCROM[address - FDC_ROM_START];
+
+    return 0xFF;
 }
 
 bool D4040Memory::initialize(const std::string& fdcROM, const std::string& D4040LoROM, const std::string& D4040HiROM1,

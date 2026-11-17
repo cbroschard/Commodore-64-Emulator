@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include "Chip/MOS6530.h"
 #include "Chip/MOS6532.h"
 #include "Drive/D4040VIA.h"
 #include "Drive/DriveChips.h"
@@ -24,7 +25,7 @@ class D4040Memory : public DriveMemoryBase
         D4040Memory();
         ~D4040Memory();
 
-        inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
+        void attachPeripheralInstance(Peripheral* parentPeripheral);
 
         void reset();
 
@@ -44,6 +45,9 @@ class D4040Memory : public DriveMemoryBase
         bool initialize(const std::string& fdcROM, const std::string& D4040LoROM, const std::string& D4040HiROM1,
                          const std::string& D4040HiROM2);
 
+        inline D4040VIA& getVIA() { return via; }
+        inline const D4040VIA& getVIA() const { return via; }
+
         inline MOS6532& getRIOT1() { return riot1; }
         inline const MOS6532& getRIOT1() const { return riot1; }
 
@@ -54,9 +58,11 @@ class D4040Memory : public DriveMemoryBase
         // Non-owning pointers
         Peripheral* parentPeripheral;
 
-        D4040VIA via;
         MOS6532 riot1;
         MOS6532 riot2;
+
+        MOS6530 rriot;
+        D4040VIA via;
 
         // 6532 RIOT RAM
         static constexpr uint16_t RIOT1_START             = 0x0000;
