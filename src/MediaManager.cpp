@@ -252,7 +252,7 @@ bool MediaManager::isExtCompatible(DriveModel model, const std::string& ext)
         case DriveModel::D2031:
             return ext == ".d64" || ext == ".g64" || ext == ".nib";
         case DriveModel::D4040:
-            return ext == ".d64" || ext == ".g64" || ext == ".nib";
+            return ext == ".d64";
     }
     return false;
 }
@@ -511,7 +511,11 @@ MediaLoadResult MediaManager::attachCRTImage()
             const bool isIEEE488 = drive->getDriveModel() == DriveModel::D2031 || drive->getDriveModel() == DriveModel::D4040;
 
             if (ieee488Active != isIEEE488)
-                detachDiskImage(dev);
+            {
+                if (!detachDiskImage(dev))
+                    return MediaLoadResult::fail("Cannot switch cartridge interface: "
+                                                  "a drive has unsaved disk data.");
+            }
         }
 
         components_.bus->setCartridgeAttached(true);
@@ -796,23 +800,37 @@ void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::s
     }
 }
 
-void MediaManager::detachDiskImage(int dev)
+
+bool MediaManager::detachDiskImage(int dev)
 {
     if (dev < 8 || dev > 11)
-        return;
+        return false;
 
     auto& drive = components_.drives[dev];
 
     if (!drive)
-        return;
+        return true;
 
     const DriveModel model = drive->getDriveModel();
 
-    // Flush pending writes and unload the disk.
-    drive->flushAndSaveDisk();
-    drive->unloadDisk();
+    if (auto* d4040 = dynamic_cast<D4040*>(drive.get()))
+    {
+        if (!d4040->tryUnloadAllDisks())
+        {
+            std::cerr << "[MediaManager] D4040 device "
+                      << dev
+                      << " cannot be detached: disk save failed\n";
+            return false;
+        }
+    }
+    else
+    {
+        // Preserve current behavior for existing drive models.
+        drive->flushAndSaveDisk();
+        drive->unloadDisk();
+    }
 
-    // Disconnect from the correct physical bus.
+    // Disconnect from the appropriate bus.
     if (model == DriveModel::D2031 || model == DriveModel::D4040)
     {
         if (components_.ieee488Bus)
@@ -824,10 +842,8 @@ void MediaManager::detachDiskImage(int dev)
             components_.iecBus->unregisterDevice(dev);
     }
 
-    // Destroy the drive only after it has been disconnected.
     drive.reset();
 
-    // Refresh the aggregate media state.
     state_.diskAttached = false;
     state_.diskPath.clear();
 
@@ -842,8 +858,9 @@ void MediaManager::detachDiskImage(int dev)
             break;
         }
     }
-}
 
+    return true;
+}
 
 void MediaManager::detachCRTImage()
 {
@@ -1076,8 +1093,9 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
         if (slot->getDriveModel() == model)
             return true;
 
-        // Different model: disconnect the old drive first.
-        detachDiskImage(deviceNum);
+        // Different model: disconnect only if safe.
+        if (!detachDiskImage(deviceNum))
+            return false;
     }
 
     // Construct the requested drive.

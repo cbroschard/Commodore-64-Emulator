@@ -129,7 +129,7 @@ public:
     void createBlankDisk(int deviceNum, DriveModel model, const std::string& path);
 
     // Detachments
-    void detachDiskImage(int dev);
+    bool detachDiskImage(int dev);
     void detachCRTImage();
     void detachREU();
 
