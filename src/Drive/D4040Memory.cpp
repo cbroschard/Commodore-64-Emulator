@@ -30,6 +30,7 @@ void D4040Memory::reset()
 {
     riot1.reset();
     riot2.reset();
+    rriot.reset();
     via.reset();
 }
 
@@ -37,6 +38,7 @@ void D4040Memory::tick(uint32_t cycles)
 {
     riot1.tick(cycles);
     riot2.tick(cycles);
+    rriot.tick(cycles);
     via.tick(cycles);
 }
 
