@@ -86,7 +86,7 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // Disk persistence
         void flushAndSaveDisk() override;
 
-        uint8_t getHardwareAddressBits() const;
+        uint8_t getSelectedMechanism() const;
 
          // Disk path
         inline std::string getCurrentDiskPath() const override { return mechanisms[0].diskPath; }
@@ -142,6 +142,7 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void onIEEE488BusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
         void updateMechanisms();
         bool flushMechanism(uint8_t unit);
+        void updateControllerInputs();
 };
 
 #endif // D4040_H

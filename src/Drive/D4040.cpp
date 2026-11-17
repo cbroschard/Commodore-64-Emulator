@@ -154,6 +154,10 @@ void D4040::tick(uint32_t cycles)
         // -----------------------------------------
         while (controllerCycleBalance > 0)
         {
+            // Refresh external controller inputs before
+            // the 6504 executes its next instruction.
+            updateControllerInputs();
+
             controllerCPU.tick();
 
             uint32_t fc = controllerCPU.getElapsedCycles();
@@ -202,7 +206,6 @@ void D4040::getDriveIndicators(std::vector<Indicator>& out) const
 
     out.push_back(std::move(act));
 }
-
 
 void D4040::loadDisk(const std::string& path)
 {
@@ -290,7 +293,6 @@ bool D4040::mountDisk(uint8_t unit, const std::string& path)
     return true;
 }
 
-
 void D4040::unloadDisk(uint8_t unit)
 {
     if (!tryUnloadDisk(unit))
@@ -323,7 +325,6 @@ void D4040::stopMotor()
 {
     mechanisms[0].motorOn = false;
 }
-
 
 bool D4040::tryUnloadDisk(uint8_t unit)
 {
@@ -375,6 +376,18 @@ void D4040::flushAndSaveDisk()
                "images could not be saved\n";
     }
 }
+
+uint8_t D4040::getSelectedMechanism() const
+{
+    const MOS6530& rriot = d4040mem.getRRIOT();
+
+    // PB0 selects the mechanism when configured as output.
+    if ((rriot.getDDRB() & 0x01) == 0)
+        return 0;
+
+    return (rriot.getPortBOutput() & 0x01) ? 1 : 0;
+}
+
 void D4040::onIEEE488BusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState)
 {
     d4040Bus6502.updateRIOTInputs();
@@ -395,7 +408,6 @@ void D4040::updateMechanisms()
     mechanisms[0].stepperPhase = signals.stepper0;
     mechanisms[1].stepperPhase = signals.stepper1;
 }
-
 
 bool D4040::flushMechanism(uint8_t unit)
 {
@@ -442,4 +454,26 @@ bool D4040::flushMechanism(uint8_t unit)
               << ": " << mech.diskPath << '\n';
 
     return true;
+}
+
+void D4040::updateControllerInputs()
+{
+    MOS6530& rriot = d4040mem.getRRIOT();
+
+    const uint8_t unit = getSelectedMechanism();
+    const D4040Mechanism& mech = mechanisms[unit];
+
+    // Default external inputs are high.
+    uint8_t pb = 0xFF;
+
+    // PB3: write protection, active high.
+    // Treat an absent disk as protected.
+    if (mech.diskImage && !mech.writeProtected)
+        pb &= static_cast<uint8_t>(~0x08);
+
+    // PB6: SYNC detection, active low.
+    if (mech.diskImage && mech.syncDetected)
+        pb &= static_cast<uint8_t>(~0x40);
+
+    rriot.setPortBInput(pb);
 }
