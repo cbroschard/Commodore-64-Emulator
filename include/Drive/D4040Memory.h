@@ -45,6 +45,9 @@ class D4040Memory : public DriveMemoryBase
         bool initialize(const std::string& fdcROM, const std::string& D4040LoROM, const std::string& D4040HiROM1,
                          const std::string& D4040HiROM2);
 
+        inline MOS6530& getRRIOT() { return rriot; }
+        inline const MOS6530& getRRIOT() const { return rriot; }
+
         inline D4040VIA& getVIA() { return via; }
         inline const D4040VIA& getVIA() const { return via; }
 
@@ -161,7 +164,6 @@ class D4040Memory : public DriveMemoryBase
         static constexpr uint16_t ROM_MIRROR_END          = 0x7FFF;
 
         std::vector<uint8_t> D4040RAM;
-        std::vector<uint8_t> D4040RAM6504;
         std::vector<uint8_t> D4040FDCROM;
         std::vector<uint8_t> D4040ROM1;
         std::vector<uint8_t> D4040ROM2;
