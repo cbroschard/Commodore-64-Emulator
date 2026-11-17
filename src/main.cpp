@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
             c64.set4040FDCROM(vmConfig["4040.FDC.ROM"].as<std::string>());
             c64.set4040LoROM(vmConfig["4040.LO.ROM"].as<std::string>());
             c64.set4040HiROM1(vmConfig["4040.HI.ROM1"].as<std::string>());
-            c64.set4040HiROM1(vmConfig["4040.HI.ROM2"].as<std::string>());
+            c64.set4040HiROM2(vmConfig["4040.HI.ROM2"].as<std::string>());
         }
 
         if (vmConfig.count("c64.Joy1"))
