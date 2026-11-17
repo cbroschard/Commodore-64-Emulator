@@ -34,8 +34,8 @@ class MOS6530
         uint8_t readRAM(uint8_t address) const;
         void writeRAM(uint8_t address, uint8_t value);
 
-        void setPortAInput(uint8_t value);
-        void setPortBInput(uint8_t value);
+        inline void setPortAInput(uint8_t value) { portAInput = value; }
+        inline void setPortBInput(uint8_t value) { portBInput = value; }
 
         inline uint8_t getPortAOutput() const { return registers.portA; }
         inline uint8_t getPortBOutput() const { return registers.portB; }
