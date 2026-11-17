@@ -250,6 +250,10 @@ void UIBridge::processCommands()
                         model = DriveModel::D2031;
                         break;
 
+                    case UiCommand::DriveType::D4040:
+                        model = DriveModel::D4040;
+                        break;
+
                     case UiCommand::DriveType::None:
                     default:
                         break;
@@ -425,6 +429,10 @@ void UIBridge::processCommands()
 
                     case UiCommand::DriveType::D2031:
                         model = DriveModel::D2031;
+                        break;
+
+                    case UiCommand::DriveType::D4040:
+                        model = DriveModel::D4040;
                         break;
 
                     case UiCommand::DriveType::None:
