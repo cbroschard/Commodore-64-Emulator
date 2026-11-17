@@ -5,11 +5,14 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Drive/D4040.h"
 #include "Drive/D4040Bus.h"
 #include "Drive/D4040Memory.h"
 
 D4040Bus::D4040Bus(Processor processor) :
+    drive(nullptr),
     mem(nullptr),
+    ieee488Device(nullptr),
     processor(processor)
 {
 
@@ -21,6 +24,9 @@ uint8_t D4040Bus::read(uint16_t address)
 {
     if (!mem)
         return 0xFF;
+
+    if (processor == Processor::DOS6502)
+        updateRIOTInputs();
 
     if (processor == Processor::FDC6504)
     {
@@ -44,6 +50,9 @@ void D4040Bus::write(uint16_t address, uint8_t value)
     }
 
     mem->write(address, value);
+
+    if (processor == Processor::DOS6502)
+        updateIEEE488Outputs();
 }
 
 uint8_t D4040Bus::peek(uint16_t address) const
@@ -60,14 +69,118 @@ uint8_t D4040Bus::peek(uint16_t address) const
     return mem->peek(address);
 }
 
+
 void D4040Bus::updateRIOTInputs()
 {
+    if (!mem || !drive)
+        return;
+
     MOS6532& riot1 = mem->getRIOT1();
     MOS6532& riot2 = mem->getRIOT2();
+
+    // Device address jumpers: PB0-PB2 of RIOT 2.
+    const uint8_t deviceNumber = static_cast<uint8_t>(drive->getDeviceNumber());
+    const uint8_t addressBits = static_cast<uint8_t>((deviceNumber - 8) & 0x07);
+
+    uint8_t riot2PA = 0xFF;
+    uint8_t riot2PB = static_cast<uint8_t>(0xF8 | addressBits);
+
+    // IEEE-488 bus inputs.
+    if (ieee488Device && ieee488Device->isConnected())
+    {
+        const bool atn = ieee488Device->getBusSignal(IEEE488Bus::Signal::ATN);
+        const bool dav = ieee488Device->getBusSignal(IEEE488Bus::Signal::DAV);
+        const bool eoi = ieee488Device->getBusSignal(IEEE488Bus::Signal::EOI);
+        const bool nrfd = ieee488Device->getBusSignal(IEEE488Bus::Signal::NRFD);
+        const bool ndac = ieee488Device->getBusSignal(IEEE488Bus::Signal::NDAC);
+
+        // RIOT 1 Port A: eight IEEE-488 data lines.
+        riot1.setPortAInput(ieee488Device->getBusDIO());
+
+        // RIOT 2 Port A:
+        // PA7 = inverted physical ATN
+        // PA6 = DAV
+        // PA5 = EOI
+        if (atn)
+            riot2PA &= static_cast<uint8_t>(~0x80);
+
+        if (!dav)
+            riot2PA &= static_cast<uint8_t>(~0x40);
+
+        if (!eoi)
+            riot2PA &= static_cast<uint8_t>(~0x20);
+
+        // RIOT 2 Port B:
+        // PB7 = NRFD
+        // PB6 = NDAC
+        // PB0-PB2 = device address jumpers
+        if (!nrfd)
+            riot2PB &= static_cast<uint8_t>(~0x80);
+
+        if (!ndac)
+            riot2PB &= static_cast<uint8_t>(~0x40);
+    }
+    else
+    {
+        riot1.setPortAInput(0xFF);
+
+        // No external ATN assertion.
+        riot2PA &= static_cast<uint8_t>(~0x80);
+    }
+
+    // Update RIOT 2 inputs.
+    // setPortAInput also evaluates the PA7 edge interrupt.
+    riot2.setPortAInput(riot2PA);
+    riot2.setPortBInput(riot2PB);
 }
 
 void D4040Bus::updateIEEE488Outputs()
 {
+    if (!mem || !ieee488Device ||
+        !ieee488Device->isConnected())
+        return;
+
     const MOS6532& riot1 = mem->getRIOT1();
     const MOS6532& riot2 = mem->getRIOT2();
+
+    // Resolve RIOT output pins.
+    // Input-configured pins are treated as high.
+    const uint8_t riot1PB = static_cast<uint8_t>(riot1.getPortBOutput() | ~riot1.getDDRB());
+    const uint8_t riot2PA = static_cast<uint8_t>(riot2.getPortAOutput() | ~riot2.getDDRA());
+
+    // IEEE-488 ATN is active-low.
+    const bool atn = ieee488Device->getBusSignal(IEEE488Bus::Signal::ATN);
+    const bool atnActive = !atn;
+
+    // RIOT 2 Port A output bits
+    const bool atna = (riot2PA & 0x01) != 0;
+    const bool daco_n = (riot2PA & 0x02) != 0;
+    const bool rfdo = (riot2PA & 0x04) != 0;
+    const bool eoio = (riot2PA & 0x08) != 0;
+    const bool davo = (riot2PA & 0x10) != 0;
+
+    // IEEE-488 handshake logic.
+    //
+    // NRFD asserted when:
+    //   ATN-active matches ATNA, and RFDO is high.
+    //
+    // NDAC asserted when:
+    //   /DACO is low and (ATNA or ATN inactive).
+    const bool nrfdAsserted = (atnActive == atna) && rfdo;
+
+    const bool ndacAsserted = !daco_n && (atna || !atnActive);
+
+    // IEEE488Device:
+    // true  = released / high
+    // false = asserted / low
+    ieee488Device->setBusSignal(IEEE488Bus::Signal::NRFD, !nrfdAsserted);
+    ieee488Device->setBusSignal(IEEE488Bus::Signal::NDAC, !ndacAsserted);
+    ieee488Device->setBusSignal(IEEE488Bus::Signal::EOI, eoio);
+    ieee488Device->setBusSignal(IEEE488Bus::Signal::DAV, davo);
+
+    // RIOT 1 Port B drives the eight data lines.
+    // During ATN, the drive releases DIO.
+    const uint8_t data = atnActive ? 0xFF : riot1PB;
+
+    ieee488Device->setBusDIO(data);
 }
