@@ -293,7 +293,7 @@ MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, c
         }
 
         // Create and attach the drive to the appropriate bus.
-        // D2031 uses IEEE-488; all other supported models use IEC.
+        // D2031 and D4040 uses IEEE-488; all other supported models use IEC.
         if (!ensureDriveExists(deviceNum, model))
         {
             return MediaLoadResult::fail(
@@ -508,9 +508,9 @@ MediaLoadResult MediaManager::attachCRTImage()
             if (!drive)
                 continue;
 
-            const bool is2031 = drive->getDriveModel() == DriveModel::D2031;
+            const bool isIEEE488 = drive->getDriveModel() == DriveModel::D2031 || drive->getDriveModel() == DriveModel::D4040;
 
-            if (ieee488Active != is2031)
+            if (ieee488Active != isIEEE488)
                 detachDiskImage(dev);
         }
 
@@ -813,7 +813,7 @@ void MediaManager::detachDiskImage(int dev)
     drive->unloadDisk();
 
     // Disconnect from the correct physical bus.
-    if (model == DriveModel::D2031)
+    if (model == DriveModel::D2031 || model == DriveModel::D4040)
     {
         if (components_.ieee488Bus)
             components_.ieee488Bus->detachDevice(static_cast<IEEE488Bus::DeviceId>(dev));
@@ -867,7 +867,7 @@ void MediaManager::detachCRTImage()
         if (!drive)
             continue;
 
-        if (drive->getDriveModel() == DriveModel::D2031)
+        if (drive->getDriveModel() == DriveModel::D2031 || drive->getDriveModel() == DriveModel::D4040)
             detachDiskImage(dev);
     }
 
@@ -1137,18 +1137,24 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
         return false;
 
     // Register the drive on its correct bus.
-    if (model == DriveModel::D2031)
+    if (model == DriveModel::D2031 || model == DriveModel::D4040)
     {
-        auto* d2031 = static_cast<D2031*>(slot.get());
+        bool attached = false;
 
-        // The D2031 owns its IEEE488Device internally.
-        // Its attachment method handles connecting the
-        // device to the IEEE-488 bus.
-        if (!d2031->attachIEEE488Bus(components_.ieee488Bus.get()))
+        if (model == DriveModel::D2031)
         {
-            // Clean up any partially registered participant.
-            components_.ieee488Bus->detachDevice(static_cast<IEEE488Bus::DeviceId>(deviceNum));
+            auto* d2031 = static_cast<D2031*>(slot.get());
+            attached = d2031->attachIEEE488Bus(components_.ieee488Bus.get());
+        }
+        else
+        {
+            auto* d4040 = static_cast<D4040*>(slot.get());
+            attached = d4040->attachIEEE488Bus(components_.ieee488Bus.get());
+        }
 
+        if (!attached)
+        {
+            components_.ieee488Bus->detachDevice(static_cast<IEEE488Bus::DeviceId>(deviceNum));
             slot.reset();
             return false;
         }
@@ -1482,6 +1488,9 @@ UiCommand::DriveType MediaManager::toUiDriveType(DriveModel model) const
         case DriveModel::D2031:
             return UiCommand::DriveType::D2031;
 
+        case DriveModel::D4040:
+            return UiCommand::DriveType::D4040;
+
         case DriveModel::None:
         default:
             return UiCommand::DriveType::None;
@@ -1502,6 +1511,7 @@ DiskFormat MediaManager::diskFormatForDriveModel(DriveModel model)
             return DiskFormat::D81;
 
         case DriveModel::D2031:
+        case DriveModel::D4040:
             return DiskFormat::D64;
 
         case DriveModel::None:
