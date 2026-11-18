@@ -38,6 +38,7 @@ class D4040Bus : public CPUBus
         uint8_t peek(uint16_t address) const override;
 
         void updateRIOTInputs();
+        void updateRIOTInputs(const IEEE488Bus::BusState& state);
         void updateIEEE488Outputs();
 
     private:

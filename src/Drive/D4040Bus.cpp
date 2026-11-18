@@ -69,8 +69,33 @@ uint8_t D4040Bus::peek(uint16_t address) const
     return mem->peek(address);
 }
 
-
 void D4040Bus::updateRIOTInputs()
+{
+    if (!mem || !drive)
+        return;
+
+    if (ieee488Device && ieee488Device->isConnected())
+    {
+        // Sample the current physical bus state.
+        IEEE488Bus::BusState state;
+
+        state.atn = ieee488Device->getBusSignal(IEEE488Bus::Signal::ATN);
+        state.dav = ieee488Device->getBusSignal(IEEE488Bus::Signal::DAV);
+        state.eoi = ieee488Device->getBusSignal(IEEE488Bus::Signal::EOI);
+        state.nrfd = ieee488Device->getBusSignal(IEEE488Bus::Signal::NRFD);
+        state.ndac = ieee488Device->getBusSignal(IEEE488Bus::Signal::NDAC);
+        state.dio = ieee488Device->getBusDIO();
+
+        updateRIOTInputs(state);
+    }
+    else
+    {
+        IEEE488Bus::BusState state;
+        updateRIOTInputs(state);
+    }
+}
+
+void D4040Bus::updateRIOTInputs(const IEEE488Bus::BusState& state)
 {
     if (!mem || !drive)
         return;
@@ -78,58 +103,44 @@ void D4040Bus::updateRIOTInputs()
     MOS6532& riot1 = mem->getRIOT1();
     MOS6532& riot2 = mem->getRIOT2();
 
-    // Device address jumpers: PB0-PB2 of RIOT 2.
     const uint8_t deviceNumber = static_cast<uint8_t>(drive->getDeviceNumber());
     const uint8_t addressBits = static_cast<uint8_t>((deviceNumber - 8) & 0x07);
 
     uint8_t riot2PA = 0xFF;
     uint8_t riot2PB = static_cast<uint8_t>(0xF8 | addressBits);
 
-    // IEEE-488 bus inputs.
     if (ieee488Device && ieee488Device->isConnected())
     {
-        const bool atn = ieee488Device->getBusSignal(IEEE488Bus::Signal::ATN);
-        const bool dav = ieee488Device->getBusSignal(IEEE488Bus::Signal::DAV);
-        const bool eoi = ieee488Device->getBusSignal(IEEE488Bus::Signal::EOI);
-        const bool nrfd = ieee488Device->getBusSignal(IEEE488Bus::Signal::NRFD);
-        const bool ndac = ieee488Device->getBusSignal(IEEE488Bus::Signal::NDAC);
+        riot1.setPortAInput(state.dio);
 
-        // RIOT 1 Port A: eight IEEE-488 data lines.
-        riot1.setPortAInput(ieee488Device->getBusDIO());
-
-        // RIOT 2 Port A:
-        // PA7 = inverted physical ATN
-        // PA6 = DAV
-        // PA5 = EOI
-        if (atn)
+        // PA7 = inverted physical ATN.
+        if (state.atn)
             riot2PA &= static_cast<uint8_t>(~0x80);
 
-        if (!dav)
+        // PA6 = DAV.
+        if (!state.dav)
             riot2PA &= static_cast<uint8_t>(~0x40);
 
-        if (!eoi)
+        // PA5 = EOI.
+        if (!state.eoi)
             riot2PA &= static_cast<uint8_t>(~0x20);
 
-        // RIOT 2 Port B:
-        // PB7 = NRFD
-        // PB6 = NDAC
-        // PB0-PB2 = device address jumpers
-        if (!nrfd)
+        // PB7 = NRFD.
+        if (!state.nrfd)
             riot2PB &= static_cast<uint8_t>(~0x80);
 
-        if (!ndac)
+        // PB6 = NDAC.
+        if (!state.ndac)
             riot2PB &= static_cast<uint8_t>(~0x40);
     }
     else
     {
         riot1.setPortAInput(0xFF);
 
-        // No external ATN assertion.
+        // Preserve the existing disconnected behavior.
         riot2PA &= static_cast<uint8_t>(~0x80);
     }
 
-    // Update RIOT 2 inputs.
-    // setPortAInput also evaluates the PA7 edge interrupt.
     riot2.setPortAInput(riot2PA);
     riot2.setPortBInput(riot2PB);
 }
