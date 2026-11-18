@@ -70,8 +70,17 @@ void D4040::reset()
 
     controllerCycleBalance = 0;
 
-    // Refresh motor signals
+    // Refresh motor and stepper signals.
     updateMechanisms();
+
+    // Synchronize the IEEE-488 interface following reset.
+    d4040Bus6502.updateRIOTInputs();
+    d4040Bus6502.updateIEEE488Outputs();
+
+    // Initialize controller input signals.
+    updateControllerInputs();
+
+    updateIRQ();
 }
 
 void D4040::saveState(StateWriter& wrtr) const
@@ -114,7 +123,15 @@ bool D4040::attachIEEE488Bus(IEEE488Bus* bus)
         return false;
     }
 
+    // Synchronize RIOT inputs with the current
+    // IEEE-488 bus state.
+    d4040Bus6502.updateRIOTInputs();
+
+    // Apply the drive's current handshake outputs.
+    d4040Bus6502.updateIEEE488Outputs();
+
     return true;
+
 }
 
 void D4040::tick(uint32_t cycles)
