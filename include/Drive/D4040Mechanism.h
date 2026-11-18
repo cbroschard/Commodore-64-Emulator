@@ -35,6 +35,64 @@ struct D4040Mechanism
     // Whether we have observed an initial stepper phase.
     bool stepperInitialized = false;
 
+    // Disk signals
+    bool writeProtected = false;
+    bool syncDetected = false;
+    bool byteReady = false;
+
+    // Data transfer
+    uint8_t readLatch = 0xFF;
+    uint8_t writeLatch = 0xFF;
+
+    // Per-mechanism GCR state
+    GCRTrackStream gcrTrack;
+
+    size_t gcrPos = 0;
+
+    // Track number currently represented by gcrTrack.
+    uint8_t loadedGCRTrack = 0;
+
+    // Indicates whether the stream matches the mounted
+    // disk and current physical head position.
+    bool gcrValid = false;
+
+    // Accumulated emulated cycles since the last GCR byte.
+    uint32_t gcrCycleAccumulator = 0;
+
+    // In-memory GCR track has been modified.
+    bool gcrDirty = false;
+
+    // Number of GCR bytes recorded on the current track.
+    uint32_t gcrBytesWritten = 0;
+
+    void reset()
+    {
+        motorOn = false;
+        stepperPhase = 0;
+
+        syncDetected = false;
+        byteReady = false;
+
+        readLatch = 0xFF;
+        writeLatch = 0xFF;
+
+        // Preserve physical head position across a controller reset.
+        // A reset does not physically reposition the disk head.
+        track = static_cast<uint8_t>(halfTrack / 2);
+
+        // Force the next electrical stepper phase to establish
+        // a new baseline without moving the head.
+        stepperInitialized = false;
+
+        gcrTrack.clear();
+        gcrPos = 0;
+        loadedGCRTrack = 0;
+        gcrValid = false;
+        gcrCycleAccumulator = 0;
+        gcrDirty = false;
+        gcrBytesWritten = 0;
+    }
+
     void updateStepperPhase(uint8_t newPhase)
     {
         newPhase &= 0x03;
@@ -78,55 +136,36 @@ struct D4040Mechanism
         track = static_cast<uint8_t>(halfTrack / 2);
     }
 
-    // Disk signals
-    bool writeProtected = false;
-    bool syncDetected = false;
-    bool byteReady = false;
-
-    // Data transfer
-    uint8_t readLatch = 0xFF;
-    uint8_t writeLatch = 0xFF;
-
-    // Per-mechanism GCR state
-    GCRTrackStream gcrTrack;
-
-    size_t gcrPos = 0;
-
-    // Track number currently represented by gcrTrack.
-    uint8_t loadedGCRTrack = 0;
-
-    // Indicates whether the stream matches the mounted
-    // disk and current physical head position.
-    bool gcrValid = false;
-
-    // Accumulated emulated cycles since the last GCR byte.
-    uint32_t gcrCycleAccumulator = 0;
-
-    void reset()
+    bool writeGCRByte(size_t position, uint8_t value)
     {
-        motorOn = false;
-        stepperPhase = 0;
+        if (!diskImage || writeProtected || !gcrValid)
+            return false;
 
-        syncDetected = false;
-        byteReady = false;
+        auto& data = gcrTrack.getTrackData();
+        auto& sync = gcrTrack.getSyncMap();
 
-        readLatch = 0xFF;
-        writeLatch = 0xFF;
+        if (data.empty() || sync.size() != data.size())
+            return false;
 
-        // Preserve physical head position across a controller reset.
-        // A reset does not physically reposition the disk head.
-        track = static_cast<uint8_t>(halfTrack / 2);
+        position %= data.size();
 
-        // Force the next electrical stepper phase to establish
-        // a new baseline without moving the head.
-        stepperInitialized = false;
+        // Overwrite the GCR byte at the current
+        // rotational position.
+        data[position] = value;
 
-        gcrTrack.clear();
-        gcrPos = 0;
-        loadedGCRTrack = 0;
-        gcrValid = false;
-        gcrCycleAccumulator = 0;
+        // Temporarily treat the written byte as
+        // normal GCR data rather than a sync field.
+        //
+        // Proper sync generation will be handled
+        // separately when write-gate control is added.
+        sync[position] = 0;
+
+        gcrDirty = true;
+        ++gcrBytesWritten;
+
+        return true;
     }
+
 };
 
 #endif // D4040MECHANISM_H_INCLUDED
