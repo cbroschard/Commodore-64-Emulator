@@ -663,6 +663,11 @@ bool D4040::rebuildGCRTrack(uint8_t unit)
     mech.loadedGCRTrack = track;
     mech.gcrValid = !mech.gcrTrack.empty() && sync.size() == data.size();
 
+    // A newly generated GCR stream represents
+    // the currently mounted D64 sector data.
+    mech.gcrDirty = false;
+    mech.gcrBytesWritten = 0;
+
     return mech.gcrValid;
 }
 
@@ -795,11 +800,8 @@ void D4040::advanceGCR(uint32_t cycles)
 
                 if (via.consumeWriteByte(writeByte))
                 {
-                    // Never accept writes to protected media.
-                    if (!mech.writeProtected)
+                    if (mech.writeGCRByte(pos, writeByte))
                     {
-                        // Stage the outgoing GCR byte.
-                        // Actual track modification comes next.
                         mech.writeLatch = writeByte;
                     }
                 }
