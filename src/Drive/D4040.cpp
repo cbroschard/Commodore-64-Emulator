@@ -678,7 +678,20 @@ void D4040::advanceGCR(uint32_t cycles)
             mech.byteReady = false;
 
             if (unit == selectedUnit)
-                via.clearMechBytePending();
+            {
+                if (via.isDiskReadMode())
+                {
+                    // The controller is reading the disk.
+                    via.diskByteFromMedia(byte, inSync);
+                }
+                else
+                {
+                    // Do not deliver read-byte events while
+                    // writing or while the mode is inactive.
+                    via.clearMechBytePending();
+                    via.setSyncDetected(false);
+                }
+            }
 
             continue;
         }
