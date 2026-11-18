@@ -431,7 +431,9 @@ uint8_t D4040::getSelectedMechanism() const
 
 void D4040::onIEEE488BusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState)
 {
-    d4040Bus6502.updateRIOTInputs();
+    // Apply the exact bus state from this transition.
+    // This preserves ATN edges for RIOT interrupt logic.
+    d4040Bus6502.updateRIOTInputs(newState);
 
     if (oldState.atn != newState.atn)
         d4040Bus6502.updateIEEE488Outputs();
@@ -670,6 +672,20 @@ void D4040::advanceGCR(uint32_t cycles)
 
     D4040VIA& via = d4040mem.getVIA();
 
+    // MOS6530 Port B:
+    // PB1-PB2 select the controller's GCR density.
+    const MOS6530& rriot = d4040mem.getRRIOT();
+
+    const uint8_t densityDDR = rriot.getDDRB();
+    const uint8_t densityOutput = rriot.getPortBOutput();
+
+    // Use firmware-selected density when both
+    // density control pins are configured as outputs.
+    const bool densityConfigured = (densityDDR & 0x06) == 0x06;
+
+    const uint8_t controllerDensity = static_cast<uint8_t>((densityOutput >> 1) & 0x03);
+
+
     for (uint8_t unit = 0; unit < 2; ++unit)
     {
         D4040Mechanism& mech = mechanisms[unit];
@@ -718,11 +734,21 @@ void D4040::advanceGCR(uint32_t cycles)
         if (trackSize == 0)
             continue;
 
-        // Approximate 1541-compatible density zones.
-        // These will eventually be driven by the
-        // 4040's controller density selection.
-        const uint8_t density = (physicalTrack <= 17) ? 3 : (physicalTrack <= 24) ? 2 : (physicalTrack <= 30) ? 1 : 0;
+        // Default density based on the physical track.
+        uint8_t density = (physicalTrack <= 17) ? 3 : (physicalTrack <= 24) ? 2 : (physicalTrack <= 30) ? 1 : 0;
 
+        // The 4040 has one shared disk controller.
+        //
+        // When this mechanism is selected, use the
+        // density programmed through MOS6530 PB1-PB2.
+        if (unit == selectedUnit && densityConfigured)
+            density = controllerDensity;
+
+        // Approximate emulated cycles per GCR byte.
+        // Density 0 = slowest, density 3 = fastest.
+        //
+        // The exact 4040 controller clock divisors
+        // still need verification against the firmware.
         static constexpr uint32_t cyclesPerByte[4] = { 32, 30, 28, 26 };
 
         const uint32_t interval = cyclesPerByte[density];
