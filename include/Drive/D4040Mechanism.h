@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include "Floppy/DiskFactory.h"
 #include "GCR/GCRTrackStream.h"
 
@@ -46,6 +47,57 @@ struct D4040Mechanism
 
     // Per-mechanism GCR state
     GCRTrackStream gcrTrack;
+
+
+    // Only modified tracks are cached.
+    // Key: physical whole-track number (1-35).
+    std::unordered_map<uint8_t, GCRTrackStream> dirtyTracks;
+
+    bool hasUncommittedGCR() const
+    {
+        return gcrDirty || !dirtyTracks.empty();
+    }
+
+    void cacheActiveTrack()
+    {
+        if (!gcrDirty || !gcrValid ||
+            loadedGCRTrack == 0)
+            return;
+
+        // Copy both recorded bytes and sync metadata.
+        dirtyTracks[loadedGCRTrack] = gcrTrack;
+        gcrDirty = false;
+    }
+
+    bool restoreCachedTrack(uint8_t trackNumber)
+    {
+        auto it = dirtyTracks.find(trackNumber);
+
+        if (it == dirtyTracks.end())
+            return false;
+
+        const auto& data = it->second.getTrackData();
+        const auto& sync = it->second.getSyncMap();
+
+        if (data.empty() || sync.size() != data.size())
+            return false;
+
+        gcrTrack = it->second;
+        loadedGCRTrack = trackNumber;
+        gcrValid = true;
+        gcrDirty = true;
+        gcrPos = 0;
+
+        return true;
+    }
+
+    void clearDirtyTrackCache()
+    {
+        dirtyTracks.clear();
+        gcrDirty = false;
+        gcrBytesWritten = 0;
+        gcrSyncBytesWritten = 0;
+    }
 
     size_t gcrPos = 0;
 
@@ -87,6 +139,7 @@ struct D4040Mechanism
         stepperInitialized = false;
 
         gcrTrack.clear();
+        cacheActiveTrack();
         gcrPos = 0;
         loadedGCRTrack = 0;
         gcrValid = false;
