@@ -62,7 +62,11 @@ uint8_t D4040VIA::readRegister(uint16_t address)
 
     // Port A with handshake
     if (address == 0x01)
-        return readPortARegister(samplePortAInputs(), true);
+    {
+        const uint8_t value = readPortARegister(samplePortAInputs(), true);
+        mechBytePending = false;
+        return value;
+    }
 
     // Port A without handshake
     if (address == 0x0F)
@@ -141,7 +145,7 @@ uint8_t D4040VIA::peek(uint16_t address) const
 
         case 0x01:
         case 0x0F:
-            return readPortAPins(portAPins);
+            return readPortAPins(mechDataLatch);
 
         case 0x02:
             return registers.ddrB;
@@ -186,6 +190,31 @@ uint8_t D4040VIA::peek(uint16_t address) const
     return 0xFF;
 }
 
+
+void D4040VIA::diskByteFromMedia(uint8_t byte, bool inSync)
+{
+    syncDetected = inSync;
+
+    // No completed data byte while reading a sync field.
+    if (inSync)
+    {
+        mechBytePending = false;
+        return;
+    }
+
+    // Latch the incoming disk byte.
+    mechDataLatch = byte;
+    mechBytePending = true;
+
+    // The 4040 firmware normally configures CA1 for
+    // a falling-edge byte-ready signal.
+    //
+    // Use the existing VIA edge detection so the
+    // PCR setting determines whether IFR_CA1 is set.
+    setCA1Level(true);
+    setCA1Level(false);
+}
+
 D4040MotorSignals D4040VIA::getMotorSignals() const
 {
     D4040MotorSignals result;
@@ -203,9 +232,14 @@ D4040MotorSignals D4040VIA::getMotorSignals() const
     return result;
 }
 
+void D4040VIA::clearMechBytePending()
+{
+    mechBytePending = false;
+}
+
 uint8_t D4040VIA::samplePortAInputs()
 {
-    return 0xFF;
+    return mechDataLatch;
 }
 
 uint8_t D4040VIA::samplePortBInputs()

@@ -44,11 +44,8 @@ class D4040VIA : public DriveVIA6522
         // Helpers
         void clearIEEE488TransientState();
         void clearMechBytePending();
-        void synchronizeIEEE488Outputs();
         void resetShift();
         void pulseWriteByteReady();
-
-        void setIEEE488Inputs(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
 
         MechanicsInfo getMechanicsInfo() const override;
 
