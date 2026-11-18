@@ -796,23 +796,17 @@ void D4040::advanceGCR(uint32_t cycles)
                 via.clearMechBytePending();
                 via.setSyncDetected(false);
 
-                // The 4040 uses MOS6530 Port A ($0080)
-                // as its outgoing GCR data register.
+                // MOS6530 Port A is the GCR output data latch.
                 const MOS6530& rriot = d4040mem.getRRIOT();
 
-                // The controller presents the current output latch
-                // to the recording circuitry.
-                //
-                // The same byte can remain present across multiple
-                // rotational boundaries until firmware changes it.
-                const uint8_t writeByte = rriot.getPortAOutput();
+                const bool writeSync = via.isSyncFillMode();
 
-                // Only record when media is present and writable.
-                if (mech.diskImage && !mech.writeProtected)
-                {
-                    if (mech.writeGCRByte(pos, writeByte))
-                        mech.writeLatch = writeByte;
-                }
+                const uint8_t writeByte = writeSync ? 0xFF : rriot.getPortAOutput();
+
+                // Record data or sync at the current
+                // rotational position.
+                if (mech.writeGCRByte(pos, writeByte, writeSync))
+                    mech.writeLatch = writeByte;
 
                 continue;
             }
