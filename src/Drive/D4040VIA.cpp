@@ -4,9 +4,7 @@ D4040VIA::D4040VIA() :
     ledOn(false),
     syncDetected(false),
     mechDataLatch(0xFF),
-    mechBytePending(false),
-    pendingWriteByte(0xFF),
-    writeBytePending(false)
+    mechBytePending(false)
 {
 
 }
@@ -22,9 +20,6 @@ void D4040VIA::reset()
 
     mechDataLatch       = 0xFF;
     mechBytePending     = false;
-
-    pendingWriteByte    = 0xFF;
-    writeBytePending    = false;
 }
 
 void D4040VIA::saveState(StateWriter& wrtr) const
@@ -35,8 +30,6 @@ void D4040VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(syncDetected);
     wrtr.writeU8(mechDataLatch);
     wrtr.writeBool(mechBytePending);
-    wrtr.writeU8(pendingWriteByte);
-    wrtr.writeBool(writeBytePending);
 }
 
 bool D4040VIA::loadState(StateReader& rdr)
@@ -54,12 +47,6 @@ bool D4040VIA::loadState(StateReader& rdr)
         return false;
 
     if (!rdr.readBool(mechBytePending))
-        return false;
-
-    if (!rdr.readU8(pendingWriteByte))
-    return false;
-
-    if (!rdr.readBool(writeBytePending))
         return false;
 
     return true;
@@ -199,20 +186,13 @@ uint8_t D4040VIA::peek(uint16_t address) const
     return 0xFF;
 }
 
-bool D4040VIA::hasPendingWriteByte() const
+bool D4040VIA::isSyncFillMode() const
 {
-    return writeBytePending;
-}
+    const uint8_t pcr = registers.peripheralControlRegister;
 
-bool D4040VIA::consumeWriteByte(uint8_t& value)
-{
-    if (!writeBytePending)
-        return false;
-
-    value = pendingWriteByte;
-    writeBytePending = false;
-
-    return true;
+    // PCR bits 1-3 control CA2.
+    // xE selects the documented sync/fill state.
+    return (pcr & 0x0E) == 0x0E;
 }
 
 bool D4040VIA::isDiskReadMode() const
@@ -288,15 +268,7 @@ uint8_t D4040VIA::samplePortBInputs()
 void D4040VIA::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)
 {
     (void)oldValue;
-
-    // Capture outgoing bytes only in write mode.
-    if (!isDiskWriteMode())
-        return;
-
-    // Port A contains the byte the controller
-    // wants to write to the disk.
-    pendingWriteByte = newValue;
-    writeBytePending = true;
+    (void)newValue;
 }
 
 void D4040VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)

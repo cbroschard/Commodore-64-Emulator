@@ -38,8 +38,7 @@ class D4040VIA : public DriveVIA6522
         inline bool mechHasBytePending() const { return mechBytePending; }
         inline void setSyncDetected(bool present) { syncDetected = present; }
         inline uint8_t getDiskWriteLatch() const { return registers.oraIRA; }
-        bool hasPendingWriteByte() const;
-        bool consumeWriteByte(uint8_t& value);
+        bool isSyncFillMode() const;
         bool isDiskReadMode() const;
         bool isDiskWriteMode() const;
         void diskByteFromMedia(uint8_t byte, bool inSync);
@@ -71,9 +70,7 @@ class D4040VIA : public DriveVIA6522
         bool    ledOn;
         bool    syncDetected;
         uint8_t mechDataLatch;
-        bool    mechBytePending;
-        uint8_t pendingWriteByte;
-        bool    writeBytePending;
+        bool    mechBytePending;;
 };
 
 #endif // D4040VIA_H
