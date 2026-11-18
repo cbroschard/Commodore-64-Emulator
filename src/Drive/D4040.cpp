@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/D4040.h"
+#include "Floppy/CBMImage.h"
 
 D4040::D4040(int deviceNumber, const std::string& fdcROM, const std::string& loROM, const std::string& hiROM1, const std::string& hiROM2) :
     d4040Bus6502(D4040Bus::Processor::DOS6502),
@@ -154,8 +155,8 @@ void D4040::tick(uint32_t cycles)
         // -----------------------------------------
         while (controllerCycleBalance > 0)
         {
-            // Refresh external controller inputs before
-            // the 6504 executes its next instruction.
+            // Make external status inputs visible before
+            // the next controller instruction.
             updateControllerInputs();
 
             controllerCPU.tick();
@@ -167,10 +168,15 @@ void D4040::tick(uint32_t cycles)
 
             controllerCycleBalance -= static_cast<int64_t>(fc);
 
-            // Refresh motor signals
+            // Pick up VIA motor and stepper changes.
             updateMechanisms();
 
-            // Controller may change interrupt state.
+            // Rotate disks and deliver selected GCR bytes.
+            advanceGCR(fc);
+
+            // Refresh status after rotation changes SYNC.
+            updateControllerInputs();
+
             updateIRQ();
         }
     }
@@ -398,15 +404,35 @@ void D4040::onIEEE488BusChanged(const IEEE488Bus::BusState& oldState, const IEEE
     updateIRQ();
 }
 
+
 void D4040::updateMechanisms()
 {
     const D4040MotorSignals signals = d4040mem.getVIA().getMotorSignals();
 
+    // Update the spindle motors independently.
     mechanisms[0].motorOn = signals.motor0On;
     mechanisms[1].motorOn = signals.motor1On;
 
-    mechanisms[0].stepperPhase = signals.stepper0;
-    mechanisms[1].stepperPhase = signals.stepper1;
+    // Apply stepper phase transitions independently.
+    mechanisms[0].updateStepperPhase(signals.stepper0);
+    mechanisms[1].updateStepperPhase(signals.stepper1);
+
+    for (uint8_t unit = 0; unit < 2; ++unit)
+    {
+        D4040Mechanism& mech = mechanisms[unit];
+
+        const uint8_t oldHalfTrack = mech.halfTrack;
+        const uint8_t newPhase = (unit == 0) ? signals.stepper0 : signals.stepper1;
+
+        mech.updateStepperPhase(newPhase);
+
+        if (mech.halfTrack != oldHalfTrack)
+        {
+            mech.gcrValid = false;
+            mech.syncDetected = false;
+            mech.byteReady = false;
+        }
+    }
 }
 
 bool D4040::flushMechanism(uint8_t unit)
@@ -476,4 +502,212 @@ void D4040::updateControllerInputs()
         pb &= static_cast<uint8_t>(~0x40);
 
     rriot.setPortBInput(pb);
+}
+
+bool D4040::rebuildGCRTrack(uint8_t unit)
+{
+    if (unit >= mechanisms.size())
+        return false;
+
+    D4040Mechanism& mech = mechanisms[unit];
+
+    // Invalidate the previous stream.
+    mech.gcrTrack.clear();
+    mech.gcrPos = 0;
+    mech.gcrValid = false;
+    mech.loadedGCRTrack = 0;
+    mech.syncDetected = false;
+    mech.byteReady = false;
+
+    if (!mech.diskImage)
+        return false;
+
+    CBMImage* image = dynamic_cast<CBMImage*>(mech.diskImage.get());
+
+    if (!image)
+        return false;
+
+    // D64 contains complete sectors on whole tracks.
+    // Do not pretend an off-track head is aligned.
+    if ((mech.halfTrack & 1) != 0)
+        return false;
+
+    const uint8_t track = static_cast<uint8_t>(mech.halfTrack / 2);
+
+    if (track < 1 || track > 35)
+        return false;
+
+    const int sectors = gcrCodec.sectorsPerTrack1541(track);
+
+    // Read disk ID from BAM on track 18, sector 0.
+    const auto bam = image->readSector(18, 0);
+
+    if (bam.size() != 256)
+        return false;
+
+    const uint8_t id1 = bam[0xA2];
+    const uint8_t id2 = bam[0xA3];
+
+    auto& data = mech.gcrTrack.getTrackData();
+    auto& sync = mech.gcrTrack.getSyncMap();
+
+    // Append bytes with sync metadata.
+    auto appendBytes = [&](uint8_t value, size_t count, bool isSync)
+    {
+        data.insert(data.end(), count, value);
+        sync.insert(sync.end(), count, isSync ? 1 : 0);
+    };
+
+    // Encode four bytes as five GCR bytes.
+    auto appendEncoded = [&](const uint8_t* bytes, size_t length)
+    {
+        for (size_t i = 0; i < length; i += 4)
+        {
+            uint8_t encoded[5];
+
+            gcrCodec.encode4Bytes(bytes + i, encoded);
+
+            data.insert(data.end(), encoded, encoded + 5);
+            sync.insert(sync.end(), 5, 0);
+        }
+    };
+
+    constexpr int SYNC_LEN = 10;
+    constexpr int HEADER_GAP = 9;
+    constexpr int DATA_GAP = 9;
+
+    appendBytes(0x55, 64, false);
+
+    for (int sector = 0; sector < sectors; ++sector)
+    {
+        const auto sectorData = image->readSector(track, static_cast<uint8_t>(sector));
+
+        if (sectorData.size() != 256)
+        {
+            mech.gcrTrack.clear();
+            return false;
+        }
+
+        // Sector header.
+        appendBytes(0xFF, SYNC_LEN, true);
+
+        uint8_t header[8] = {};
+
+        header[0] = 0x08;
+        header[2] = static_cast<uint8_t>(sector);
+        header[3] = track;
+        header[4] = id2;
+        header[5] = id1;
+        header[6] = 0x0F;
+        header[7] = 0x0F;
+
+        header[1] = static_cast<uint8_t>(header[2] ^ header[3] ^ header[4] ^ header[5]);
+
+        appendEncoded(header, sizeof(header));
+        appendBytes(0x55, HEADER_GAP, false);
+
+        // Sector data block.
+        appendBytes(0xFF, SYNC_LEN, true);
+
+        uint8_t block[260] = {};
+
+        block[0] = 0x07;
+
+        uint8_t checksum = 0;
+
+        for (size_t i = 0; i < 256; ++i)
+        {
+            block[i + 1] = sectorData[i];
+            checksum ^= sectorData[i];
+        }
+
+        block[257] = checksum;
+
+        appendEncoded(block, sizeof(block));
+        appendBytes(0x55, DATA_GAP, false);
+    }
+
+    appendBytes(0x55, 128, false);
+
+    mech.loadedGCRTrack = track;
+    mech.gcrValid = !mech.gcrTrack.empty() && sync.size() == data.size();
+
+    return mech.gcrValid;
+}
+
+void D4040::advanceGCR(uint32_t cycles)
+{
+    const uint8_t selectedUnit = getSelectedMechanism();
+
+    D4040VIA& via = d4040mem.getVIA();
+
+    for (uint8_t unit = 0; unit < 2; ++unit)
+    {
+        D4040Mechanism& mech = mechanisms[unit];
+
+        // A stopped motor cannot produce disk bytes.
+        if (!mech.motorOn || !mech.diskImage)
+        {
+            mech.gcrCycleAccumulator = 0;
+            mech.syncDetected = false;
+            mech.byteReady = false;
+            continue;
+        }
+
+        const uint8_t physicalTrack = static_cast<uint8_t>(mech.halfTrack / 2);
+
+        // Rebuild only if the stream is invalid or
+        // represents a different track.
+        if (!mech.gcrValid || mech.loadedGCRTrack != physicalTrack)
+        {
+            if (!rebuildGCRTrack(unit))
+            {
+                mech.gcrCycleAccumulator = 0;
+                mech.syncDetected = false;
+                mech.byteReady = false;
+                continue;
+            }
+        }
+
+        const size_t trackSize = mech.gcrTrack.size();
+
+        if (trackSize == 0)
+            continue;
+
+        // Approximate 1541-compatible density zones.
+        // These will eventually be driven by the
+        // 4040's controller density selection.
+        const uint8_t density = (physicalTrack <= 17) ? 3 : (physicalTrack <= 24) ? 2 : (physicalTrack <= 30) ? 1 : 0;
+
+        static constexpr uint32_t cyclesPerByte[4] = { 32, 30, 28, 26 };
+
+        const uint32_t interval = cyclesPerByte[density];
+
+        mech.gcrCycleAccumulator += cycles;
+
+        const auto& data = mech.gcrTrack.getTrackData();
+        const auto& sync = mech.gcrTrack.getSyncMap();
+
+        while (mech.gcrCycleAccumulator >= interval)
+        {
+            mech.gcrCycleAccumulator -= interval;
+
+            const size_t pos = mech.gcrPos % trackSize;
+            const uint8_t byte = data[pos];
+            const bool inSync = pos < sync.size() && sync[pos] != 0;
+
+            mech.gcrPos = (pos + 1) % trackSize;
+
+            mech.syncDetected = inSync;
+            mech.byteReady = !inSync;
+
+            mech.readLatch = byte;
+
+            // Both disks rotate independently, but
+            // only the selected mechanism is connected
+            // to the controller's data separator.
+            if (unit == selectedUnit)
+                via.diskByteFromMedia(byte, inSync);
+        }
+    }
 }

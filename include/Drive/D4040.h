@@ -20,7 +20,6 @@
 #include "Drive/IDrivePositionView.h"
 #include "Drive/IDriveUiView.h"
 #include "GCR/GCRCodec.h"
-#include "GCR/GCRTrackStream.h"
 #include "IEEE488/IEEE488Device.h"
 #include "IRQLine.h"
 #include "StateReader.h"
@@ -120,7 +119,6 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         D4040Bus d4040Bus6504;
         CPU driveCPU;
         CPU controllerCPU;
-        GCRTrackStream gcrTrack;
         GCRCodec gcrCodec;
         IEEE488Device ieee488Device;
         IRQLine driveIRQ;
@@ -143,6 +141,8 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void updateMechanisms();
         bool flushMechanism(uint8_t unit);
         void updateControllerInputs();
+        bool rebuildGCRTrack(uint8_t unit);
+        void advanceGCR(uint32_t cycles);
 };
 
 #endif // D4040_H
