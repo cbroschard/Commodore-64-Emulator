@@ -766,24 +766,66 @@ void D4040::advanceGCR(uint32_t cycles)
             const uint8_t byte = data[pos];
             const bool inSync = pos < sync.size() && sync[pos] != 0;
 
+            // Advance the rotational position.
             mech.gcrPos = (pos + 1) % trackSize;
 
-            mech.syncDetected = inSync;
-            mech.byteReady = !inSync;
-
-            mech.readLatch = byte;
-
-            // Only the selected mechanism sends
-            // data to the controller.
-            if (unit == selectedUnit)
+            // Only the selected mechanism can exchange
+            // data with the controller.
+            if (unit != selectedUnit)
             {
-                if (via.isDiskReadMode())
-                    via.diskByteFromMedia(byte, inSync);
-                else
+                mech.syncDetected = inSync;
+                mech.byteReady = !inSync;
+                mech.readLatch = byte;
+                continue;
+            }
+
+            // -----------------------------------------
+            // Disk write mode
+            // -----------------------------------------
+            if (via.isDiskWriteMode())
+            {
+                // No incoming read data while writing.
+                mech.syncDetected = false;
+                mech.byteReady = false;
+
+                via.clearMechBytePending();
+                via.setSyncDetected(false);
+
+                uint8_t writeByte = 0xFF;
+
+                if (via.consumeWriteByte(writeByte))
                 {
-                    via.clearMechBytePending();
-                    via.setSyncDetected(false);
+                    // Never accept writes to protected media.
+                    if (!mech.writeProtected)
+                    {
+                        // Stage the outgoing GCR byte.
+                        // Actual track modification comes next.
+                        mech.writeLatch = writeByte;
+                    }
                 }
+
+                continue;
+            }
+
+            // -----------------------------------------
+            // Disk read mode
+            // -----------------------------------------
+            if (via.isDiskReadMode())
+            {
+                mech.syncDetected = inSync;
+                mech.byteReady = !inSync;
+                mech.readLatch = byte;
+
+                via.diskByteFromMedia(byte, inSync);
+            }
+            else
+            {
+                // Controller is not actively reading.
+                mech.syncDetected = false;
+                mech.byteReady = false;
+
+                via.clearMechBytePending();
+                via.setSyncDetected(false);
             }
         }
     }
