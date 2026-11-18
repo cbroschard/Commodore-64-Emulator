@@ -4,25 +4,28 @@ D4040VIA::D4040VIA() :
     ledOn(false),
     syncDetected(false),
     mechDataLatch(0xFF),
-    mechBytePending(false)
+    mechBytePending(false),
+    pendingWriteByte(0xFF),
+    writeBytePending(false)
 {
 
 }
 
 D4040VIA::~D4040VIA() = default;
 
-
 void D4040VIA::reset()
 {
     DriveVIA6522::reset();
 
-    ledOn = false;
-    syncDetected = false;
+    ledOn               = false;
+    syncDetected        = false;
 
-    mechDataLatch = 0xFF;
-    mechBytePending = false;
+    mechDataLatch       = 0xFF;
+    mechBytePending     = false;
+
+    pendingWriteByte    = 0xFF;
+    writeBytePending    = false;
 }
-
 
 void D4040VIA::saveState(StateWriter& wrtr) const
 {
@@ -32,6 +35,8 @@ void D4040VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(syncDetected);
     wrtr.writeU8(mechDataLatch);
     wrtr.writeBool(mechBytePending);
+    wrtr.writeU8(pendingWriteByte);
+    wrtr.writeBool(writeBytePending);
 }
 
 bool D4040VIA::loadState(StateReader& rdr)
@@ -49,6 +54,12 @@ bool D4040VIA::loadState(StateReader& rdr)
         return false;
 
     if (!rdr.readBool(mechBytePending))
+        return false;
+
+    if (!rdr.readU8(pendingWriteByte))
+    return false;
+
+    if (!rdr.readBool(writeBytePending))
         return false;
 
     return true;
@@ -98,7 +109,6 @@ uint8_t D4040VIA::readRegister(uint16_t address)
     return 0xFF;
 }
 
-
 void D4040VIA::writeRegister(uint16_t address, uint8_t value)
 {
     address &= 0x0F;
@@ -134,7 +144,6 @@ void D4040VIA::writeRegister(uint16_t address, uint8_t value)
     if (writeInterruptRegister(address, value))
         return;
 }
-
 
 uint8_t D4040VIA::peek(uint16_t address) const
 {
@@ -188,6 +197,22 @@ uint8_t D4040VIA::peek(uint16_t address) const
     }
 
     return 0xFF;
+}
+
+bool D4040VIA::hasPendingWriteByte() const
+{
+    return writeBytePending;
+}
+
+bool D4040VIA::consumeWriteByte(uint8_t& value)
+{
+    if (!writeBytePending)
+        return false;
+
+    value = pendingWriteByte;
+    writeBytePending = false;
+
+    return true;
 }
 
 bool D4040VIA::isDiskReadMode() const
@@ -262,7 +287,16 @@ uint8_t D4040VIA::samplePortBInputs()
 
 void D4040VIA::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)
 {
+    (void)oldValue;
 
+    // Capture outgoing bytes only in write mode.
+    if (!isDiskWriteMode())
+        return;
+
+    // Port A contains the byte the controller
+    // wants to write to the disk.
+    pendingWriteByte = newValue;
+    writeBytePending = true;
 }
 
 void D4040VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
