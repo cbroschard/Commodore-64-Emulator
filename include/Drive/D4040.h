@@ -128,6 +128,13 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         DriveError  lastError;
         DriveStatus status;
 
+        struct DecodedGCRSector
+        {
+            uint8_t track = 0;
+            uint8_t sector = 0;
+            std::array<uint8_t, 256> data{};
+        };
+
         // 4040 has two drive mechanisms
         std::array<D4040Mechanism, 2> mechanisms;
 
@@ -143,6 +150,7 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void updateControllerInputs();
         bool rebuildGCRTrack(uint8_t unit);
         void advanceGCR(uint32_t cycles);
+        bool decodeGCRTrack(uint8_t unit, uint8_t track, std::vector<DecodedGCRSector>& sectors);
 };
 
 #endif // D4040_H

@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
 #include "Drive/D4040.h"
 #include "Floppy/CBMImage.h"
 
@@ -856,4 +857,179 @@ void D4040::advanceGCR(uint32_t cycles)
             }
         }
     }
+}
+
+bool D4040::decodeGCRTrack(uint8_t unit, uint8_t track, std::vector<DecodedGCRSector>& sectors)
+{
+    sectors.clear();
+
+    if (unit >= mechanisms.size() ||
+        track < 1 || track > 35)
+        return false;
+
+    const D4040Mechanism& mech = mechanisms[unit];
+
+    // Only decode the active track when it matches
+    // the requested physical track.
+    if (!mech.gcrValid || mech.loadedGCRTrack != track)
+        return false;
+
+    const auto& data = mech.gcrTrack.getTrackData();
+    const auto& sync = mech.gcrTrack.getSyncMap();
+
+    const size_t size = data.size();
+
+    if (size < 325 || sync.size() != size)
+        return false;
+
+    const int sectorCount = gcrCodec.sectorsPerTrack1541(track);
+
+    std::vector<bool> seen(static_cast<size_t>(sectorCount), false);
+
+    // Read a section of the circular GCR track.
+    auto readBytes = [&](size_t position, uint8_t* output, size_t count)
+    {
+        for (size_t i = 0; i < count; ++i)
+            output[i] = data[(position + i) % size];
+    };
+
+    // Circular distance between two positions.
+    auto distance = [&](size_t from, size_t to)
+    {
+        return (to + size - from) % size;
+    };
+
+    // Find the starts of all sync regions.
+    std::vector<size_t> syncStarts;
+
+    for (size_t i = 0; i < size; ++i)
+    {
+        const size_t previous = (i + size - 1) % size;
+
+        if (sync[i] && !sync[previous])
+            syncStarts.push_back(i);
+    }
+
+    if (syncStarts.size() < 2)
+        return false;
+
+    // Attempt to decode a sector header immediately
+    // following each sync region.
+    for (size_t index = 0;
+         index < syncStarts.size(); ++index)
+    {
+        const size_t start = syncStarts[index];
+
+        size_t headerPos = start;
+
+        // Skip the sync region.
+        while (sync[headerPos])
+        {
+            headerPos = (headerPos + 1) % size;
+
+            if (headerPos == start)
+                return false;
+        }
+
+        // The next sync region must not overlap
+        // the encoded header.
+        const size_t nextSync = syncStarts[(index + 1) % syncStarts.size()];
+
+        if (distance(headerPos, nextSync) < 10)
+            continue;
+
+        uint8_t encodedHeader[10] = {};
+        uint8_t header[8] = {};
+
+        readBytes(headerPos, encodedHeader, 10);
+
+        if (!gcrCodec.decode5Bytes(encodedHeader, header) || !gcrCodec.decode5Bytes(encodedHeader + 5, header + 4))
+            continue;
+
+        // Commodore sector header marker.
+        if (header[0] != 0x08)
+            continue;
+
+        const uint8_t sectorNumber = header[2];
+        const uint8_t trackNumber = header[3];
+
+        const uint8_t headerChecksum = header[2] ^ header[3] ^ header[4] ^ header[5];
+
+        if (header[1] != headerChecksum || trackNumber != track || sectorNumber >= sectorCount)
+            continue;
+
+        // The next sync region should precede
+        // the associated sector data block.
+        size_t dataPos = nextSync;
+
+        while (sync[dataPos])
+        {
+            dataPos = (dataPos + 1) % size;
+
+            if (dataPos == nextSync)
+                return false;
+        }
+
+        const size_t followingSync = syncStarts[(index + 2) % syncStarts.size()];
+
+        // Encoded data block must fit before
+        // the following sync field.
+        if (distance(dataPos, followingSync) < 325)
+            continue;
+
+        std::array<uint8_t, 260> block{};
+
+        bool valid = true;
+
+        for (size_t i = 0; i < 65; ++i)
+        {
+            uint8_t encoded[5] = {};
+
+            readBytes((dataPos + i * 5) % size, encoded, 5);
+
+            if (!gcrCodec.decode5Bytes(encoded, block.data() + i * 4))
+            {
+                valid = false;
+                break;
+            }
+        }
+
+        if (!valid || block[0] != 0x07)
+            continue;
+
+        // Validate the 256-byte sector checksum.
+        uint8_t checksum = 0;
+
+        for (size_t i = 0; i < 256; ++i)
+            checksum ^= block[i + 1];
+
+        if (checksum != block[257])
+            continue;
+
+        // Reject duplicate sector IDs.
+        if (seen[sectorNumber])
+        {
+            sectors.clear();
+            return false;
+        }
+
+        DecodedGCRSector decoded;
+        decoded.track = track;
+        decoded.sector = sectorNumber;
+
+        std::copy_n(block.begin() + 1, 256, decoded.data.begin());
+
+        sectors.push_back(decoded);
+        seen[sectorNumber] = true;
+    }
+
+    // Require a complete track before declaring
+    // it suitable for further processing.
+    if (sectors.size() != static_cast<size_t>(sectorCount))
+    {
+        sectors.clear();
+        return false;
+    }
+
+    return true;
 }
