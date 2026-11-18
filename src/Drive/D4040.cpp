@@ -291,6 +291,9 @@ bool D4040::mountDisk(uint8_t unit, const std::string& path)
 
     D4040Mechanism& mech = mechanisms[unit];
 
+    // Preserve outgoing modified track before replacing it.
+    mech.cacheActiveTrack();
+
     // Save any changes on the old disk first.
     if (!flushMechanism(unit))
     {
@@ -445,20 +448,22 @@ void D4040::updateMechanisms()
 {
     const D4040MotorSignals signals = d4040mem.getVIA().getMotorSignals();
 
-    mechanisms[0].motorOn = signals.motor0On;
-    mechanisms[1].motorOn = signals.motor1On;
-
     for (uint8_t unit = 0; unit < 2; ++unit)
     {
         D4040Mechanism& mech = mechanisms[unit];
 
-        const uint8_t oldHalfTrack = mech.halfTrack;
         const uint8_t newPhase = (unit == 0) ? signals.stepper0 : signals.stepper1;
+        mech.motorOn = (unit == 0) ? signals.motor0On : signals.motor1On;
+        const uint8_t oldHalfTrack = mech.halfTrack;
 
+        // Apply stepper transition exactly once.
         mech.updateStepperPhase(newPhase);
 
         if (mech.halfTrack != oldHalfTrack)
         {
+            // Preserve an outgoing modified track.
+            mech.cacheActiveTrack();
+
             mech.gcrValid = false;
             mech.syncDetected = false;
             mech.byteReady = false;
@@ -472,6 +477,19 @@ bool D4040::flushMechanism(uint8_t unit)
         return false;
 
     D4040Mechanism& mech = mechanisms[unit];
+
+
+    // GCR modifications have not yet been decoded
+    // into sectors, so they cannot be saved as D64.
+    if (mech.hasUncommittedGCR())
+    {
+        std::cerr
+            << "[D4040] Cannot flush unit "
+            << static_cast<int>(unit)
+            << ": undecoded GCR writes are pending\n";
+
+        return false;
+    }
 
     if (!mech.diskImage)
         return true;
@@ -567,6 +585,11 @@ bool D4040::rebuildGCRTrack(uint8_t unit)
 
     if (track < 1 || track > 35)
         return false;
+
+    // Prefer previously modified track data over
+    // regenerating the track from the D64.
+    if (mech.restoreCachedTrack(track))
+        return true;
 
     const int sectors = gcrCodec.sectorsPerTrack1541(track);
 
