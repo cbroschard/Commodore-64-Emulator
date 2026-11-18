@@ -113,7 +113,12 @@ struct D4040Mechanism
         readLatch = 0xFF;
         writeLatch = 0xFF;
 
-        halfTrack = static_cast<uint8_t>(track * 2);
+        // Preserve physical head position across a controller reset.
+        // A reset does not physically reposition the disk head.
+        track = static_cast<uint8_t>(halfTrack / 2);
+
+        // Force the next electrical stepper phase to establish
+        // a new baseline without moving the head.
         stepperInitialized = false;
 
         gcrTrack.clear();
