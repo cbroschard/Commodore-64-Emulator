@@ -238,6 +238,12 @@ void D4040::loadDisk(const std::string& path)
     mech.readLatch = 0xFF;
     mech.writeLatch = 0xFF;
 
+    mech.gcrTrack.clear();
+    mech.gcrPos = 0;
+    mech.loadedGCRTrack = 0;
+    mech.gcrValid = false;
+    mech.gcrCycleAccumulator = 0;
+
     lastError = DriveError::NONE;
     status = DriveStatus::READY;
 }
@@ -288,6 +294,12 @@ bool D4040::mountDisk(uint8_t unit, const std::string& path)
     mech.byteReady = false;
     mech.readLatch = 0xFF;
     mech.writeLatch = 0xFF;
+
+    mech.gcrTrack.clear();
+    mech.gcrPos = 0;
+    mech.loadedGCRTrack = 0;
+    mech.gcrValid = false;
+    mech.gcrCycleAccumulator = 0;
 
     lastError = DriveError::NONE;
     status = DriveStatus::READY;
@@ -353,6 +365,12 @@ bool D4040::tryUnloadDisk(uint8_t unit)
     mech.readLatch = 0xFF;
     mech.writeLatch = 0xFF;
 
+    mech.gcrTrack.clear();
+    mech.gcrPos = 0;
+    mech.loadedGCRTrack = 0;
+    mech.gcrValid = false;
+    mech.gcrCycleAccumulator = 0;
+
     if (!isDiskLoaded(0) && !isDiskLoaded(1))
         status = DriveStatus::IDLE;
 
@@ -404,18 +422,12 @@ void D4040::onIEEE488BusChanged(const IEEE488Bus::BusState& oldState, const IEEE
     updateIRQ();
 }
 
-
 void D4040::updateMechanisms()
 {
     const D4040MotorSignals signals = d4040mem.getVIA().getMotorSignals();
 
-    // Update the spindle motors independently.
     mechanisms[0].motorOn = signals.motor0On;
     mechanisms[1].motorOn = signals.motor1On;
-
-    // Apply stepper phase transitions independently.
-    mechanisms[0].updateStepperPhase(signals.stepper0);
-    mechanisms[1].updateStepperPhase(signals.stepper1);
 
     for (uint8_t unit = 0; unit < 2; ++unit)
     {
@@ -655,6 +667,21 @@ void D4040::advanceGCR(uint32_t cycles)
         }
 
         const uint8_t physicalTrack = static_cast<uint8_t>(mech.halfTrack / 2);
+
+        if ((mech.halfTrack & 1) != 0)
+        {
+            // The head is between whole tracks.
+            // No valid D64 sector track is available.
+            mech.gcrValid = false;
+            mech.gcrCycleAccumulator = 0;
+            mech.syncDetected = false;
+            mech.byteReady = false;
+
+            if (unit == selectedUnit)
+                via.clearMechBytePending();
+
+            continue;
+        }
 
         // Rebuild only if the stream is invalid or
         // represents a different track.
