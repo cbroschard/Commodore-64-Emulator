@@ -65,6 +65,8 @@ struct D4040Mechanism
     // Number of GCR bytes recorded on the current track.
     uint32_t gcrBytesWritten = 0;
 
+    uint32_t gcrSyncBytesWritten = 0;
+
     void reset()
     {
         motorOn = false;
@@ -91,6 +93,7 @@ struct D4040Mechanism
         gcrCycleAccumulator = 0;
         gcrDirty = false;
         gcrBytesWritten = 0;
+        gcrSyncBytesWritten = 0;
     }
 
     void updateStepperPhase(uint8_t newPhase)
@@ -136,7 +139,7 @@ struct D4040Mechanism
         track = static_cast<uint8_t>(halfTrack / 2);
     }
 
-    bool writeGCRByte(size_t position, uint8_t value)
+    bool writeGCRByte(size_t position, uint8_t value,  bool writeSync = false)
     {
         if (!diskImage || writeProtected || !gcrValid)
             return false;
@@ -149,23 +152,26 @@ struct D4040Mechanism
 
         position %= data.size();
 
-        // Overwrite the GCR byte at the current
-        // rotational position.
-        data[position] = value;
-
-        // Temporarily treat the written byte as
-        // normal GCR data rather than a sync field.
-        //
-        // Proper sync generation will be handled
-        // separately when write-gate control is added.
-        sync[position] = 0;
+        if (writeSync)
+        {
+            // Approximate a continuous sync field
+            // using bytes containing all one bits.
+            data[position] = 0xFF;
+            sync[position] = 1;
+            ++gcrSyncBytesWritten;
+        }
+        else
+        {
+            // Record normal outgoing GCR data.
+            data[position] = value;
+            sync[position] = 0;
+        }
 
         gcrDirty = true;
         ++gcrBytesWritten;
 
         return true;
     }
-
 };
 
 #endif // D4040MECHANISM_H_INCLUDED
