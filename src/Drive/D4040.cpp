@@ -678,20 +678,7 @@ void D4040::advanceGCR(uint32_t cycles)
             mech.byteReady = false;
 
             if (unit == selectedUnit)
-            {
-                if (via.isDiskReadMode())
-                {
-                    // The controller is reading the disk.
-                    via.diskByteFromMedia(byte, inSync);
-                }
-                else
-                {
-                    // Do not deliver read-byte events while
-                    // writing or while the mode is inactive.
-                    via.clearMechBytePending();
-                    via.setSyncDetected(false);
-                }
-            }
+                via.clearMechBytePending();
 
             continue;
         }
@@ -743,11 +730,18 @@ void D4040::advanceGCR(uint32_t cycles)
 
             mech.readLatch = byte;
 
-            // Both disks rotate independently, but
-            // only the selected mechanism is connected
-            // to the controller's data separator.
+            // Only the selected mechanism sends
+            // data to the controller.
             if (unit == selectedUnit)
-                via.diskByteFromMedia(byte, inSync);
+            {
+                if (via.isDiskReadMode())
+                    via.diskByteFromMedia(byte, inSync);
+                else
+                {
+                    via.clearMechBytePending();
+                    via.setSyncDetected(false);
+                }
+            }
         }
     }
 }
