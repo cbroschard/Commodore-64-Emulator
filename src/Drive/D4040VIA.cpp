@@ -190,6 +190,19 @@ uint8_t D4040VIA::peek(uint16_t address) const
     return 0xFF;
 }
 
+bool D4040VIA::isDiskReadMode() const
+{
+    const uint8_t pcr = registers.peripheralControlRegister;
+
+    return (pcr & 0xE0) == 0xE0;
+}
+
+bool D4040VIA::isDiskWriteMode() const
+{
+    const uint8_t pcr = registers.peripheralControlRegister;
+
+    return (pcr & 0xE0) == 0xC0;
+}
 
 void D4040VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 {
