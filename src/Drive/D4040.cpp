@@ -248,6 +248,10 @@ void D4040::loadDisk(const std::string& path)
 
     mech.diskImage = std::move(diskImage);
 
+    // A newly mounted disk must not inherit
+    // cached GCR tracks from the previous disk.
+    mech.clearDirtyTrackCache();
+
     mech.diskInserted = true;
     mech.diskPath = path;
     mech.writeProtected = mech.diskImage->isWriteProtected();
@@ -306,6 +310,10 @@ bool D4040::mountDisk(uint8_t unit, const std::string& path)
     }
 
     mech.diskImage = std::move(img);
+
+    // A newly mounted disk must not inherit
+    // cached GCR tracks from the previous disk.
+    mech.clearDirtyTrackCache();
 
     mech.diskInserted = true;
     mech.diskPath = path;
@@ -377,6 +385,7 @@ bool D4040::tryUnloadDisk(uint8_t unit)
 
     D4040Mechanism& mech = mechanisms[unit];
 
+    mech.clearDirtyTrackCache();
     mech.diskImage.reset();
     mech.diskInserted = false;
     mech.diskPath.clear();
@@ -561,6 +570,9 @@ bool D4040::rebuildGCRTrack(uint8_t unit)
         return false;
 
     D4040Mechanism& mech = mechanisms[unit];
+
+    // Preserve any unsaved write data before rebuilding.
+    mech.cacheActiveTrack();
 
     // Invalidate the previous stream.
     mech.gcrTrack.clear();
