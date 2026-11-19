@@ -489,55 +489,153 @@ bool D4040::flushMechanism(uint8_t unit)
 
     D4040Mechanism& mech = mechanisms[unit];
 
-
-    // GCR modifications have not yet been decoded
-    // into sectors, so they cannot be saved as D64.
-    if (mech.hasUncommittedGCR())
-    {
-        std::cerr
-            << "[D4040] Cannot flush unit "
-            << static_cast<int>(unit)
-            << ": undecoded GCR writes are pending\n";
-
-        return false;
-    }
-
     if (!mech.diskImage)
         return true;
 
-    // No writes to persist.
-    if (!mech.diskImage->isDirty())
+    const bool hasGCRWrites = mech.hasUncommittedGCR();
+
+    // No pending changes.
+    if (!hasGCRWrites && !mech.diskImage->isDirty())
         return true;
 
-    if (mech.diskPath.empty())
-    {
-        std::cerr << "[D4040] Cannot save unit "
-                  << static_cast<int>(unit)
-                  << ": missing disk path\n";
+    if (mech.diskPath.empty() || mech.writeProtected)
         return false;
+
+    // Only sector-backed Commodore images are
+    // supported by this writeback path.
+    CBMImage* image = dynamic_cast<CBMImage*>(mech.diskImage.get());
+
+    if (!image)
+        return false;
+
+    if (hasGCRWrites)
+    {
+        std::vector<DecodedGCRSector> changes;
+
+        // All dirty tracks must decode successfully
+        // before modifying the disk image.
+        if (!collectModifiedGCRSectors(unit, changes))
+        {
+            std::cerr
+                << "[D4040] GCR decode failed for unit "
+                << static_cast<int>(unit) << '\n';
+
+            return false;
+        }
+
+        // Don't silently discard raw GCR changes
+        // that cannot be represented as D64 sectors.
+        if (changes.empty() && !image->isDirty())
+        {
+            std::cerr
+                << "[D4040] Raw GCR changes have no "
+                   "sector differences; refusing flush\n";
+
+            return false;
+        }
+
+        // Keep original sectors for rollback if a
+        // sector update fails before file saving.
+        struct SectorBackup
+        {
+            uint8_t track;
+            uint8_t sector;
+            std::vector<uint8_t> data;
+        };
+
+        std::vector<SectorBackup> backups;
+        backups.reserve(changes.size());
+
+        try
+        {
+            for (const auto& sector : changes)
+            {
+                auto original = image->readSector(sector.track, sector.sector);
+
+                if (original.size() != 256)
+                    return false;
+
+                backups.push_back({sector.track, sector.sector, std::move(original)});
+            }
+
+            const bool wasDirty = image->isDirty();
+
+            size_t applied = 0;
+
+            try
+            {
+                for (const auto& sector : changes)
+                {
+                    std::vector<uint8_t> data(sector.data.begin(), sector.data.end());
+
+                    if (!image->writeSector(sector.track, sector.sector, data))
+                        break;
+
+                    ++applied;
+                }
+            }
+            catch (const std::exception&)
+            {
+                // Fall through to rollback below.
+            }
+
+            if (applied != changes.size())
+            {
+                for (size_t i = 0; i < applied; ++i)
+                    image->writeSector(backups[i].track, backups[i].sector, backups[i].data);
+
+                if (!wasDirty)
+                    image->clearDirty();
+
+                std::cerr
+                    << "[D4040] Sector writeback failed "
+                       "for unit "
+                    << static_cast<int>(unit) << '\n';
+
+                return false;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr
+                << "[D4040] GCR writeback error: "
+                << e.what() << '\n';
+            return false;
+        }
+
+        std::cout
+            << "[D4040] Unit "
+            << static_cast<int>(unit)
+            << ": staged " << changes.size()
+            << " modified sectors\n";
     }
 
-    if (mech.writeProtected)
+    // Save the sector-backed image to disk.
+    if (image->isDirty())
     {
-        std::cerr << "[D4040] Cannot save unit "
-                  << static_cast<int>(unit)
-                  << ": disk is write protected\n";
-        return false;
+        if (!image->saveDisk(mech.diskPath))
+        {
+            std::cerr
+                << "[D4040] Failed saving unit "
+                << static_cast<int>(unit)
+                << ": " << mech.diskPath << '\n';
+
+            // Keep dirty GCR state for retry.
+            return false;
+        }
+
+        image->clearDirty();
     }
 
-    if (!mech.diskImage->saveDisk(mech.diskPath))
-    {
-        std::cerr << "[D4040] Failed saving unit "
-                  << static_cast<int>(unit)
-                  << ": " << mech.diskPath << '\n';
-        return false;
-    }
+    // Only release the dirty-track cache after
+    // successful persistence.
+    if (hasGCRWrites)
+        mech.clearDirtyTrackCache();
 
-    mech.diskImage->clearDirty();
-
-    std::cout << "[D4040] Saved unit "
-              << static_cast<int>(unit)
-              << ": " << mech.diskPath << '\n';
+    std::cout
+        << "[D4040] Saved unit "
+        << static_cast<int>(unit)
+        << ": " << mech.diskPath << '\n';
 
     return true;
 }
