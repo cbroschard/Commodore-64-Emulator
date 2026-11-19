@@ -262,7 +262,7 @@ uint8_t D4040Memory::peek6504(uint16_t address) const
         return rriot.readRAM(address - FDC_RAM_START);
 
     // Stack-page mirror.
-    if (address >= FDC_STACK_MIRROR_START && FDC_STACK_MIRROR_END <= 0x01FF)
+    if (address >= FDC_STACK_MIRROR_START && address <= FDC_STACK_MIRROR_END)
         return rriot.readRAM(address & FDC_STACK_MIRROR_MASK);
 
     // MOS6522 controller VIA
