@@ -130,6 +130,11 @@ class D4040Memory : public DriveMemoryBase
         static constexpr uint16_t FDC_RAM_END          = 0x003F;
         static constexpr uint16_t FDC_RAM_SIZE         = 0x0040;
 
+        // MOS6530 RAM mirror in the 6504 stack page
+        static constexpr uint16_t FDC_STACK_MIRROR_START = 0x0100;
+        static constexpr uint16_t FDC_STACK_MIRROR_END   = 0x01FF;
+        static constexpr uint16_t FDC_STACK_MIRROR_MASK  = 0x003F;
+
         // MOS 6522 VIA
         static constexpr uint16_t FDC_VIA_START        = 0x0040;
         static constexpr uint16_t FDC_VIA_END          = 0x004F;

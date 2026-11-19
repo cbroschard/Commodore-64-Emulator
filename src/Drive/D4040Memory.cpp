@@ -188,6 +188,12 @@ uint8_t D4040Memory::read6504(uint16_t address)
     if (address >= FDC_RAM_START && address <= FDC_RAM_END)
         return rriot.readRAM(address - FDC_RAM_START);
 
+    // 6504 stack-page mirror of the MOS6530 RAM.
+    // The controller firmware uses the upper part
+    // of this 64-byte RAM for its hardware stack.
+    if (address >= FDC_STACK_MIRROR_START && address <= FDC_STACK_MIRROR_END)
+        return rriot.readRAM(address & FDC_STACK_MIRROR_MASK);
+
     // MOS6522 controller VIA
     if (address >= FDC_VIA_START && address <= FDC_VIA_END)
         return via.readRegister(address - FDC_VIA_START);
@@ -214,6 +220,13 @@ void D4040Memory::write6504(uint16_t address, uint8_t value)
     if (address >= FDC_RAM_START && address <= FDC_RAM_END)
     {
         rriot.writeRAM(address - FDC_RAM_START, value);
+        return;
+    }
+
+    // 6504 hardware stack writes.
+    if (address >= FDC_STACK_MIRROR_START && address <= FDC_STACK_MIRROR_END)
+    {
+        rriot.writeRAM(address & FDC_STACK_MIRROR_MASK, value);
         return;
     }
 
@@ -247,6 +260,10 @@ uint8_t D4040Memory::peek6504(uint16_t address) const
     // MOS6530 private RAM
     if (address >= FDC_RAM_START && address <= FDC_RAM_END)
         return rriot.readRAM(address - FDC_RAM_START);
+
+    // Stack-page mirror.
+    if (address >= FDC_STACK_MIRROR_START && FDC_STACK_MIRROR_END <= 0x01FF)
+        return rriot.readRAM(address & FDC_STACK_MIRROR_MASK);
 
     // MOS6522 controller VIA
     if (address >= FDC_VIA_START && address <= FDC_VIA_END)
