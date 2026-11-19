@@ -50,8 +50,8 @@ D4040::~D4040()
 
 void D4040::reset()
 {
-    currentTrack    = 18;
-    currentSector   = 0;
+    currentTrack            = 18;
+    currentSector           = 0;
 
      // Reset shared memory-mapped hardware
     d4040mem.reset();
@@ -631,11 +631,6 @@ bool D4040::flushMechanism(uint8_t unit)
     // successful persistence.
     if (hasGCRWrites)
         mech.clearDirtyTrackCache();
-
-    std::cout
-        << "[D4040] Saved unit "
-        << static_cast<int>(unit)
-        << ": " << mech.diskPath << '\n';
 
     return true;
 }
