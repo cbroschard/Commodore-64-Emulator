@@ -138,8 +138,11 @@ struct D4040Mechanism
         // a new baseline without moving the head.
         stepperInitialized = false;
 
-        gcrTrack.clear();
+        // Preserve unsaved GCR data before resetting
+        // the active mechanism state.
         cacheActiveTrack();
+        gcrTrack.clear();
+
         gcrPos = 0;
         loadedGCRTrack = 0;
         gcrValid = false;
