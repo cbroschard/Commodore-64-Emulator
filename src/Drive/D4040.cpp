@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include <algorithm>
+#include <utility>
 #include "Drive/D4040.h"
 #include "Floppy/CBMImage.h"
 
@@ -859,23 +860,15 @@ void D4040::advanceGCR(uint32_t cycles)
     }
 }
 
-bool D4040::decodeGCRTrack(uint8_t unit, uint8_t track, std::vector<DecodedGCRSector>& sectors)
+bool D4040::decodeGCRTrack(const GCRTrackStream& stream, uint8_t track, std::vector<DecodedGCRSector>& sectors)
 {
     sectors.clear();
 
-    if (unit >= mechanisms.size() ||
-        track < 1 || track > 35)
+    if (track < 1 || track > 35)
         return false;
 
-    const D4040Mechanism& mech = mechanisms[unit];
-
-    // Only decode the active track when it matches
-    // the requested physical track.
-    if (!mech.gcrValid || mech.loadedGCRTrack != track)
-        return false;
-
-    const auto& data = mech.gcrTrack.getTrackData();
-    const auto& sync = mech.gcrTrack.getSyncMap();
+    const auto& data = stream.getTrackData();
+    const auto& sync = stream.getSyncMap();
 
     const size_t size = data.size();
 
@@ -1030,6 +1023,133 @@ bool D4040::decodeGCRTrack(uint8_t unit, uint8_t track, std::vector<DecodedGCRSe
         sectors.clear();
         return false;
     }
+
+    return true;
+}
+
+bool D4040::getModifiedGCRSectors(uint8_t unit, uint8_t track, std::vector<DecodedGCRSector>& modifiedSectors)
+{
+    modifiedSectors.clear();
+
+    if (unit >= mechanisms.size())
+        return false;
+
+    D4040Mechanism& mech = mechanisms[unit];
+
+    if (!mech.diskImage)
+        return false;
+
+    // This implementation supports complete D64 tracks.
+    if (track < 1 || track > 35)
+        return false;
+
+    CBMImage* image = dynamic_cast<CBMImage*>(mech.diskImage.get());
+
+    if (!image)
+        return false;
+
+    // Determine which GCR stream represents
+    // the requested track.
+    const GCRTrackStream* stream = nullptr;
+
+    // Prefer the active track, since it can contain
+    // newer modifications than the cached copy.
+    if (mech.gcrValid && mech.loadedGCRTrack == track)
+        stream = &mech.gcrTrack;
+    else
+    {
+        // Look for a previously modified track.
+        const auto it = mech.dirtyTracks.find(track);
+
+        if (it != mech.dirtyTracks.end())
+            stream = &it->second;
+    }
+
+    if (!stream)
+        return false;
+
+    // Decode the selected GCR stream.
+    std::vector<DecodedGCRSector> decoded;
+
+    if (!decodeGCRTrack(*stream, track, decoded))
+        return false;
+
+    // Stage differences locally. Nothing is returned
+    // until every decoded sector has been checked.
+    std::vector<DecodedGCRSector> changes;
+
+    for (const auto& sector : decoded)
+    {
+        // Defensive validation.
+        if (sector.track != track)
+            return false;
+
+        const std::vector<uint8_t> original = image->readSector(sector.track, sector.sector);
+
+        // A valid sector must contain exactly 256 bytes.
+        if (original.size() != 256)
+            return false;
+
+        const bool different = !std::equal(sector.data.begin(), sector.data.end(), original.begin());
+
+        if (different)
+            changes.push_back(sector);
+    }
+
+    // Only publish changes after successful validation
+    // of the entire track.
+    modifiedSectors = std::move(changes);
+
+    return true;
+}
+
+bool D4040::collectModifiedGCRSectors(uint8_t unit, std::vector<DecodedGCRSector>& modifiedSectors)
+{
+    modifiedSectors.clear();
+
+    if (unit >= mechanisms.size())
+        return false;
+
+    D4040Mechanism& mech = mechanisms[unit];
+
+    if (!mech.diskImage)
+        return false;
+
+    std::vector<DecodedGCRSector> changes;
+
+    // First process all cached dirty tracks.
+    for (const auto& entry : mech.dirtyTracks)
+    {
+        const uint8_t track = entry.first;
+
+        std::vector<DecodedGCRSector> trackChanges;
+
+        if (!getModifiedGCRSectors(unit, track, trackChanges))
+            return false;
+
+        changes.insert(changes.end(), trackChanges.begin(), trackChanges.end());
+    }
+
+    // The active track may also contain writes
+    // that have not been copied into the cache.
+    if (mech.gcrDirty)
+    {
+        const uint8_t track = mech.loadedGCRTrack;
+
+        // Avoid processing the active track twice
+        // if a cached entry exists for it.
+        if (mech.dirtyTracks.find(track) == mech.dirtyTracks.end())
+        {
+            std::vector<DecodedGCRSector> trackChanges;
+
+            if (!getModifiedGCRSectors(unit, track, trackChanges))
+                return false;
+
+            changes.insert(changes.end(), trackChanges.begin(), trackChanges.end());
+        }
+    }
+
+    modifiedSectors = std::move(changes);
 
     return true;
 }

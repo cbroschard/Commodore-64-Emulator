@@ -150,7 +150,9 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void updateControllerInputs();
         bool rebuildGCRTrack(uint8_t unit);
         void advanceGCR(uint32_t cycles);
-        bool decodeGCRTrack(uint8_t unit, uint8_t track, std::vector<DecodedGCRSector>& sectors);
+        bool decodeGCRTrack(const GCRTrackStream& stream, uint8_t track, std::vector<DecodedGCRSector>& sectors);
+        bool getModifiedGCRSectors(uint8_t unit, uint8_t track, std::vector<DecodedGCRSector>& modifiedSectors);
+        bool collectModifiedGCRSectors(uint8_t unit, std::vector<DecodedGCRSector>& modifiedSectors);
 };
 
 #endif // D4040_H
