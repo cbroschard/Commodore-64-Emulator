@@ -142,6 +142,10 @@ Computer::~Computer() noexcept
         for (auto& drive : components_.drives)
             drive.reset();
 
+        // The cartridge mapper may still reference the IEEE-488 bus.
+        // Destroy it before MachineComponents destroys the bus.
+        components_.cart.reset();
+
         // Nothing should point into DebugManager anymore.
         components_.debug.reset();
 
