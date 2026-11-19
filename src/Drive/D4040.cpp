@@ -938,10 +938,14 @@ void D4040::advanceGCR(uint32_t cycles)
 
                 const uint8_t writeByte = writeSync ? 0xFF : rriot.getPortAOutput();
 
-                // Record data or sync at the current
-                // rotational position.
                 if (mech.writeGCRByte(pos, writeByte, writeSync))
+                {
                     mech.writeLatch = writeByte;
+
+                    // Notify the controller that another
+                    // disk-byte interval has completed.
+                    via.pulseWriteByteReady();
+                }
 
                 continue;
             }
