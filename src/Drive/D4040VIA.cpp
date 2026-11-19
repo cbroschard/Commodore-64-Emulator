@@ -255,6 +255,18 @@ void D4040VIA::clearMechBytePending()
     mechBytePending = false;
 }
 
+
+void D4040VIA::pulseWriteByteReady()
+{
+    // No incoming byte is pending while writing.
+    mechBytePending = false;
+
+    // Present a byte-ready transition through
+    // the existing VIA CA1 edge-detection logic.
+    setCA1Level(true);
+    setCA1Level(false);
+}
+
 uint8_t D4040VIA::samplePortAInputs()
 {
     return mechDataLatch;
