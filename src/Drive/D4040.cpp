@@ -53,6 +53,9 @@ void D4040::reset()
     currentTrack            = 18;
     currentSector           = 0;
 
+    controllerCycleBalance  = 0;
+    driveCycleBalance       = 0;
+
      // Reset shared memory-mapped hardware
     d4040mem.reset();
 
@@ -69,8 +72,6 @@ void D4040::reset()
 
     // Reset the controller CPU
     controllerCPU.reset();
-
-    controllerCycleBalance = 0;
 
     // Refresh motor and stepper signals.
     updateMechanisms();
@@ -138,9 +139,9 @@ bool D4040::attachIEEE488Bus(IEEE488Bus* bus)
 
 void D4040::tick(uint32_t cycles)
 {
-    int64_t remaining = static_cast<int64_t>(cycles);
+    driveCycleBalance += static_cast<int64_t>(cycles);
 
-    while (remaining > 0)
+    while (driveCycleBalance > 0)
     {
         if (checkBreakpoint())
             return;
@@ -155,7 +156,7 @@ void D4040::tick(uint32_t cycles)
         if (dc == 0)
             dc = 1;
 
-        remaining -= static_cast<int64_t>(dc);
+        driveCycleBalance -= static_cast<int64_t>(dc);
 
         // Both processors currently use a 1:1
         // emulated clock ratio.

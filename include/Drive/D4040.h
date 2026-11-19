@@ -139,6 +139,7 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         std::array<D4040Mechanism, 2> mechanisms;
 
         int64_t controllerCycleBalance;
+        int64_t driveCycleBalance;
 
         uint8_t currentTrack;
         uint8_t currentSector;
