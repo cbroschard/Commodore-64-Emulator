@@ -177,7 +177,7 @@ void D4040Bus::updateIEEE488Outputs()
     //
     // NDAC asserted when:
     //   /DACO is low and (ATNA or ATN inactive).
-    const bool nrfdAsserted = (atnActive == atna) && rfdo;
+    const bool nrfdAsserted = (atnActive != atna) && rfdo;
 
     const bool ndacAsserted = !daco_n && (atna || !atnActive);
 
