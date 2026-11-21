@@ -19,7 +19,6 @@ D4040Memory::D4040Memory() :
 
 D4040Memory::~D4040Memory() = default;
 
-
 void D4040Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
 {
     this->parentPeripheral = parentPeripheral;
@@ -89,7 +88,6 @@ uint8_t D4040Memory::read(uint16_t address)
 
     return 0xFF;
 }
-
 
 void D4040Memory::write(uint16_t address, uint8_t value)
 {
@@ -181,7 +179,6 @@ uint8_t D4040Memory::peek(uint16_t address) const
     return 0xFF;
 }
 
-
 uint8_t D4040Memory::read6504(uint16_t address)
 {
     // MOS6530 private RAM (64 bytes)
@@ -212,7 +209,6 @@ uint8_t D4040Memory::read6504(uint16_t address)
 
     return 0xFF;
 }
-
 
 void D4040Memory::write6504(uint16_t address, uint8_t value)
 {
@@ -253,7 +249,6 @@ void D4040Memory::write6504(uint16_t address, uint8_t value)
 
     // ROM and unmapped addresses: ignore writes
 }
-
 
 uint8_t D4040Memory::peek6504(uint16_t address) const
 {
@@ -306,7 +301,6 @@ bool D4040Memory::initialize(const std::string& fdcROM, const std::string& D4040
     return true;
 }
 
-
 bool D4040Memory::loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)
 {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
@@ -324,7 +318,6 @@ bool D4040Memory::loadROM(const std::string& filename, std::vector<uint8_t>& tar
     file.close();
     return true;
 }
-
 
 uint16_t D4040Memory::normalizeAddress(uint16_t address)
 {
