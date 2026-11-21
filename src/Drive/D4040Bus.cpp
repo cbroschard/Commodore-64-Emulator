@@ -179,7 +179,7 @@ void D4040Bus::updateIEEE488Outputs()
     //   /DACO is low and (ATNA or ATN inactive).
     const bool nrfdAsserted = (atnActive != atna) && rfdo;
 
-    const bool ndacAsserted = !daco_n && (atna || !atnActive);
+    const bool ndacAsserted = !daco_n && (atna || !atnActive) && davo;
 
     // IEEE488Device:
     // true  = released / high
