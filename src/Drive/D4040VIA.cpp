@@ -217,6 +217,7 @@ void D4040VIA::diskByteFromMedia(uint8_t byte, bool inSync)
     if (inSync)
     {
         mechBytePending = false;
+        clearIFR(IFR_CA1);
         return;
     }
 
