@@ -171,14 +171,17 @@ void D4040Bus::updateIEEE488Outputs()
     const bool davo = (riot2PA & 0x10) != 0;
 
     // IEEE-488 handshake logic.
+    // Bus levels are active-low.
     //
-    // NRFD asserted when:
-    //   ATN-active matches ATNA, and RFDO is high.
+    // NRFD currently asserts when ATN-active differs
+    // from the firmware-controlled ATNA output and RFDO is high.
     //
-    // NDAC asserted when:
-    //   /DACO is low and (ATNA or ATN inactive).
+    // NDAC currently asserts when /DACO is low and
+    // either ATNA is high or ATN is inactive.
+    //
+    // These equations must be verified against the
+    // Commodore 4040 IEEE-488 interface schematic.
     const bool nrfdAsserted = (atnActive != atna) && rfdo;
-
     const bool ndacAsserted = !daco_n && (atna || !atnActive);
 
     // IEEE488Device:
