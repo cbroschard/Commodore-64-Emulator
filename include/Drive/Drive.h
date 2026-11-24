@@ -13,12 +13,13 @@
 #include "Common/DriveTypes.h"
 #include "cpu.h"
 #include "Drive/DriveChips.h"
+#include "Drive/IDriveHardwareProvider.h"
 #include "Floppy/DiskFactory.h"
 #include "Peripheral.h"
 
 class FDC177x;
 
-class Drive : public Peripheral
+class Drive : public Peripheral, public IDriveHardwareProvider
 {
     public:
         Drive();
@@ -112,6 +113,10 @@ class Drive : public Peripheral
         virtual const DriveVIABase* getVIA1() const { return nullptr; }
         virtual const DriveVIABase* getVIA2() const { return nullptr; }
         virtual const DriveCIABase* getCIA() const { return nullptr; }
+
+        // Hardware discovery for MLMonitor and UI.
+        // Drives can override this to expose their components.
+        std::vector<DriveHardwareInfo> enumerateDriveHardware() const override { return {}; }
 
         // ML Monitor Breakpoints
         inline bool hasBreakpoints() const { return !breakpoints.empty(); }
