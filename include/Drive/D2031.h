@@ -122,6 +122,22 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         inline DriveStatus getDriveStatus() const override { return status; }
         inline const char* getDriveTypeName() const noexcept override { return "2031"; }
 
+        // DriveHardware discovery
+        std::vector<DriveHardwareInfo> enumerateDriveHardware() const override;
+
+        // Hardware access
+        CPU* getHardwareCPU(uint32_t id) override;
+        CPUBus* getHardwareBus(uint32_t id) override;
+        DriveVIABase* getHardwareVIA(uint32_t id) override;
+
+        // CPU execution context
+        bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
+
+        // Debug stepping
+        bool debugStepCPU(uint32_t cpuId) override;
+
+        DriveStepResult debugStepInstruction(uint32_t cpuId) override;
+
     protected:
         bool motorOn;
 
@@ -223,6 +239,9 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
 
         CBMImage* getCBMImage();
         const CBMImage* getCBMImage() const;
+
+        // Execute one drive CPU cycle and advance associated hardware.
+        uint32_t executeCPUCycle();
 };
 
 #endif // D2031_H

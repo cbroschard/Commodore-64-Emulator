@@ -434,34 +434,7 @@ void D2031::tick(uint32_t cycles)
         if (checkBreakpoint())
             return;
 
-        // Execute the D2031 CPU.
-        driveCPU.tick();
-
-        uint32_t dc = driveCPU.getElapsedCycles();
-        if (dc == 0)
-            dc = 1;
-
-        // Advance both 6522 VIA chips.
-        d2031mem.tick(dc);
-
-        // Advance disk rotation and GCR processing.
-        if (motorOn && diskLoaded)
-            gcrAdvance(dc);
-
-        // Track activity LED state for the UI.
-        const bool ledOn = d2031mem.getVIA2().isLedOn();
-
-        // Update the displayed position only while the
-        // drive is actively accessing an inserted disk.
-        if (ledOn && motorOn && diskLoaded)
-        {
-            uiTrack = currentTrack;
-            uiSector = currentSector;
-        }
-
-        // When activity stops, retain the last displayed
-        // track and sector. Physical rotation continues.
-        uiLedWasOn = ledOn;
+        const uint32_t dc = executeCPUCycle();
 
         remaining -= static_cast<int32_t>(dc);
     }
@@ -1605,4 +1578,192 @@ CBMImage* D2031::getCBMImage()
 const CBMImage* D2031::getCBMImage() const
 {
     return dynamic_cast<const CBMImage*>(diskImage.get());
+}
+
+uint32_t D2031::executeCPUCycle()
+{
+    // Execute the drive CPU.
+    driveCPU.tick();
+
+    uint32_t dc = driveCPU.getElapsedCycles();
+
+    if (dc == 0)
+        dc = 1;
+
+    // Advance both VIA chips and update IRQ.
+    d2031mem.tick(dc);
+
+    // Advance disk rotation and GCR processing.
+    if (motorOn && diskLoaded)
+        gcrAdvance(dc);
+
+    // Update activity indicators.
+    const bool ledOn = d2031mem.getVIA2().isLedOn();
+
+    if (ledOn && motorOn && diskLoaded)
+    {
+        uiTrack = currentTrack;
+        uiSector = currentSector;
+    }
+
+    uiLedWasOn = ledOn;
+
+    return dc;
+}
+
+std::vector<DriveHardwareInfo> D2031::enumerateDriveHardware() const
+{
+    return
+    {
+        {
+            0,
+            DriveHardwareType::CPU,
+            "MAIN-6502",
+            -1,
+            false,
+            0,
+            0
+        },
+        {
+            1,
+            DriveHardwareType::Bus,
+            "CPU-BUS",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            2,
+            DriveHardwareType::Memory,
+            "DRIVE-MEMORY",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            3,
+            DriveHardwareType::VIA6522,
+            "VIA1-IEEE488",
+            0,
+            true,
+            0x1800,
+            0x10
+        },
+        {
+            4,
+            DriveHardwareType::VIA6522,
+            "VIA2-DISK",
+            0,
+            true,
+            0x1C00,
+            0x10
+        },
+        {
+            5,
+            DriveHardwareType::Mechanism,
+            "FLOPPY-0",
+            -1,
+            false,
+            0,
+            0
+        }
+    };
+}
+
+CPU* D2031::getHardwareCPU(uint32_t id)
+{
+    if (id == 0)
+        return &driveCPU;
+
+    return nullptr;
+}
+
+CPUBus* D2031::getHardwareBus(uint32_t id)
+{
+    if (id == 1)
+        return &d2031Bus;
+
+    return nullptr;
+}
+
+DriveVIABase* D2031::getHardwareVIA(uint32_t id)
+{
+    switch (id)
+    {
+        case 3:
+            return &d2031mem.getVIA1();
+
+        case 4:
+            return &d2031mem.getVIA2();
+
+        default:
+            return nullptr;
+    }
+}
+
+bool D2031::getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context)
+{
+    context = {};
+
+    if (cpuId != 0)
+        return false;
+
+    context.cpuId = 0;
+    context.busId = 1;
+
+    context.cpu = getHardwareCPU(0);
+    context.bus = getHardwareBus(1);
+
+    return context.cpu != nullptr && context.bus != nullptr;
+}
+
+bool D2031::debugStepCPU(uint32_t cpuId)
+{
+    if (cpuId != 0)
+        return false;
+
+    executeCPUCycle();
+
+    return true;
+}
+
+DriveStepResult D2031::debugStepInstruction(uint32_t cpuId)
+{
+    if (cpuId != 0)
+        return DriveStepResult::InvalidCPU;
+
+    constexpr uint32_t MAX_STEP_CYCLES = 10000;
+
+    uint32_t cyclesExecuted = 0;
+
+    // Complete any instruction already in progress.
+    while (!driveCPU.isAtInstructionBoundary())
+    {
+        if (cyclesExecuted >= MAX_STEP_CYCLES)
+            return DriveStepResult::Stalled;
+
+        executeCPUCycle();
+        ++cyclesExecuted;
+    }
+
+    // Start the next instruction.
+    if (cyclesExecuted >= MAX_STEP_CYCLES)
+        return DriveStepResult::Stalled;
+
+    executeCPUCycle();
+    ++cyclesExecuted;
+
+    // Finish the instruction's remaining cycles.
+    while (!driveCPU.isAtInstructionBoundary())
+    {
+        if (cyclesExecuted >= MAX_STEP_CYCLES)
+            return DriveStepResult::Stalled;
+
+        executeCPUCycle();
+        ++cyclesExecuted;
+    }
+
+    return DriveStepResult::Completed;
 }
