@@ -160,6 +160,19 @@ class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         const char* getDriveTypeName() const noexcept override { return "1581"; }
         bool isDrive() const override { return true; }
 
+        // DriveHardware discovery
+        std::vector<DriveHardwareInfo> enumerateDriveHardware() const override;
+
+        // Hardware access
+        CPU* getHardwareCPU(uint32_t id) override;
+        CPUBus* getHardwareBus(uint32_t id) override;
+
+        DriveCIABase* getHardwareCIA(uint32_t id) override;
+        DriveFDCBase* getHardwareFDC(uint32_t id) override;
+
+        // CPU execution context
+        bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
+
     protected:
         bool motorOn;
 

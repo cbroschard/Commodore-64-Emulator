@@ -120,6 +120,275 @@ static std::string cycleSlotMarkers(const Vic::VicCycleSlot& slot)
     return flags.empty() ? "-" : flags;
 }
 
+static void dumpDriveCIARegisters(const DriveCIABase* cia, const std::string& name)
+{
+    if (!cia)
+    {
+        std::cout << name << " is unavailable.\n";
+        return;
+    }
+
+    const auto registers = cia->getRegsView();
+
+    std::stringstream oss;
+
+    oss << name << " Registers:\n";
+    oss << std::left;
+
+    // Ports
+    oss << "  PORTA:  " << std::setw(10) << "" << "$" << hex2(registers.portA)
+        << std::setw(6) << "" << "PORTB:  " << std::setw(10) << ""
+        << "$" << hex2(registers.portB) << "\n";
+
+    oss << "  DDRA:   " << std::setw(10) << "" << "$" << hex2(registers.ddrA)
+        << std::setw(4) << ""
+        << "  DDRB:   " << std::setw(10) << "" << "$" << hex2(registers.ddrB) << "\n";
+
+    // Timer bytes
+    oss << "  TimerA Low Byte:  $" << hex2(registers.tAL)
+        << std::setw(6) << ""
+        << "TimerA High Byte: $" << hex2(registers.tAH) << "\n";
+
+    oss << "  TimerB Low Byte:  $" << hex2(registers.tBL)
+        << std::setw(6) << ""
+        << "TimerB High Byte: $" << hex2(registers.tBH) << "\n";
+
+    // Timer words
+    oss << "  TimerA Counter:   $" << hex4(registers.tA)
+        << std::setw(4) << "" << "TimerA Latch:  "
+        << std::setw(3) << "" << "$" << hex4(registers.taLAT) << "\n";
+
+    oss << "  TimerB Counter:   $" << hex4(registers.tB)
+        << std::setw(4) << "" << "TimerB Latch:  "
+        << std::setw(3) << "" << "$" << hex4(registers.tbLAT) << "\n";
+
+    // Time-of-day registers
+    oss << "  TOD 10ths:        $" << hex2(registers.tod10)
+        << std::setw(6) << ""
+        << "TOD Seconds:      $" << hex2(registers.todSec) << "\n";
+
+    oss << "  TOD Minutes:      $" << hex2(registers.todMin)
+        << std::setw(6) << ""
+        << "TOD Hours:        $" << hex2(registers.todHour) << "\n";
+
+    // Serial and interrupt registers
+    oss << "  Serial Data:      $" << hex2(registers.sd)
+        << std::setw(6) << ""
+        << "IER:              $" << hex2(registers.ier) << "\n";
+
+    oss << "  CRA:              $" << hex2(registers.cra)
+        << std::setw(6) << ""
+        << "CRB:              $" << hex2(registers.crb) << "\n";
+
+    oss << "  IFR:              $" << hex2(registers.interruptStatus)
+        << std::setw(6) << ""
+        << "IER:              $" << hex2(registers.ier) << "\n";
+
+    // IEC diagnostics
+    const auto iec = cia->getIECDecodeView();
+
+    if (iec.available)
+    {
+        oss << "\n";
+        oss << "CIA IEC Decode (" << iec.modelName << "):\n";
+
+        oss << "  PR:              $" << hex2(iec.pr)
+            << std::setw(6) << ""
+            << "DDR:             $" << hex2(iec.ddr) << "\n";
+
+        oss << "  Raw pins:        "
+            << "PA=$" << hex2(iec.rawPortAPins)
+            << "  PB=$" << hex2(iec.rawPortBPins)
+            << "\n";
+
+        oss << "  Cached inputs:   "
+            << "ATN="  << (iec.atnInLow  ? "L" : "H")
+            << "  CLK=" << (iec.clkInLow  ? "L" : "H")
+            << "  DATA=" << (iec.dataInLow ? "L" : "H")
+            << "  SRQ=" << (iec.srqInLow  ? "L" : "H")
+            << "\n";
+
+        oss << "  Output decode:   "
+            << "busDirOutput=" << iec.busDirOutput
+            << "  atnAckDataLow=" << iec.atnAckDataLow
+            << "  datOutLow=" << iec.datOutAssertLow
+            << "  clkOutLow=" << iec.clkOutAssertLow
+            << "\n";
+
+        oss << "  Resolved pins:   "
+            << "ATN="  << (iec.resolvedAtnLow  ? "L" : "H")
+            << "  CLK=" << (iec.resolvedClkLow  ? "L" : "H")
+            << "  DATA=" << (iec.resolvedDataLow ? "L" : "H")
+            << "\n";
+
+        oss << "  Final outputs:   "
+            << "DATA_low=" << iec.finalDataLow
+            << "  CLK_low=" << iec.finalClkLow
+            << "\n";
+    }
+
+    // Recent IEC writes
+    oss << "\n  Last IEC writes:\n";
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const auto& w = iec.writeHistory[i];
+
+        if (!w.valid)
+            continue;
+
+        oss << "    PC=$" << hex4(w.pc)
+            << " return=$" << hex4(w.retTarget)
+            << " $" << hex4(w.address)
+            << " reg=" << int(w.reg)
+            << " value=$" << hex2(w.value)
+            << " -> PR=$" << hex2(w.prAfter)
+            << " DDR=$" << hex2(w.ddrAfter)
+            << "\n";
+    }
+
+    // Recent IEC reads
+    oss << "\n  Last IEC reads:\n";
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const auto& r = iec.readHistory[i];
+
+        if (!r.valid)
+            continue;
+
+        oss << "    PC=$" << hex4(r.pc)
+            << " return=$" << hex4(r.retTarget)
+            << " $" << hex4(r.address)
+            << " reg=" << int(r.reg)
+            << " value=$" << hex2(r.value)
+            << "\n";
+    }
+
+    // Repeated-read diagnostics
+    oss << "\n  Repeated read:   value=$"
+        << hex2(iec.lastReadValue)
+        << " sameCount=" << iec.sameReadCount
+        << "\n";
+
+    std::cout << oss.str();
+}
+
+static void dumpDriveFDCRegisters(const DriveFDCBase* fdc, const std::string& name)
+{
+    if (!fdc)
+    {
+        std::cout << name << " is unavailable.\n";
+        return;
+    }
+
+    const auto registers = fdc->getRegsView();
+
+    auto yn = [](bool value)
+    {
+        return value ? "Y" : "N";
+    };
+
+    auto st = [&](uint8_t mask)
+    {
+        return (registers.status & mask) != 0;
+    };
+
+    auto decodeCmd = [](uint8_t cmd) -> const char*
+    {
+        switch (cmd & 0xF0)
+        {
+            case 0x00: return "RESTORE (I)";
+            case 0x10: return "SEEK (I)";
+            case 0x20: return "STEP (I)";
+            case 0x40: return "STEP IN (I)";
+            case 0x60: return "STEP OUT (I)";
+            case 0x80: return "READ SECTOR (II)";
+            case 0xA0: return "WRITE SECTOR (II)";
+            case 0xC0: return "READ ADDRESS (III)";
+            case 0xD0: return "FORCE INT (IV)";
+            case 0xE0: return "READ TRACK (III)";
+            case 0xF0: return "WRITE TRACK (III)";
+            default:   return "UNKNOWN";
+        }
+    };
+
+    auto hexByte = [](uint32_t value)
+    {
+        std::ostringstream s;
+        s << std::uppercase << std::hex
+          << std::setw(2) << std::setfill('0')
+          << (value & 0xFF);
+
+        return s.str();
+    };
+
+    auto hexWord = [](uint32_t value)
+    {
+        std::ostringstream s;
+        s << std::uppercase << std::hex
+          << std::setw(4) << std::setfill('0')
+          << (value & 0xFFFF);
+
+        return s.str();
+    };
+
+    std::ostringstream oss;
+
+    oss << name << " Registers:\n";
+
+    oss << "  Status:  $" << hexByte(registers.status)
+        << "  [BUSY=" << yn(st(0x01))
+        << " DRQ=" << yn(st(0x02))
+        << " LOST/T0=" << yn(st(0x04))
+        << " CRC=" << yn(st(0x08))
+        << " RNF=" << yn(st(0x10))
+        << " SPIN/DD=" << yn(st(0x20))
+        << " WP=" << yn(st(0x40))
+        << " MOTOR=" << yn(st(0x80))
+        << "]\n";
+
+    oss << "  Command: $" << hexByte(registers.command)
+        << "  " << decodeCmd(registers.command) << "\n";
+
+    oss << "  Track:   $" << hexByte(registers.track)
+        << " (" << std::dec
+        << static_cast<unsigned>(registers.track) << ")\n";
+
+    oss << "  Sector:  $" << hexByte(registers.sector)
+        << " (" << std::dec
+        << static_cast<unsigned>(registers.sector) << ")\n";
+
+    oss << "  Data:    $" << hexByte(registers.data)
+        << " (" << std::dec
+        << static_cast<unsigned>(registers.data) << ")\n";
+
+    oss << "  DRQ:     " << yn(registers.drq)
+        << "  (check=" << yn(fdc->checkDRQActive()) << ")\n";
+
+    oss << "  INTRQ:   " << yn(registers.intrq)
+        << "  (check=" << yn(fdc->checkIRQActive()) << ")\n";
+
+    oss << "  Sector Size: $"
+        << hexWord(registers.currentSectorSize)
+        << " (" << std::dec
+        << registers.currentSectorSize << " bytes)\n";
+
+    oss << "  Data Index:  $"
+        << hexByte(registers.dataIndex)
+        << " (" << std::dec
+        << static_cast<unsigned>(registers.dataIndex)
+        << ")\n";
+
+    oss << "  In-Progress: read="
+        << yn(registers.readSectorInProgress)
+        << " write=" << yn(registers.writeSectorInProgress)
+        << " cyclesUntilEvent="
+        << registers.cyclesUntilEvent << "\n";
+
+    std::cout << oss.str();
+}
+
 static void dumpDriveVIARegisters(const DriveVIABase* via, const std::string& name)
 {
     if (!via)
@@ -3226,6 +3495,40 @@ void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busTy
 
     switch (it->type)
     {
+        case DriveHardwareType::CIA6526:
+        case DriveHardwareType::CIA8520:
+        {
+            const DriveCIABase* cia = drive->getHardwareCIA(chipId);
+
+            if (!cia)
+            {
+                std::cout << "CIA hardware is unavailable.\n";
+                return;
+            }
+
+            const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
+
+            dumpDriveCIARegisters(cia, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
+
+            return;
+        }
+
+        case DriveHardwareType::FDC177X:
+        {
+            const DriveFDCBase* fdc = drive->getHardwareFDC(chipId);
+
+            if (!fdc)
+            {
+                std::cout << "FDC hardware is unavailable.\n";
+                return;
+            }
+
+            const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
+
+            dumpDriveFDCRegisters(fdc, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
+            return;
+        }
+
         case DriveHardwareType::VIA6522:
         {
             const DriveVIABase* via = drive->getHardwareVIA(chipId);
@@ -4009,117 +4312,30 @@ void MLMonitorBackend::dumpDriveHardware(int id, DriveBusType busType)
     }
 }
 
-void MLMonitorBackend::dumpDriveFDC(int id)
+void MLMonitorBackend::dumpDriveFDC(int id, DriveBusType busType)
 {
-    if (!iecBus)
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive "
+                  << id << ".\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = resolved.drive;
 
-    if (!dev)
+    if (!drive->hasFDC())
     {
-        std::cout << "No such device with ID:" << id << "\n";
+        std::cout << "Drive " << id
+                  << " does not have an FDC.\n";
         return;
     }
 
-    if (!dev->isDrive())
-    {
-        std::cout << "Device is not a Floppy Drive\n";
-        return;
-    }
+    const DriveFDCBase* fdc = drive->getFDC();
+    const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
-    if (!dev->asDrive()->hasFDC())
-    {
-        std::cout << "Drive does not have a FDC\n";
-        return;
-    }
-
-    auto* fdc = dev->asDrive()->getFDC();
-
-    if (!fdc)
-    {
-        std::cout << "No FDC\n";
-        return;
-    }
-
-    auto registers = fdc->getRegsView();
-
-    auto yn = [](bool b){ return b ? "Y" : "N"; };
-
-    // FDC177x Status bit masks (from your header)
-    auto st = [&](uint8_t mask){ return (registers.status & mask) != 0; };
-
-    auto decodeCmd = [](uint8_t cmd) -> const char*
-    {
-        switch (cmd & 0xF0)
-        {
-            case 0x00: return "RESTORE (I)";
-            case 0x10: return "SEEK (I)";
-            case 0x20: return "STEP (I)";
-            case 0x40: return "STEP IN (I)";
-            case 0x60: return "STEP OUT (I)";
-            case 0x80: return "READ SECTOR (II)";
-            case 0xA0: return "WRITE SECTOR (II)";
-            case 0xC0: return "READ ADDRESS (III)";
-            case 0xD0: return "FORCE INT (IV)";
-            case 0xE0: return "READ TRACK (III)";
-            case 0xF0: return "WRITE TRACK (III)";
-            default:   return "UNKNOWN";
-        }
-    };
-
-    auto hex4 = [](uint16_t v){
-        std::ostringstream s;
-        s << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << v;
-        return s.str();
-    };
-
-    std::stringstream oss;
-
-    oss << "FDC Registers:\n";
-    oss << "  Status:  $" << hex2(registers.status)
-        << "  [BUSY=" << yn(st(0x01))
-        << " DRQ="    << yn(st(0x02))
-        << " LOST/T0="<< yn(st(0x04))
-        << " CRC="    << yn(st(0x08))
-        << " RNF="    << yn(st(0x10))
-        << " SPIN/DD="<< yn(st(0x20))
-        << " WP="     << yn(st(0x40))
-        << " MOTOR="  << yn(st(0x80))
-        << "]\n";
-
-    oss << "  Command: $" << hex2(registers.command)
-        << "  " << decodeCmd(registers.command) << "\n";
-
-    oss << "  Track:   $" << hex2(registers.track)
-        << " (" << std::dec << static_cast<unsigned>(registers.track) << ")\n";
-
-    oss << "  Sector:  $" << hex2(registers.sector)
-        << " (" << std::dec << static_cast<unsigned>(registers.sector) << ")\n";
-
-    oss << "  Data:    $" << hex2(registers.data)
-        << " (" << std::dec << static_cast<unsigned>(registers.data) << ")\n";
-
-    oss << "  DRQ:     " << yn(registers.drq)
-        << "  (check=" << yn(fdc->checkDRQActive()) << ")\n";
-
-    oss << "  INTRQ:   " << yn(registers.intrq)
-        << "  (check=" << yn(fdc->checkIRQActive()) << ")\n";
-
-    oss << "  Sector Size: $" << hex4(registers.currentSectorSize)
-        << " (" << std::dec << registers.currentSectorSize << " bytes)\n";
-
-    oss << "  Data Index:  $" << hex2(registers.dataIndex)
-        << " (" << std::dec << static_cast<unsigned>(registers.dataIndex) << ")\n";
-
-    oss << "  In-Progress: read=" << yn(registers.readSectorInProgress)
-        << " write=" << yn(registers.writeSectorInProgress)
-        << " cyclesUntilEvent=" << registers.cyclesUntilEvent << "\n";
-
-    std::cout << oss.str();
+    dumpDriveFDCRegisters(fdc, "Drive " + std::to_string(id) + " (" + busName + ") FDC");
 }
 
 void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address, DriveBusType busType)

@@ -14,6 +14,8 @@
 
 class CPU;
 class CPUBus;
+class DriveCIABase;
+class DriveFDCBase;
 class DriveVIABase;
 
 class IDriveHardwareProvider
@@ -44,6 +46,12 @@ public:
     }
 
     virtual bool debugStepCPU(uint32_t cpuId) { return false; }
+
+    // CIA
+    virtual DriveCIABase* getHardwareCIA(uint32_t id) { return nullptr; }
+
+    // FDC
+    virtual DriveFDCBase* getHardwareFDC(uint32_t id) { return nullptr; }
 
     // VIA
     virtual DriveVIABase* getHardwareVIA(uint32_t id) { return nullptr; }

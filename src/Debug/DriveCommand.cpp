@@ -611,7 +611,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
 
     if (subcmd == "fdc")
     {
-        backend->dumpDriveFDC(id);
+        backend->dumpDriveFDC(id, busType);
         return;
     }
 

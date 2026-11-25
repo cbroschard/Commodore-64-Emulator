@@ -764,3 +764,112 @@ IECDriveSnapshot D1581::snapshotIEC() const
 
     return s;
 }
+
+std::vector<DriveHardwareInfo> D1581::enumerateDriveHardware() const
+{
+    return
+    {
+        {
+            0,
+            DriveHardwareType::CPU,
+            "MAIN-6502",
+            -1,
+            false,
+            0,
+            0
+        },
+        {
+            1,
+            DriveHardwareType::Bus,
+            "CPU-BUS",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            2,
+            DriveHardwareType::Memory,
+            "DRIVE-MEMORY",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            3,
+            DriveHardwareType::CIA8520,
+            "CIA-IEC",
+            0,
+            true,
+            0x4000,
+            0x10
+        },
+        {
+            4,
+            DriveHardwareType::FDC177X,
+            "FDC-177X",
+            0,
+            true,
+            0x6000,
+            0x04
+        },
+        {
+            5,
+            DriveHardwareType::Mechanism,
+            "FLOPPY-0",
+            -1,
+            false,
+            0,
+            0
+        }
+    };
+}
+
+CPU* D1581::getHardwareCPU(uint32_t id)
+{
+    if (id == 0)
+        return &driveCPU;
+
+    return nullptr;
+}
+
+CPUBus* D1581::getHardwareBus(uint32_t id)
+{
+    if (id == 1)
+        return &d1581Bus;
+
+    return nullptr;
+}
+
+bool D1581::getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context)
+{
+    context = {};
+
+    if (cpuId != 0)
+        return false;
+
+    context.cpuId = 0;
+    context.busId = 1;
+
+    context.cpu = getHardwareCPU(0);
+    context.bus = getHardwareBus(1);
+
+    return context.cpu != nullptr && context.bus != nullptr;
+}
+
+DriveCIABase* D1581::getHardwareCIA(uint32_t id)
+{
+    if (id == 3)
+        return &d1581mem.getCIA();
+
+    return nullptr;
+}
+
+DriveFDCBase* D1581::getHardwareFDC(uint32_t id)
+{
+    if (id == 4)
+        return &d1581mem.getFDC();
+
+    return nullptr;
+}
