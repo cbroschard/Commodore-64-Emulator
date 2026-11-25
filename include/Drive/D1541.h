@@ -159,6 +159,9 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         const char* getDriveTypeName() const noexcept override { return "1541"; }
         IECDriveSnapshot snapshotIEC() const override;
         CPU* getHardwareCPU(uint32_t id) override;
+        CPUBus* getHardwareBus(uint32_t id) override;
+        bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
+        bool debugStepCPU(uint32_t cpuId) override;
 
         // Hardware discovery
         std::vector<DriveHardwareInfo> enumerateDriveHardware() const override;
@@ -286,6 +289,7 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         bool decodeRawSectorFromCurrentTrack(uint8_t track, uint8_t sector, std::vector<uint8_t>& outSector);
         void flushCurrentRawTrackToImage();
         void flushAllDirtyRawTracksToImage();
+        uint32_t executeCPUInstruction();
 
         CBMImage* getCBMImage();
         const CBMImage* getCBMImage() const;

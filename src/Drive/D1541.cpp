@@ -302,26 +302,7 @@ void D1541::tick(uint32_t cycles)
         if (checkBreakpoint())
             return;
 
-        driveCPU.tick();
-        uint32_t dc = driveCPU.getElapsedCycles();
-        if (dc == 0) dc = 1;
-
-        d1541mem.tick(dc);
-
-        if (motorOn && diskLoaded)
-            gcrAdvance(dc);
-
-        const bool ledOn = d1541mem.getVIA2().isLedOn();
-
-        if (ledOn)
-            uiTrack = currentTrack;
-
-        if (ledOn && !uiLedWasOn)
-        {
-            uiSector = currentSector;
-        }
-
-        uiLedWasOn = ledOn;
+        const uint32_t dc = executeCPUInstruction();
 
         remaining -= dc;
     }
@@ -1565,6 +1546,37 @@ void D1541::flushAllDirtyRawTracksToImage()
     gcrDirty = false;
 }
 
+uint32_t D1541::executeCPUInstruction()
+{
+    // Execute one CPU instruction.
+    driveCPU.tick();
+
+    uint32_t dc = driveCPU.getElapsedCycles();
+
+    if (dc == 0)
+        dc = 1;
+
+    // Advance VIA timers and update IRQ.
+    d1541mem.tick(dc);
+
+    // Advance the disk data stream.
+    if (motorOn && diskLoaded)
+        gcrAdvance(dc);
+
+    // Update activity indicators.
+    const bool ledOn = d1541mem.getVIA2().isLedOn();
+
+    if (ledOn)
+        uiTrack = currentTrack;
+
+    if (ledOn && !uiLedWasOn)
+        uiSector = currentSector;
+
+    uiLedWasOn = ledOn;
+
+    return dc;
+}
+
 CBMImage* D1541::getCBMImage()
 {
     return dynamic_cast<CBMImage*>(diskImage.get());
@@ -1729,4 +1741,38 @@ CPU* D1541::getHardwareCPU(uint32_t id)
         return &driveCPU;
 
     return nullptr;
+}
+
+CPUBus* D1541::getHardwareBus(uint32_t id)
+{
+    if (id == 1)
+        return getDriveBus();
+
+    return nullptr;
+}
+
+bool D1541::getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context)
+{
+    context = {};
+
+    if (cpuId != 0)
+        return false;
+
+    context.cpuId = 0;
+    context.busId = 1;
+
+    context.cpu = getHardwareCPU(0);
+    context.bus = getHardwareBus(1);
+
+    return context.cpu != nullptr && context.bus != nullptr;
+}
+
+bool D1541::debugStepCPU(uint32_t cpuId)
+{
+    if (cpuId != 0)
+        return false;
+
+    executeCPUInstruction();
+
+    return true;
 }
