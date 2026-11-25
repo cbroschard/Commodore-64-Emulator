@@ -158,6 +158,24 @@ class D1571 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         inline const char* getDriveTypeName() const noexcept override { return "1571"; }
         IECDriveSnapshot snapshotIEC() const override;
 
+        // DriveHardware discovery
+        std::vector<DriveHardwareInfo> enumerateDriveHardware() const override;
+
+        // Hardware access
+        CPU* getHardwareCPU(uint32_t id) override;
+        CPUBus* getHardwareBus(uint32_t id) override;
+
+        DriveVIABase* getHardwareVIA(uint32_t id) override;
+        DriveCIABase* getHardwareCIA(uint32_t id) override;
+        DriveFDCBase* getHardwareFDC(uint32_t id) override;
+
+        // CPU execution context
+        bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
+
+        bool debugStepCPU(uint32_t cpuId) override;
+
+        DriveStepResult debugStepInstruction(uint32_t cpuId) override;
+
     protected:
         bool motorOn;
 
@@ -286,6 +304,8 @@ class D1571 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         size_t currentRawCacheIndex() const;
 
         void resetForMediaChange();
+
+        void executeDriveCycle();
 };
 
 #endif // D1571_H

@@ -285,33 +285,7 @@ void D1571::tick(uint32_t cycles)
         if (checkBreakpoint())
             return;
 
-        // Always execute the first drive CPU cycle.
-        driveCPU.tick();
-        d1571mem.tick(1);
-        updateIRQ();
-
-        // Re-evaluate the mode after the first CPU cycle.
-        // The ROM may have changed Port A bit 5 during that cycle.
-        if (twoMHzMode)
-        {
-            driveCPU.tick();
-            d1571mem.tick(1);
-            updateIRQ();
-        }
-
-        // Disk rotation / GCR stream must stay at normal physical speed.
-        if (isGCRMode() && motorOn && diskLoaded)
-            gcrAdvance(1);
-
-        const bool ledOn = d1571mem.getVIA2().isLedOn();
-
-        if (ledOn)
-            uiTrack = currentTrack;
-
-        if (ledOn && !uiLedWasOn)
-            uiSector = currentSector;
-
-        uiLedWasOn = ledOn;
+        executeDriveCycle();
 
         --cycles;
     }
@@ -1703,4 +1677,221 @@ void D1571::resetForMediaChange()
 
     forceSyncIEC();
     updateIRQ();
+}
+
+void D1571::executeDriveCycle()
+{
+    // First CPU cycle.
+    driveCPU.tick();
+    d1571mem.tick(1);
+    updateIRQ();
+
+    // Re-evaluate clock mode after the first CPU cycle.
+    if (twoMHzMode)
+    {
+        driveCPU.tick();
+        d1571mem.tick(1);
+        updateIRQ();
+    }
+
+    // Advance disk rotation at physical speed.
+    if (isGCRMode() && motorOn && diskLoaded)
+        gcrAdvance(1);
+
+    // Update activity indicators.
+    const bool ledOn = d1571mem.getVIA2().isLedOn();
+
+    if (ledOn)
+        uiTrack = currentTrack;
+
+    if (ledOn && !uiLedWasOn)
+        uiSector = currentSector;
+
+    uiLedWasOn = ledOn;
+}
+
+std::vector<DriveHardwareInfo> D1571::enumerateDriveHardware() const
+{
+    return
+    {
+        {
+            0,
+            DriveHardwareType::CPU,
+            "MAIN-6502",
+            -1,
+            false,
+            0,
+            0
+        },
+        {
+            1,
+            DriveHardwareType::Bus,
+            "CPU-BUS",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            2,
+            DriveHardwareType::Memory,
+            "DRIVE-MEMORY",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            3,
+            DriveHardwareType::VIA6522,
+            "VIA1-IEC",
+            0,
+            true,
+            0x1000,
+            0x10
+        },
+        {
+            4,
+            DriveHardwareType::VIA6522,
+            "VIA2-DISK",
+            0,
+            true,
+            0x1C00,
+            0x10
+        },
+        {
+            5,
+            DriveHardwareType::CIA6526,
+            "CIA-SERIAL",
+            0,
+            true,
+            0x4000,
+            0x10
+        },
+        {
+            6,
+            DriveHardwareType::FDC177X,
+            "FDC-177X",
+            0,
+            true,
+            0x2000,
+            0x04
+        },
+        {
+            7,
+            DriveHardwareType::Mechanism,
+            "FLOPPY-0",
+            -1,
+            false,
+            0,
+            0
+        }
+    };
+}
+
+CPU* D1571::getHardwareCPU(uint32_t id)
+{
+    if (id == 0)
+        return &driveCPU;
+
+    return nullptr;
+}
+
+CPUBus* D1571::getHardwareBus(uint32_t id)
+{
+    if (id == 1)
+        return &d1571Bus;
+
+    return nullptr;
+}
+
+DriveVIABase* D1571::getHardwareVIA(uint32_t id)
+{
+    switch (id)
+    {
+        case 3:
+            return &d1571mem.getVIA1();
+
+        case 4:
+            return &d1571mem.getVIA2();
+
+        default:
+            return nullptr;
+    }
+}
+
+DriveCIABase* D1571::getHardwareCIA(uint32_t id)
+{
+    if (id == 5)
+        return &d1571mem.getCIA();
+
+    return nullptr;
+}
+
+DriveFDCBase* D1571::getHardwareFDC(uint32_t id)
+{
+    if (id == 6)
+        return &d1571mem.getFDC();
+
+    return nullptr;
+}
+
+bool D1571::getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context)
+{
+    context = {};
+
+    if (cpuId != 0)
+        return false;
+
+    context.cpuId = 0;
+    context.busId = 1;
+
+    context.cpu = getHardwareCPU(0);
+    context.bus = getHardwareBus(1);
+
+    return context.cpu != nullptr && context.bus != nullptr;
+}
+
+bool D1571::debugStepCPU(uint32_t cpuId)
+{
+    if (cpuId != 0)
+        return false;
+
+    executeDriveCycle();
+
+    return true;
+}
+
+DriveStepResult D1571::debugStepInstruction(uint32_t cpuId)
+{
+    if (cpuId != 0)
+        return DriveStepResult::InvalidCPU;
+
+    constexpr uint32_t MAX_STEP_CYCLES = 10000;
+
+    uint32_t cyclesExecuted = 0;
+
+    // Finish any instruction already in progress.
+    while (!driveCPU.isAtInstructionBoundary())
+    {
+        if (++cyclesExecuted > MAX_STEP_CYCLES)
+            return DriveStepResult::Stalled;
+
+        executeDriveCycle();
+    }
+
+    // Start the next instruction.
+    executeDriveCycle();
+    ++cyclesExecuted;
+
+    // Complete the instruction.
+    while (!driveCPU.isAtInstructionBoundary())
+    {
+        if (++cyclesExecuted > MAX_STEP_CYCLES)
+            return DriveStepResult::Stalled;
+
+        executeDriveCycle();
+    }
+
+    return DriveStepResult::Completed;
 }
