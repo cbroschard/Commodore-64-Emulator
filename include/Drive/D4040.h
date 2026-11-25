@@ -113,6 +113,23 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         inline CPUBus* getDriveBus() override { return &d4040Bus6502; }
         inline const CPUBus* getDriveBus() const override { return &d4040Bus6502; }
 
+        // DriveHardware discovery
+        std::vector<DriveHardwareInfo> enumerateDriveHardware() const override;
+
+        // CPU and bus access
+        CPU* getHardwareCPU(uint32_t id) override;
+        CPUBus* getHardwareBus(uint32_t id) override;
+
+        // VIA access
+        DriveVIABase* getHardwareVIA(uint32_t id) override;
+
+        // CPU execution context
+        bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
+
+        // Monitor execution
+        bool debugStepCPU(uint32_t cpuId) override;
+        DriveStepResult debugStepInstruction(uint32_t cpuId) override;
+
     private:
         D4040Memory d4040mem;
         D4040Bus d4040Bus6502;
@@ -140,6 +157,8 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
 
         int64_t controllerCycleBalance;
         int64_t driveCycleBalance;
+        uint64_t dosInstructionsExecuted;
+        uint64_t controllerInstructionsExecuted;
 
         uint8_t currentTrack;
         uint8_t currentSector;

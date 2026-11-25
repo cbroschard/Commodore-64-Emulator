@@ -49,68 +49,88 @@ Usage:
   drive <bus> <id> [subcommand]
 
 Bus Selection:
-  <bus>       Optional: iec, ieee488, ieee-488
-  <id>        Commodore device number (e.g. 8, 9, 10)
+  <bus>                        Optional: iec, ieee488, ieee-488
+  <id>                         Commodore device number (8, 9, 10, etc.)
 
   Without a bus selector, the monitor automatically locates
   the drive. If the device number exists on both buses,
   you must explicitly specify the bus.
 
 General:
-  drive                       List all attached disk drives
-  drive list                  List all attached disk drives
-  drive all                   List all attached disk drives
-  drive help                  Display this help information
+  drive                        List all attached disk drives
+  drive list                   List all attached disk drives
+  drive all                    List all attached disk drives
+  drive help                   Display this help information
 
 Drive Information:
-  drive <id>                    Show drive summary
-  drive <id> chip <hardware-id> Inspect a hardware component
-  drive <id> cpu                Show drive CPU registers and state
-  drive <id> mem <addr>         Dump drive memory (default count)
-  drive <id> mem <addr> <n>     Dump n bytes from address
-  drive <id> mem <start>-<end>  Dump a memory address range
-  drive <id> state              Show drive bus/debug state
-  drive <id> step               Execute one CPU instruction
- drive <id> step <cpu-id>       Step the selected CPU instruction
- drive <id> cycle               Advance one CPU cycle
- drive <id> cycle <cpu-id>      Advance one cycle on selected CPU
+  drive <id>                   Show drive summary
+  drive <id> state             Show drive bus/debug state
+
+CPU Inspection:
+  drive <id> cpu               Show default CPU registers
+  drive <id> cpu <cpu-id>      Show selected CPU registers
+
+CPU Execution:
+  drive <id> step              Execute one instruction on CPU 0
+  drive <id> step <cpu-id>     Execute one instruction on selected CPU
+  drive <id> cycle             Advance one cycle on CPU 0
+  drive <id> cycle <cpu-id>    Advance one cycle on selected CPU
+
+Memory Inspection:
+  drive <id> mem <addr>                  Dump default CPU memory
+  drive <id> mem <addr> <count>          Dump memory bytes
+  drive <id> mem <start>-<end>           Dump memory range
+  drive <id> mem cpu <cpu-id> <addr>     Dump selected CPU memory
+  drive <id> mem cpu <cpu-id> <addr> <n> Dump selected CPU memory bytes
 
 Drive Hardware:
-  drive <id> hardware         List available hardware components
-  drive <id> hw               Short form of hardware
-  drive <id> via1             Show VIA1 registers and timers
-  drive <id> via2             Show VIA2 registers and timers
-  drive <id> cia              Show CIA registers (if supported)
-  drive <id> fdc              Show FDC registers (if supported)
+  drive <id> hardware          List available hardware components
+  drive <id> hw                Short form of hardware
+  drive <id> chip <hw-id>      Inspect hardware component registers
+  drive <id> via1              Show VIA1 registers and timers
+  drive <id> via2              Show VIA2 registers and timers
+  drive <id> cia               Show CIA registers (if supported)
+  drive <id> fdc               Show FDC registers (if supported)
 
 Breakpoints:
-  drive <id> bp <addr>              Add CPU breakpoint
+  drive <id> bp <addr>               Add CPU breakpoint
   drive <id> bp <addr> if a <value>  Break when A equals value
   drive <id> bp <addr> if x <value>  Break when X equals value
   drive <id> bp <addr> if y <value>  Break when Y equals value
-  drive <id> bp list                List CPU breakpoints
-  drive <id> clearbp <addr>         Remove CPU breakpoint
-  drive <id> clearbp all            Remove all CPU breakpoints
+  drive <id> bp list                 List CPU breakpoints
+  drive <id> clearbp <addr>          Remove CPU breakpoint
+  drive <id> clearbp all             Remove all CPU breakpoints
 
 Watchpoints:
-  drive <id> watch read <addr>       Add memory read watchpoint
-  drive <id> watch write <addr>      Add memory write watchpoint
+  drive <id> watch read <addr>        Add memory read watchpoint
+  drive <id> watch write <addr>       Add memory write watchpoint
   drive <id> watch list              List memory watchpoints
-  drive <id> clearwatch read <addr>  Remove read watchpoint
-  drive <id> clearwatch write <addr> Remove write watchpoint
-  drive <id> clearwatch all          Remove all watchpoints
+  drive <id> clearwatch read <addr>   Remove read watchpoint
+  drive <id> clearwatch write <addr>  Remove write watchpoint
+  drive <id> clearwatch all           Remove all watchpoints
 
-Examples - Automatic Drive Selection:
+Examples - General:
   drive
   drive list
   drive 8
+  drive 8 hardware
   drive 8 cpu
   drive 8 mem $0300
   drive 8 mem $0300 64
   drive 8 mem $0300-$03FF
+  drive 8 step
+  drive 8 cycle
+
+Examples - Hardware Inspection:
+  drive 8 hardware
+  drive 8 chip 3
+  drive 8 chip 4
   drive 8 via1
   drive 8 via2
-  drive 8 step
+  drive 8 cia
+  drive 8 fdc
+
+Examples - Breakpoints and Watchpoints:
   drive 8 bp $80CE
   drive 8 bp list
   drive 8 clearbp all
@@ -121,37 +141,44 @@ Examples - Automatic Drive Selection:
 
 Examples - IEC Drives:
   drive iec 8
+  drive iec 8 hardware
   drive iec 8 cpu
-  drive iec 8 via1
-  drive iec 8 via2
   drive iec 8 mem $0300 64
-  drive iec 8 bp $C000
-  drive iec 8 watch read $0400
   drive iec 8 step
+  drive iec 8 cycle
 
 Examples - IEEE-488 Drives:
   drive ieee488 8
+  drive ieee488 8 hardware
   drive ieee488 8 cpu
-  drive ieee488 8 via1
-  drive ieee488 8 via2
   drive ieee488 8 mem $0300 64
-  drive ieee488 8 bp $C000
-  drive ieee488 8 bp list
-  drive ieee488 8 clearbp all
-  drive ieee488 8 watch read $0400
-  drive ieee488 8 watch write $0400
-  drive ieee488 8 watch list
-  drive ieee488 8 clearwatch all
   drive ieee488 8 step
+  drive ieee488 8 cycle
+
+Examples - Dual-CPU Drives (4040):
+  drive ieee488 8 hardware
+  drive ieee488 8 cpu 0
+  drive ieee488 8 cpu 1
+  drive ieee488 8 mem cpu 0 $D000
+  drive ieee488 8 mem cpu 1 $1C00
+  drive ieee488 8 mem cpu 1 $FF8C
+  drive ieee488 8 chip 8
+  drive ieee488 8 step 0
+  drive ieee488 8 step 1
+  drive ieee488 8 cycle 0
+  drive ieee488 8 cycle 1
 
 Notes:
   - All drive commands support optional bus selection.
+  - CPU IDs and hardware IDs are listed by 'drive <id> hardware'.
+  - CPU 0 is selected by default when no CPU ID is specified.
+  - Memory access uses the selected CPU's memory bus.
+  - Hardware availability depends on the drive model.
   - Unsupported hardware components are reported by the monitor.
-  - CPU breakpoints and memory watchpoints belong to the selected drive.
+  - Breakpoints and watchpoints belong to the selected drive.
   - Use 'iec' for IEC serial-bus diagnostics.
-  - Use 'ieee488bus' for IEEE-488 parallel-bus diagnostics.
-  - The 'drive state' command is currently IEC-specific
-    until IEEE-488 drive-state support is implemented.
+  - Use 'ieee488' for IEEE-488 parallel-bus diagnostics.
+  - The 'drive state' command is currently IEC-specific.
 
 Help:
   drive help
@@ -540,6 +567,43 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
 
     if (subcmd == "mem")
     {
+        uint32_t cpuId = 0;
+        size_t addressArg = 3;
+
+        // Optional CPU selection:
+        // drive 8 mem cpu 1 $1C00
+        if (args.size() >= 4 && args[3] == "cpu")
+        {
+            if (args.size() < 6)
+            {
+                std::cout << "Usage: drive <id> mem cpu "
+                             "<cpu-id> <addr> [count]\n";
+                return;
+            }
+
+            try
+            {
+                size_t parsed = 0;
+
+                const unsigned long value =
+                    std::stoul(args[4], &parsed, 10);
+
+                if (parsed != args[4].size() ||
+                    value > UINT32_MAX)
+                {
+                    throw std::out_of_range("Invalid CPU ID");
+                }
+
+                cpuId = static_cast<uint32_t>(value);
+                addressArg = 5;
+            }
+            catch (const std::exception&)
+            {
+                std::cout << "Invalid CPU hardware ID.\n";
+                return;
+            }
+        }
+
         if (args.size() < 4)
         {
             std::cout << "Usage:\n";
@@ -553,7 +617,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
 
         try
         {
-            const std::string& spec = args[3];
+            const std::string& spec = args[addressArg];
 
             const bool looksLikeRange =
                 (spec.find('-')  != std::string::npos) ||
@@ -569,8 +633,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
 
                 start = a;
 
-                const uint32_t len =
-                    static_cast<uint32_t>(b) - static_cast<uint32_t>(a) + 1u;
+                const uint32_t len = static_cast<uint32_t>(b) - static_cast<uint32_t>(a) + 1u;
 
                 if (len == 0 || len > 0xFFFFu)
                     throw std::runtime_error("Range too large");
@@ -581,9 +644,9 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
             {
                 start = parseAddress(spec);
 
-                if (args.size() >= 5)
+                if (args.size() > addressArg + 1)
                 {
-                    const uint16_t parsedCount = parseAddress(args[4]);
+                    const uint16_t parsedCount = parseAddress(args[addressArg + 1]);
 
                     if (parsedCount == 0)
                         throw std::runtime_error("Count must be greater than 0");
@@ -601,7 +664,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
             return;
         }
 
-        backend->dumpDriveMemory(id, start, count);
+        backend->dumpDriveMemory(id, start, count, busType, cpuId);
         return;
     }
 

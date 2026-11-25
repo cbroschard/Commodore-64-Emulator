@@ -3836,22 +3836,40 @@ void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType, uint32_t cpuId
 
     if (!cpu)
     {
-        std::cout << "Drive " << id << " has no CPU attached.\n";
+        std::cout << "Drive " << id
+                  << " does not have CPU hardware ID "
+                  << cpuId << ".\n";
         return;
     }
 
     DriveMemoryBase* mem = drive->getMemory();
 
-    if (!mem)
+    DriveCPUContext context;
+    CPUBus* cpuBus = nullptr;
+
+    // Use the selected CPU's memory bus.
+    if (drive->getDriveCPUContext(cpuId, context))
+        cpuBus = context.bus;
+    else if (cpuId == 0 && drive->enumerateDriveHardware().empty())
     {
-        std::cout << "Drive " << id << " has no memory interface.\n";
+        // Backward compatibility for drives not yet migrated.
+        cpuBus = drive->getDriveBus();
+    }
+
+    if (!cpuBus)
+    {
+        std::cout << "Drive " << id
+                  << " CPU " << cpuId
+                  << " memory bus is unavailable.\n";
         return;
     }
 
     uint16_t pc = cpu->getPC();
 
-    // Output disassembly at PC
-    std::string disASM = Disassembler::disassembleAt(pc, *mem);
+    // Disassemble through the selected CPU's bus.
+    std::string disASM =
+        Disassembler::disassembleAt(pc, *cpuBus);
+
     std::cout << disASM << std::endl;
 
     // Let migrated drives control their own CPU stepping.
@@ -3954,49 +3972,69 @@ void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType, uint32_t cpuId
     std::cout << out.str();
 }
 
-void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t count, DriveBusType busType)
+void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t count, DriveBusType busType, uint32_t cpuId)
 {
     const uint16_t DEFAULT_COUNT = 16;
-    const uint16_t bytesToDump = (count == 0) ? DEFAULT_COUNT : count;
+    const uint16_t bytesToDump = count == 0 ? DEFAULT_COUNT : count;
 
-    // Resolve the drive through IEC or IEEE-488.
     const ResolvedDrive resolved = resolveDrive(id, busType);
 
     if (!resolved)
     {
-        std::cout << "Unable to resolve drive " << id
-                  << ". The drive may not exist, or its "
-                  << "device number may be ambiguous.\n";
+        std::cout << "Unable to resolve drive "
+                  << id << ".\n";
         return;
     }
 
     Drive* drive = resolved.drive;
 
-    // Obtain the selected drive's CPU address bus.
-    const CPUBus* driveBus = drive->getDriveBus();
+    const CPUBus* driveBus = nullptr;
+
+    // Resolve the CPU-specific memory bus.
+    DriveCPUContext context;
+
+    if (drive->getDriveCPUContext(cpuId, context))
+    {
+        driveBus = context.bus;
+    }
+    else if (cpuId == 0 &&
+             drive->enumerateDriveHardware().empty())
+    {
+        // Legacy compatibility for drives not yet migrated.
+        driveBus = drive->getDriveBus();
+    }
 
     if (!driveBus)
     {
-        std::cout << "Drive " << id << " CPU bus not available.\n";
+        std::cout << "Drive " << id
+                  << " CPU " << cpuId
+                  << " memory bus is unavailable.\n";
         return;
     }
 
     const char* busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
     std::stringstream oss;
-    oss << "Drive " << id
-        << " (" << busName << ") Memory Dump ($"
-        << hex4(startAddress) << " for "
-        << bytesToDump << " bytes):\n";
 
-    oss << std::uppercase << std::hex << std::setfill('0');
+    oss << "Drive " << id
+        << " (" << busName << ")"
+        << " CPU [" << cpuId << "]"
+        << " Memory Dump ($"
+        << hex4(startAddress)
+        << " for " << bytesToDump
+        << " bytes):\n";
+
+    oss << std::uppercase
+        << std::hex
+        << std::setfill('0');
 
     uint16_t currentAddress = startAddress;
-    uint16_t bytesRead = 0;
+    uint32_t bytesRead = 0;
 
     while (bytesRead < bytesToDump)
     {
-        oss << "$" << std::setw(4)
+        oss << "$"
+            << std::setw(4)
             << static_cast<unsigned>(currentAddress)
             << ": ";
 
@@ -4010,7 +4048,8 @@ void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t c
                 continue;
             }
 
-            const uint8_t value = driveBus->peek(currentAddress);
+            const uint8_t value =
+                driveBus->peek(currentAddress);
 
             oss << std::setw(2)
                 << static_cast<unsigned>(value)

@@ -50,11 +50,13 @@ D4040::~D4040()
 
 void D4040::reset()
 {
-    currentTrack            = 18;
-    currentSector           = 0;
+    currentTrack                    = 18;
+    currentSector                   = 0;
 
-    controllerCycleBalance  = 0;
-    driveCycleBalance       = 0;
+    controllerCycleBalance          = 0;
+    driveCycleBalance               = 0;
+    dosInstructionsExecuted         = 0;
+    controllerInstructionsExecuted  = 0;
 
      // Reset shared memory-mapped hardware
     d4040mem.reset();
@@ -149,7 +151,14 @@ void D4040::tick(uint32_t cycles)
         // -----------------------------------------
         // Main DOS CPU (6502)
         // -----------------------------------------
+        // Determine whether this clock can begin a new instruction.
+        const bool dosAtBoundary = driveCPU.isAtInstructionBoundary();
+
         driveCPU.tick();
+
+        // Only count clocks that began at an instruction boundary.
+        if (dosAtBoundary)
+            ++dosInstructionsExecuted;
 
         uint32_t dc = driveCPU.getElapsedCycles();
 
@@ -179,7 +188,14 @@ void D4040::tick(uint32_t cycles)
             // the next controller instruction.
             updateControllerInputs();
 
+            // Determine whether the controller can begin a new instruction.
+            const bool controllerAtBoundary = controllerCPU.isAtInstructionBoundary();
+
             controllerCPU.tick();
+
+            // Only count clocks that began at an instruction boundary.
+            if (controllerAtBoundary)
+                ++controllerInstructionsExecuted;
 
             uint32_t fc = controllerCPU.getElapsedCycles();
 
@@ -1262,4 +1278,234 @@ bool D4040::collectModifiedGCRSectors(uint8_t unit, std::vector<DecodedGCRSector
     modifiedSectors = std::move(changes);
 
     return true;
+}
+
+std::vector<DriveHardwareInfo> D4040::enumerateDriveHardware() const
+{
+    return
+    {
+        {
+            0,
+            DriveHardwareType::CPU,
+            "DOS-6502",
+            -1,
+            false,
+            0,
+            0
+        },
+        {
+            1,
+            DriveHardwareType::CPU,
+            "CONTROLLER-6504",
+            -1,
+            false,
+            0,
+            0
+        },
+        {
+            2,
+            DriveHardwareType::Bus,
+            "DOS-BUS",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            3,
+            DriveHardwareType::Bus,
+            "CONTROLLER-BUS",
+            1,
+            false,
+            0,
+            0
+        },
+        {
+            4,
+            DriveHardwareType::Memory,
+            "DOS-MEMORY",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            5,
+            DriveHardwareType::Memory,
+            "CONTROLLER-MEMORY",
+            1,
+            false,
+            0,
+            0
+        },
+        {
+            6,
+            DriveHardwareType::RIOT6532,
+            "RIOT1-IEEE488",
+            0,
+            true,
+            0x0200,
+            0x20
+        },
+        {
+            7,
+            DriveHardwareType::RIOT6532,
+            "RIOT2-IEEE488",
+            0,
+            true,
+            0x0280,
+            0x20
+        },
+        {
+            8,
+            DriveHardwareType::VIA6522,
+            "CONTROLLER-VIA",
+            1,
+            true,
+            0x0040,
+            0x10
+        },
+        {
+            9,
+            DriveHardwareType::RRIOT6530,
+            "CONTROLLER-RRIOT",
+            1,
+            true,
+            0x0080,
+            0x10
+        },
+        {
+            10,
+            DriveHardwareType::Mechanism,
+            "FLOPPY-0",
+            -1,
+            false,
+            0,
+            0
+        },
+        {
+            11,
+            DriveHardwareType::Mechanism,
+            "FLOPPY-1",
+            -1,
+            false,
+            0,
+            0
+        }
+    };
+}
+
+CPU* D4040::getHardwareCPU(uint32_t id)
+{
+    switch (id)
+    {
+        case 0:
+            return &driveCPU;
+
+        case 1:
+            return &controllerCPU;
+
+        default:
+            return nullptr;
+    }
+}
+
+CPUBus* D4040::getHardwareBus(uint32_t id)
+{
+    switch (id)
+    {
+        case 2:
+            return &d4040Bus6502;
+
+        case 3:
+            return &d4040Bus6504;
+
+        default:
+            return nullptr;
+    }
+}
+
+DriveVIABase* D4040::getHardwareVIA(uint32_t id)
+{
+    if (id == 8)
+        return &d4040mem.getVIA();
+
+    return nullptr;
+}
+
+bool D4040::getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context)
+{
+    context = {};
+
+    switch (cpuId)
+    {
+        case 0:
+        {
+            context.cpuId = 0;
+            context.busId = 2;
+
+            context.cpu = getHardwareCPU(0);
+            context.bus = getHardwareBus(2);
+
+            break;
+        }
+
+        case 1:
+        {
+            context.cpuId = 1;
+            context.busId = 3;
+
+            context.cpu = getHardwareCPU(1);
+            context.bus = getHardwareBus(3);
+
+            break;
+        }
+
+        default:
+            return false;
+    }
+
+    return context.cpu != nullptr && context.bus != nullptr;
+}
+
+bool D4040::debugStepCPU(uint32_t cpuId)
+{
+    if (cpuId > 1)
+        return false;
+
+    // Advance one drive scheduler clock.
+    // The selected CPU may not execute during this clock
+    // because its previous instruction can still have
+    // outstanding cycles in the scheduler.
+    tick(1);
+
+    return true;
+}
+
+DriveStepResult D4040::debugStepInstruction(uint32_t cpuId)
+{
+    if (cpuId > 1)
+        return DriveStepResult::InvalidCPU;
+
+    const uint64_t startCount = (cpuId == 0) ? dosInstructionsExecuted : controllerInstructionsExecuted;
+
+    constexpr uint32_t MAX_STEP_CYCLES = 100000;
+
+    for (uint32_t i = 0; i < MAX_STEP_CYCLES; ++i)
+    {
+        const uint64_t currentCount = (cpuId == 0) ? dosInstructionsExecuted : controllerInstructionsExecuted;
+
+        if (currentCount != startCount)
+            return DriveStepResult::Completed;
+
+        // Stop if normal drive breakpoint handling
+        // would prevent forward progress.
+        if (checkBreakpoint())
+            return DriveStepResult::Stalled;
+
+        // Advance shared drive timing.
+        tick(1);
+    }
+
+    return DriveStepResult::Stalled;
 }
