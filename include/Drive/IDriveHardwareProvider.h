@@ -14,6 +14,7 @@
 
 class CPU;
 class CPUBus;
+class DriveVIABase;
 
 class IDriveHardwareProvider
 {
@@ -22,6 +23,7 @@ public:
 
     virtual std::vector<DriveHardwareInfo> enumerateDriveHardware() const = 0;
 
+    // CPU
     virtual CPU* getHardwareCPU(uint32_t id) { return nullptr; }
     virtual CPUBus* getHardwareBus(uint32_t id) { return nullptr; }
 
@@ -42,6 +44,9 @@ public:
     }
 
     virtual bool debugStepCPU(uint32_t cpuId) { return false; }
+
+    // VIA
+    virtual DriveVIABase* getHardwareVIA(uint32_t id) { return nullptr; }
 };
 
 #endif // IDRIVEHARDWAREPROVIDER_H

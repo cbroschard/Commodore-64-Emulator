@@ -63,14 +63,15 @@ General:
   drive help                  Display this help information
 
 Drive Information:
-  drive <id>                  Show drive summary
-  drive <id> cpu              Show drive CPU registers and state
-  drive <id> mem <addr>        Dump drive memory (default count)
-  drive <id> mem <addr> <n>    Dump n bytes from address
-  drive <id> mem <start>-<end> Dump a memory address range
-  drive <id> state            Show drive bus/debug state
-  drive <id> step             Step/tick drive CPU
-  drive <id> step <cpu-id>    Step the selected drive CPU
+  drive <id>                    Show drive summary
+  drive <id> chip <hardware-id> Inspect a hardware component
+  drive <id> cpu                Show drive CPU registers and state
+  drive <id> mem <addr>         Dump drive memory (default count)
+  drive <id> mem <addr> <n>     Dump n bytes from address
+  drive <id> mem <start>-<end>  Dump a memory address range
+  drive <id> state              Show drive bus/debug state
+  drive <id> step               Step/tick drive CPU
+  drive <id> step <cpu-id>      Step the selected drive CPU
 
 Drive Hardware:
   drive <id> hardware         List available hardware components
@@ -328,6 +329,32 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
         catch (const std::exception& e)
         {
             std::cout << "Invalid breakpoint: " << e.what() << "\n";
+        }
+
+        return;
+    }
+
+    if (subcmd == "chip")
+    {
+        if (args.size() < 4)
+        {
+            std::cout << "Usage: drive <id> chip <hardware-id>\n";
+            return;
+        }
+
+        try
+        {
+            size_t parsed = 0;
+            const unsigned long value = std::stoul(args[3], &parsed, 10);
+
+            if (parsed != args[3].size() || value > UINT32_MAX)
+                throw std::out_of_range("Invalid hardware ID");
+
+            backend->dumpDriveChip(id, static_cast<uint32_t>(value), busType);
+        }
+        catch (const std::exception&)
+        {
+            std::cout << "Invalid hardware ID.\n";
         }
 
         return;

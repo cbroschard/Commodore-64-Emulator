@@ -120,6 +120,95 @@ static std::string cycleSlotMarkers(const Vic::VicCycleSlot& slot)
     return flags.empty() ? "-" : flags;
 }
 
+static void dumpDriveVIARegisters(const DriveVIABase* via, const std::string& name)
+{
+    if (!via)
+    {
+        std::cout << name << " is not available.\n";
+        return;
+    }
+
+    const auto registers = via->getRegsView();
+    const auto mech = via->getMechanicsInfo();
+
+    auto hexByte = [](uint32_t value)
+    {
+        std::ostringstream s;
+        s << std::uppercase << std::hex
+          << std::setw(2) << std::setfill('0')
+          << (value & 0xFF);
+        return s.str();
+    };
+
+    auto hexWord = [](uint8_t hi, uint8_t lo)
+    {
+        std::ostringstream s;
+        s << std::uppercase << std::hex
+          << std::setw(4) << std::setfill('0')
+          << ((static_cast<uint16_t>(hi) << 8) | lo);
+        return s.str();
+    };
+
+    std::ostringstream oss;
+
+    oss << name << " Registers:\n";
+
+    oss << "  ORB: $" << hexByte(registers.orbIRB)
+        << "  ORA: $" << hexByte(registers.oraIRA) << "\n";
+
+    oss << "  DDRB: $" << hexByte(registers.ddrB)
+        << "  DDRA: $" << hexByte(registers.ddrA) << "\n";
+
+    oss << "  T1 Low Byte:   $" << hexByte(registers.t1CL)
+        << "  T1 High Byte:  $" << hexByte(registers.t1CH) << "\n";
+
+    oss << "  T1 Latch Low:  $" << hexByte(registers.t1LL)
+        << "  T1 Latch High: $" << hexByte(registers.t1LH) << "\n";
+
+    oss << "  T2 Low Byte:   $" << hexByte(registers.t2CL)
+        << "  T2 High Byte:  $" << hexByte(registers.t2CH) << "\n";
+
+    oss << "  T1 Counter:    $"
+        << hexWord(registers.t1CH, registers.t1CL)
+        << "  T1 Latch: $"
+        << hexWord(registers.t1LH, registers.t1LL)
+        << "\n";
+
+    oss << "  T2 Counter:    $"
+        << hexWord(registers.t2CH, registers.t2CL)
+        << "\n";
+
+    oss << "  Serial Shift:  $" << hexByte(registers.sr) << "\n";
+    oss << "  Aux Control:   $" << hexByte(registers.acr) << "\n";
+    oss << "  Periph Ctrl:   $" << hexByte(registers.pcr) << "\n";
+    oss << "  IFR:           $" << hexByte(registers.ifr) << "\n";
+    oss << "  IER:           $" << hexByte(registers.ier) << "\n";
+    oss << "  ORA(no HS):    $" << hexByte(registers.oraNoHS) << "\n";
+
+    oss << "  IRQ Active:    "
+        << (via->checkIRQActive() ? "YES" : "NO")
+        << "\n";
+
+    if (mech.valid)
+    {
+        oss << "\nMechanics (decoded):\n";
+
+        oss << "  Motor:   "
+            << (mech.motorOn ? "ON" : "OFF") << "\n";
+
+        oss << "  LED:     "
+            << (mech.ledOn ? "ON" : "OFF") << "\n";
+
+        oss << "  Density: code="
+            << static_cast<unsigned>(mech.densityCode)
+            << " (0-3)\n";
+    }
+
+    appendVIATimerDebug(oss, via->getTimerDebugView());
+
+    std::cout << oss.str();
+}
+
 const char* ownerName(Vic::BusOwner owner)
 {
     switch (owner)
@@ -3108,6 +3197,64 @@ void MLMonitorBackend::dumpDriveSummary(int id, DriveBusType busType)
     std::cout << oss.str();
 }
 
+void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busType)
+{
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
+    {
+        std::cout << "Unable to resolve drive " << id << ".\n";
+        return;
+    }
+
+    Drive* drive = resolved.drive;
+
+    const auto hardware = drive->enumerateDriveHardware();
+
+    const auto it = std::find_if(hardware.begin(), hardware.end(), [chipId](const DriveHardwareInfo& info)
+    {
+        return info.id == chipId;
+    });
+
+    if (it == hardware.end())
+    {
+        std::cout << "Drive " << id
+                  << " has no hardware component with ID "
+                  << chipId << ".\n";
+        return;
+    }
+
+    switch (it->type)
+    {
+        case DriveHardwareType::VIA6522:
+        {
+            const DriveVIABase* via = drive->getHardwareVIA(chipId);
+
+            if (!via)
+            {
+                std::cout << "VIA component "
+                          << chipId
+                          << " is unavailable.\n";
+                return;
+            }
+
+            const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
+            dumpDriveVIARegisters(via, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
+            return;
+        }
+
+        default:
+        {
+            std::cout << "Hardware component "
+                      << chipId
+                      << " (" << it->name << ")"
+                      << " does not currently support "
+                      << "chip register inspection.\n";
+            return;
+        }
+    }
+}
+
 void MLMonitorBackend::dumpDriveCIA(int id)
 {
     if (!iecBus)
@@ -3766,14 +3913,11 @@ void MLMonitorBackend::dumpDriveState(int id, DriveBusType busType)
 
 void MLMonitorBackend::dumpDriveVIA1(int id, DriveBusType busType)
 {
-    // Resolve the drive through IEC or IEEE-488.
     const ResolvedDrive resolved = resolveDrive(id, busType);
 
     if (!resolved)
     {
-        std::cout << "Unable to resolve drive " << id
-                  << ". The drive may not exist, or its "
-                  << "device number may be ambiguous.\n";
+        std::cout << "Unable to resolve drive " << id << ".\n";
         return;
     }
 
@@ -3781,68 +3925,24 @@ void MLMonitorBackend::dumpDriveVIA1(int id, DriveBusType busType)
 
     if (!drive->hasVIA1())
     {
-        std::cout << "Drive " << id << " does not have a VIA1 chip.\n";
+        std::cout << "Drive " << id
+                  << " does not have a VIA1 chip.\n";
         return;
     }
 
-    const DriveVIABase* via1 = drive->getVIA1();
+    const DriveVIABase* via = drive->getVIA1();
+    const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
-    if (!via1)
-    {
-        std::cout << "Drive " << id << " VIA1 is not available.\n";
-        return;
-    }
-
-    auto registers = via1->getRegsView();
-
-    std::stringstream oss;
-    oss << "Drive " << id << " (" << (resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488") << ") VIA1 Registers:\n";
-    oss << "  ORB: $" << hex2(registers.orbIRB)
-        << "  ORA: $" << hex2(registers.oraIRA) << "\n";
-    oss << "  DDRB: $" << hex2(registers.ddrB)
-        << "  DDRA: $" << hex2(registers.ddrA) << "\n";
-
-    // Timers as bytes
-    oss << "  T1 Low Byte:  $" << hex2(registers.t1CL)
-        << "  T1 High Byte: $" << hex2(registers.t1CH) << "\n";
-    oss << "  T1 Latch Low: $" << hex2(registers.t1LL)
-        << "  T1 Latch High:$" << hex2(registers.t1LH) << "\n";
-    oss << "  T2 Low Byte:  $" << hex2(registers.t2CL)
-        << "  T2 High Byte: $" << hex2(registers.t2CH) << "\n";
-
-    // Timers as 16-bit words
-    oss << "  T1 Counter:   $" << hex4(registers.t1CH, registers.t1CL)
-        << "  T1 Latch: $"    << hex4(registers.t1LH, registers.t1LL) << "\n";
-    oss << "  T2 Counter:   $" << hex4(registers.t2CH, registers.t2CL) << "\n";
-
-    oss << "  Serial Shift: $" << hex2(registers.sr) << "\n";
-    oss << "  Aux Control:  $" << hex2(registers.acr) << "\n";
-    oss << "  Periph Ctrl:  $" << hex2(registers.pcr) << "\n";
-    oss << "  IFR:          $" << hex2(registers.ifr) << "\n";
-    oss << "  IER:          $" << hex2(registers.ier) << "\n";
-    oss << "  ORA(no HS):   $" << hex2(registers.oraNoHS) << "\n";
-
-    // Is this VIA pulling IRQ?
-    bool irqActive = via1->checkIRQActive();
-    oss << "  IRQ Active:   " << (irqActive ? "YES" : "NO") << "\n";
-
-    auto timers = via1->getTimerDebugView();
-    appendVIATimerDebug(oss, timers);
-
-    std::cout << oss.str();
+    dumpDriveVIARegisters(via, "Drive " + std::to_string(id) + " (" + busName + ") VIA1");
 }
 
 void MLMonitorBackend::dumpDriveVIA2(int id, DriveBusType busType)
 {
-
-    // Resolve the drive through IEC or IEEE-488.
     const ResolvedDrive resolved = resolveDrive(id, busType);
 
     if (!resolved)
     {
-        std::cout << "Unable to resolve drive " << id
-                  << ". The drive may not exist, or its "
-                  << "device number may be ambiguous.\n";
+        std::cout << "Unable to resolve drive " << id << ".\n";
         return;
     }
 
@@ -3850,69 +3950,16 @@ void MLMonitorBackend::dumpDriveVIA2(int id, DriveBusType busType)
 
     if (!drive->hasVIA2())
     {
-        std::cout << "Drive " << id << " does not have a VIA2 chip.\n";
+        std::cout << "Drive " << id
+                  << " does not have a VIA2 chip.\n";
         return;
     }
 
-    const DriveVIABase* via2 = drive->getVIA2();
+    const DriveVIABase* via = drive->getVIA2();
 
-    if (!via2)
-    {
-        std::cout << "Drive " << id << " VIA2 is not available.\n";
-        return;
-    }
+    const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
-    auto registers = via2->getRegsView();
-    auto mech  = via2->getMechanicsInfo();
-
-    std::stringstream oss;
-    oss << "Drive " << id << " (" << (resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488") << ") VIA2 Registers:\n";
-    oss << "  ORB: $" << hex2(registers.orbIRB)
-        << "  ORA: $" << hex2(registers.oraIRA) << "\n";
-    oss << "  DDRB: $" << hex2(registers.ddrB)
-        << "  DDRA: $" << hex2(registers.ddrA) << "\n";
-
-    // Timers as bytes
-    oss << "  T1 Low Byte:   $" << hex2(registers.t1CL)
-        << "  T1 High Byte:  $" << hex2(registers.t1CH) << "\n";
-    oss << "  T1 Latch Low:  $" << hex2(registers.t1LL)
-        << "  T1 Latch High: $" << hex2(registers.t1LH) << "\n";
-    oss << "  T2 Low Byte:   $" << hex2(registers.t2CL)
-        << "  T2 High Byte:  $" << hex2(registers.t2CH) << "\n";
-
-    // Timers as 16-bit words
-    oss << "  T1 Counter:    $" << hex4(registers.t1CH, registers.t1CL)
-        << "  T1 Latch: $"      << hex4(registers.t1LH, registers.t1LL) << "\n";
-    oss << "  T2 Counter:    $" << hex4(registers.t2CH, registers.t2CL) << "\n";
-
-    oss << "  Serial Shift:  $" << hex2(registers.sr)  << "\n";
-    oss << "  Aux Control:   $" << hex2(registers.acr) << "\n";
-    oss << "  Periph Ctrl:   $" << hex2(registers.pcr) << "\n";
-    oss << "  IFR:           $" << hex2(registers.ifr) << "\n";
-    oss << "  IER:           $" << hex2(registers.ier) << "\n";
-    oss << "  ORA(no HS):    $" << hex2(registers.oraNoHS) << "\n";
-
-    // Mechanics decode from Port B
-    if (mech.valid)
-    {
-        oss << "\nMechanics (decoded):\n";
-        oss << "  Motor:   " << (mech.motorOn ? "ON" : "OFF") << "\n";
-        oss << "  LED:     " << (mech.ledOn ? "ON" : "OFF") << "\n";
-        oss << "  Density: code=" << static_cast<unsigned>(mech.densityCode)
-            << " (0-3)\n";
-    }
-    else
-    {
-        oss << "\nMechanics: (no mechanics info for this VIA)\n";
-    }
-
-    bool irqActive = via2->checkIRQActive();
-    oss << "  IRQ Active: " << (irqActive ? "YES" : "NO") << "\n";
-
-    auto timers = via2->getTimerDebugView();
-    appendVIATimerDebug(oss, timers);
-
-    std::cout << oss.str();
+    dumpDriveVIARegisters(via, "Drive " + std::to_string(id) + " (" + busName + ") VIA2");
 }
 
 void MLMonitorBackend::dumpDriveHardware(int id, DriveBusType busType)
