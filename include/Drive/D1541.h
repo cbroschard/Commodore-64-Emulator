@@ -162,6 +162,7 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         CPUBus* getHardwareBus(uint32_t id) override;
         bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
         bool debugStepCPU(uint32_t cpuId) override;
+        DriveVIABase* getHardwareVIA(uint32_t id) override;
 
         // Hardware discovery
         std::vector<DriveHardwareInfo> enumerateDriveHardware() const override;

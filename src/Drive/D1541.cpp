@@ -1776,3 +1776,18 @@ bool D1541::debugStepCPU(uint32_t cpuId)
 
     return true;
 }
+
+DriveVIABase* D1541::getHardwareVIA(uint32_t id)
+{
+    switch (id)
+    {
+        case 3:
+            return &d1541mem.getVIA1();
+
+        case 4:
+            return &d1541mem.getVIA2();
+
+        default:
+            return nullptr;
+    }
+}
