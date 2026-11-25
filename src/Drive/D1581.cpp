@@ -278,24 +278,7 @@ void D1581::tick(uint32_t cycles)
         if (checkBreakpoint())
             return;
 
-        // CPU::tick() is already one external CPU cycle.
-        driveCPU.tick();
-
-        // Match D1571 behavior: local chips advance one cycle,
-        // not getElapsedCycles() cycles.
-        d1581mem.tick(1);
-
-        updateIRQ();
-
-        const bool visibleActivity = activityLedOn || activityPulseFrames > 0;
-
-        if (visibleActivity)
-        {
-            uiTrack  = currentTrack;
-            uiSector = currentSector;
-        }
-
-        uiLedWasOn = visibleActivity;
+        executeCPUCycle();
     }
 }
 
@@ -736,6 +719,29 @@ void D1581::syncLiveIECInputs()
     d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, srqAsserted);
 }
 
+void D1581::executeCPUCycle()
+{
+    // Advance the drive CPU by one external CPU cycle.
+    driveCPU.tick();
+
+    // Advance the CIA and FDC by the same amount.
+    d1581mem.tick(1);
+
+    // Synchronize interrupt state.
+    updateIRQ();
+
+    // Update the activity indicators.
+    const bool visibleActivity = activityLedOn || activityPulseFrames > 0;
+
+    if (visibleActivity)
+    {
+        uiTrack = currentTrack;
+        uiSector = currentSector;
+    }
+
+    uiLedWasOn = visibleActivity;
+}
+
 IECDriveSnapshot D1581::snapshotIEC() const
 {
     IECDriveSnapshot s{};
@@ -872,4 +878,14 @@ DriveFDCBase* D1581::getHardwareFDC(uint32_t id)
         return &d1581mem.getFDC();
 
     return nullptr;
+}
+
+bool D1581::debugStepCPU(uint32_t cpuId)
+{
+    if (cpuId != 0)
+        return false;
+
+    executeCPUCycle();
+
+    return true;
 }

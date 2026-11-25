@@ -173,6 +173,8 @@ class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         // CPU execution context
         bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
 
+        bool debugStepCPU(uint32_t cpuId) override;
+
     protected:
         bool motorOn;
 
@@ -237,6 +239,8 @@ class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public
 
         void resetForMediaChange();
         void syncLiveIECInputs();
+
+        void executeCPUCycle();
 };
 
 #endif // D1581_H
