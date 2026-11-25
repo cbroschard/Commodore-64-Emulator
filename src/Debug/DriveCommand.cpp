@@ -7,6 +7,8 @@
 // strictly prohibited without the prior written consent of the author.
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
+#include <stdexcept>
 #include "Debug/DriveCommand.h"
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
@@ -480,7 +482,29 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
 
     if (subcmd == "cpu")
     {
-        backend->dumpDriveCPU(id, busType);
+        uint32_t cpuId = 0;
+
+        if (args.size() >= 4)
+        {
+            try
+            {
+                size_t parsed = 0;
+                const unsigned long value = std::stoul(args[3], &parsed, 10);
+
+                if (parsed != args[3].size() || value > UINT32_MAX)
+                    throw std::out_of_range("Invalid CPU ID");
+
+                cpuId = static_cast<uint32_t>(value);
+            }
+            catch (const std::exception&)
+            {
+                std::cout << "Invalid CPU hardware ID.\n";
+                std::cout << "Usage: drive <id> cpu [cpu-id]\n";
+                return;
+            }
+        }
+
+        backend->dumpDriveCPU(id, busType, cpuId);
         return;
     }
 

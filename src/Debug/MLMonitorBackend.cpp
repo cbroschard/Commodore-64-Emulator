@@ -3279,7 +3279,7 @@ void MLMonitorBackend::dumpDriveCIA(int id)
     std::cout << oss.str();
 }
 
-void MLMonitorBackend::dumpDriveCPU(int id, DriveBusType busType)
+void MLMonitorBackend::dumpDriveCPU(int id, DriveBusType busType, uint32_t cpuId)
 {
     const ResolvedDrive resolved = resolveDrive(id, busType);
 
@@ -3293,11 +3293,24 @@ void MLMonitorBackend::dumpDriveCPU(int id, DriveBusType busType)
 
     Drive* drive = resolved.drive;
 
-    const CPU* cpu = drive->getDriveCPU();
+    // First attempt to access the CPU through DriveHardware.
+    const CPU* cpu = drive->getHardwareCPU(cpuId);
+
+    // Temporary backward compatibility for drives that have
+    // not implemented the new hardware interface yet.
+    if (!cpu && cpuId == 0)
+    {
+        const auto hardware = drive->enumerateDriveHardware();
+
+        if (hardware.empty())
+            cpu = drive->getDriveCPU();
+    }
 
     if (!cpu)
     {
-        std::cout << "Drive " << id << " has no CPU attached.\n";
+        std::cout << "Drive " << id
+                  << " does not have CPU hardware ID "
+                  << cpuId << ".\n";
         return;
     }
 
@@ -3334,7 +3347,7 @@ void MLMonitorBackend::dumpDriveCPU(int id, DriveBusType busType)
 
     std::ostringstream out;
     const char* busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
-    out << "Drive " << id << " (" << busName << ") CPU:\n";
+    out << "Drive " << id << " (" << busName << ")" << " CPU [" << cpuId << "]:\n";
     out << "PC=$" << hex4(st.PC)
         << "  A=$" << hex2(st.A)
         << "  X=$" << hex2(st.X)
