@@ -889,3 +889,37 @@ bool D1581::debugStepCPU(uint32_t cpuId)
 
     return true;
 }
+
+DriveStepResult D1581::debugStepInstruction(uint32_t cpuId)
+{
+    if (cpuId != 0)
+        return DriveStepResult::InvalidCPU;
+
+    constexpr uint32_t MAX_STEP_CYCLES = 10000;
+
+    uint32_t cyclesExecuted = 0;
+
+    // Finish any instruction already in progress.
+    while (!driveCPU.isAtInstructionBoundary())
+    {
+        if (++cyclesExecuted > MAX_STEP_CYCLES)
+            return DriveStepResult::Stalled;
+
+        executeCPUCycle();
+    }
+
+    // Start the next instruction.
+    executeCPUCycle();
+    ++cyclesExecuted;
+
+    // Finish its remaining cycles.
+    while (!driveCPU.isAtInstructionBoundary())
+    {
+        if (++cyclesExecuted > MAX_STEP_CYCLES)
+            return DriveStepResult::Stalled;
+
+        executeCPUCycle();
+    }
+
+    return DriveStepResult::Completed;
+}

@@ -104,4 +104,12 @@ struct DriveCPUContext
     CPUBus* bus = nullptr;
 };
 
+enum class DriveStepResult
+{
+    Completed,
+    InvalidCPU,
+    Stalled,
+    Unsupported
+};
+
 #endif // DRIVEHARDWARE_H

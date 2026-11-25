@@ -46,6 +46,7 @@ public:
     }
 
     virtual bool debugStepCPU(uint32_t cpuId) { return false; }
+    virtual DriveStepResult debugStepInstruction(uint32_t cpuId) { return DriveStepResult::Unsupported; }
 
     // CIA
     virtual DriveCIABase* getHardwareCIA(uint32_t id) { return nullptr; }

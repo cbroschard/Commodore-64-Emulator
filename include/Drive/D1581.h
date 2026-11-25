@@ -174,6 +174,7 @@ class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
 
         bool debugStepCPU(uint32_t cpuId) override;
+        DriveStepResult debugStepInstruction(uint32_t cpuId) override;
 
     protected:
         bool motorOn;

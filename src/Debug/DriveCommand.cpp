@@ -70,8 +70,10 @@ Drive Information:
   drive <id> mem <addr> <n>     Dump n bytes from address
   drive <id> mem <start>-<end>  Dump a memory address range
   drive <id> state              Show drive bus/debug state
-  drive <id> step               Step/tick drive CPU
-  drive <id> step <cpu-id>      Step the selected drive CPU
+  drive <id> step               Execute one CPU instruction
+ drive <id> step <cpu-id>       Step the selected CPU instruction
+ drive <id> cycle               Advance one CPU cycle
+ drive <id> cycle <cpu-id>      Advance one cycle on selected CPU
 
 Drive Hardware:
   drive <id> hardware         List available hardware components
@@ -621,7 +623,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
         return;
     }
 
-    if (subcmd == "step")
+    if (subcmd == "step" || subcmd == "cycle")
     {
         uint32_t cpuId = 0;
 
@@ -630,6 +632,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
             try
             {
                 size_t parsed = 0;
+
                 const unsigned long value = std::stoul(args[3], &parsed, 10);
 
                 if (parsed != args[3].size() || value > UINT32_MAX)
@@ -640,12 +643,16 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
             catch (const std::exception&)
             {
                 std::cout << "Invalid CPU hardware ID.\n";
-                std::cout << "Usage: drive <id> step [cpu-id]\n";
+                std::cout << "Usage: drive <id> "
+                          << subcmd << " [cpu-id]\n";
                 return;
             }
         }
 
-        backend->driveCPUStep(id, busType, cpuId);
+        const bool instructionStep = (subcmd == "step");
+
+        backend->driveCPUStep(id, busType, cpuId, instructionStep);
+
         return;
     }
 

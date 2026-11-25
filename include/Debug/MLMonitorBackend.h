@@ -151,7 +151,7 @@ class MLMonitorBackend
         void dumpDriveChip(int id, uint32_t chipId, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveCIA(int id);
         void dumpDriveCPU(int id, DriveBusType busType = DriveBusType::Auto, uint32_t cpuId = 0);
-        void driveCPUStep(int id, DriveBusType busType = DriveBusType::Auto, uint32_t cpuId = 0);
+        void driveCPUStep(int id, DriveBusType busType = DriveBusType::Auto, uint32_t cpuId = 0, bool instructionStep = false);
         void dumpDriveFDC(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveState(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveMemory(int id, uint16_t startAddress, uint16_t count, DriveBusType busType = DriveBusType::Auto);

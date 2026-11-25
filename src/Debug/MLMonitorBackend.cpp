@@ -3810,7 +3810,7 @@ void MLMonitorBackend::dumpDriveCPU(int id, DriveBusType busType, uint32_t cpuId
     std::cout << out.str();
 }
 
-void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType, uint32_t cpuId)
+void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType, uint32_t cpuId, bool instructionStep)
 {
     const ResolvedDrive resolved = resolveDrive(id, busType);
 
@@ -3855,44 +3855,81 @@ void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType, uint32_t cpuId
     std::cout << disASM << std::endl;
 
     // Let migrated drives control their own CPU stepping.
-    if (!drive->debugStepCPU(cpuId))
+    if (instructionStep)
     {
-        // Temporary compatibility for drives that have not
-        // implemented DriveHardware yet.
-        if (cpuId == 0 &&
-            drive->enumerateDriveHardware().empty())
+        // Execute one complete instruction.
+        const DriveStepResult result = drive->debugStepInstruction(cpuId);
+
+        switch (result)
         {
-            cpu->tick();
+            case DriveStepResult::Completed:
+                break;
 
-            uint32_t cycles = cpu->getElapsedCycles();
+            case DriveStepResult::InvalidCPU:
+                std::cout << "Drive " << id
+                          << " does not have CPU hardware ID "
+                          << cpuId << ".\n";
+                return;
 
-            if (cycles == 0)
-                cycles = 1;
+            case DriveStepResult::Stalled:
+                std::cout << "Drive " << id
+                          << " CPU " << cpuId
+                          << " did not complete an instruction "
+                          << "within the cycle limit.\n";
+                return;
 
-            mem->tick(cycles);
+            case DriveStepResult::Unsupported:
+                std::cout << "Drive " << id
+                          << " does not support instruction stepping "
+                          << "for CPU " << cpuId << ".\n";
+                return;
         }
-        else
+    }
+    else
+    {
+        // Execute one CPU cycle using the existing interface.
+        if (!drive->debugStepCPU(cpuId))
         {
-            std::cout << "Drive " << id
-                      << " cannot step CPU hardware ID "
-                      << cpuId << ".\n";
-            return;
+            // Temporary compatibility for drives not yet migrated.
+            if (cpuId == 0 && drive->enumerateDriveHardware().empty())
+            {
+                cpu->tick();
+
+                uint32_t cycles = cpu->getElapsedCycles();
+
+                if (cycles == 0)
+                    cycles = 1;
+
+                mem->tick(cycles);
+            }
+            else
+            {
+                std::cout << "Drive " << id
+                          << " cannot advance CPU hardware ID "
+                          << cpuId << ".\n";
+                return;
+            }
         }
     }
 
     // Dump CPU registers
     auto st = cpu->getState();
-    auto hex2 = [](uint32_t v){
+    auto hex2 = [](uint32_t v)
+    {
         std::ostringstream s;
         s << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << (v & 0xFF);
         return s.str();
     };
-    auto hex4 = [](uint32_t v){
+
+    auto hex4 = [](uint32_t v)
+    {
         std::ostringstream s;
         s << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << (v & 0xFFFF);
         return s.str();
     };
-    auto flagsBits = [&](uint8_t p){
+
+    auto flagsBits = [&](uint8_t p)
+    {
         std::string b;
         b += (p & 0x80) ? '1' : '0'; // N
         b += (p & 0x40) ? '1' : '0'; // V
@@ -3916,7 +3953,6 @@ void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType, uint32_t cpuId
 
     std::cout << out.str();
 }
-
 
 void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t count, DriveBusType busType)
 {
