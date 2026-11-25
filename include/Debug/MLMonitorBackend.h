@@ -157,6 +157,9 @@ class MLMonitorBackend
         void dumpDriveVIA1(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveVIA2(int id, DriveBusType busType = DriveBusType::Auto);
 
+        // Hardware discovery
+        void dumpDriveHardware(int id, DriveBusType busType = DriveBusType::Auto);
+
         // ML Monitor Drive Breakpoints
         void addDriveBreakpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
         void addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition, uint8_t value,

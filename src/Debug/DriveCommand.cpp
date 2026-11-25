@@ -70,6 +70,8 @@ Drive Information:
   drive <id> step             Step/tick drive CPU
 
 Drive Hardware:
+  drive <id> hardware         List available hardware components
+  drive <id> hw               Short form of hardware
   drive <id> via1             Show VIA1 registers and timers
   drive <id> via2             Show VIA2 registers and timers
   drive <id> cia              Show CIA registers (if supported)
@@ -467,6 +469,12 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
                       << e.what() << "\n";
         }
 
+        return;
+    }
+
+    if (subcmd == "hardware" || subcmd == "hw")
+    {
+        backend->dumpDriveHardware(id, busType);
         return;
     }
 

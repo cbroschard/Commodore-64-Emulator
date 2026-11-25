@@ -3872,6 +3872,53 @@ void MLMonitorBackend::dumpDriveVIA2(int id, DriveBusType busType)
     std::cout << oss.str();
 }
 
+void MLMonitorBackend::dumpDriveHardware(int id, DriveBusType busType)
+{
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
+    {
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
+        return;
+    }
+
+    const Drive* drive = resolved.drive;
+
+    const auto hardware = drive->enumerateDriveHardware();
+
+    const char* busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
+
+    std::cout << "Drive " << id << " (" << busName << ") Hardware:\n";
+
+    if (hardware.empty())
+    {
+        std::cout << "  No hardware components reported.\n";
+        return;
+    }
+
+    for (const auto& component : hardware)
+    {
+        std::cout << "  [" << component.id << "] "
+                  << component.name
+                  << " ("
+                  << driveHardwareTypeName(component.type)
+                  << ")";
+
+        if (component.processorId >= 0)
+            std::cout << " CPU=" << component.processorId;
+
+        if (component.memoryMapped)
+        {
+            std::cout << " Base=$" << hex4(component.baseAddress);
+            std::cout << " Size=" << std::dec << component.addressSize;
+        }
+
+        std::cout << "\n";
+    }
+}
+
 void MLMonitorBackend::dumpDriveFDC(int id)
 {
     if (!iecBus)
