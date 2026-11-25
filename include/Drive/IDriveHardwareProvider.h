@@ -11,13 +11,18 @@
 
 #include "Drive/DriveHardware.h"
 
+class CPU;
+
 class IDriveHardwareProvider
 {
 public:
     virtual ~IDriveHardwareProvider() = default;
 
-    virtual std::vector<DriveHardwareInfo>
-        enumerateDriveHardware() const = 0;
+    virtual std::vector<DriveHardwareInfo> enumerateDriveHardware() const = 0;
+
+    // Return a CPU by its hardware component ID.
+    // Drives without the requested CPU return nullptr.
+    virtual CPU* getHardwareCPU(uint32_t id) { return nullptr; }
 };
 
 #endif // IDRIVEHARDWAREPROVIDER_H

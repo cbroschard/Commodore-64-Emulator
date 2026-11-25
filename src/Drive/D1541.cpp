@@ -1722,3 +1722,11 @@ std::vector<DriveHardwareInfo> D1541::enumerateDriveHardware() const
         }
     };
 }
+
+CPU* D1541::getHardwareCPU(uint32_t id)
+{
+    if (id == 0)
+        return &driveCPU;
+
+    return nullptr;
+}
