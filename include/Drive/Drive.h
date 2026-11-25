@@ -100,10 +100,6 @@ class Drive : public Peripheral, public IDriveHardwareProvider
         // ML Monitor
         virtual DriveStatus getDriveStatus() const = 0;
         bool isDrive() const override { return true; }
-        virtual bool hasCIA() const = 0;
-        virtual bool hasVIA1() const = 0;
-        virtual bool hasVIA2() const = 0;
-        virtual bool hasFDC() const = 0;
         Drive* asDrive() override { return this; }
         virtual const CPU* getDriveCPU() const = 0;
         virtual CPU* getDriveCPU() = 0;

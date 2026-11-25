@@ -3582,13 +3582,14 @@ void MLMonitorBackend::dumpDriveCIA(int id)
 
     Drive* drive = dev->asDrive();
 
-    if (!drive->hasCIA())
+    const DriveCIABase* cia = drive->getCIA();
+
+    if (!cia)
     {
         std::cout << "Device has no CIA chip\n";
         return;
     }
 
-    auto* cia = dev->asDrive()->getCIA();
     auto registers = cia->getRegsView();
 
     std::stringstream oss;
@@ -4301,14 +4302,15 @@ void MLMonitorBackend::dumpDriveVIA1(int id, DriveBusType busType)
 
     Drive* drive = resolved.drive;
 
-    if (!drive->hasVIA1())
+    const DriveVIABase* via = drive->getVIA1();
+
+    if (!via)
     {
         std::cout << "Drive " << id
                   << " does not have a VIA1 chip.\n";
         return;
     }
 
-    const DriveVIABase* via = drive->getVIA1();
     const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
     dumpDriveVIARegisters(via, "Drive " + std::to_string(id) + " (" + busName + ") VIA1");
@@ -4326,14 +4328,14 @@ void MLMonitorBackend::dumpDriveVIA2(int id, DriveBusType busType)
 
     Drive* drive = resolved.drive;
 
-    if (!drive->hasVIA2())
+    const DriveVIABase* via = drive->getVIA2();
+
+    if (!via)
     {
         std::cout << "Drive " << id
                   << " does not have a VIA2 chip.\n";
         return;
     }
-
-    const DriveVIABase* via = drive->getVIA2();
 
     const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
@@ -4400,14 +4402,15 @@ void MLMonitorBackend::dumpDriveFDC(int id, DriveBusType busType)
 
     Drive* drive = resolved.drive;
 
-    if (!drive->hasFDC())
+    const DriveFDCBase* fdc = drive->getFDC();
+
+    if (!fdc)
     {
         std::cout << "Drive " << id
                   << " does not have an FDC.\n";
         return;
     }
 
-    const DriveFDCBase* fdc = drive->getFDC();
     const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
     dumpDriveFDCRegisters(fdc, "Drive " + std::to_string(id) + " (" + busName + ") FDC");

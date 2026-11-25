@@ -142,10 +142,6 @@ class D1571 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         void flushAndSaveDisk() override;
 
         // ML Monitor
-        inline bool hasCIA() const override { return true; }
-        inline bool hasVIA1() const override { return true; }
-        inline bool hasVIA2() const override { return true; }
-        inline bool hasFDC() const override  { return true; }
         inline const CPU* getDriveCPU() const override { return &driveCPU; }
         inline CPU* getDriveCPU() override { return &driveCPU; }
         inline const D1571Memory* getMemory() const override { return &d1571mem; }

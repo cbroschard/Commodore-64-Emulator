@@ -99,10 +99,6 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         inline const D4040Mechanism& getMechanism(uint8_t unit) const { return mechanisms[unit & 0x01]; }
 
         // ML Monitor
-        inline bool hasCIA()  const override { return false; }
-        inline bool hasVIA1() const override { return true;  }
-        inline bool hasVIA2() const override { return true;  }
-        inline bool hasFDC()  const override { return false; }
         inline bool isDrive() const override { return true;  }
         inline const CPU* getDriveCPU() const override { return &driveCPU; }
         inline CPU* getDriveCPU() override { return &driveCPU; }
