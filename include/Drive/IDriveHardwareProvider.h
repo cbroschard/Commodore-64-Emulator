@@ -10,8 +10,10 @@
 #define IDRIVEHARDWAREPROVIDER_H
 
 #include "Drive/DriveHardware.h"
+#include "Drive/DriveHardware.h"
 
 class CPU;
+class CPUBus;
 
 class IDriveHardwareProvider
 {
@@ -20,9 +22,26 @@ public:
 
     virtual std::vector<DriveHardwareInfo> enumerateDriveHardware() const = 0;
 
-    // Return a CPU by its hardware component ID.
-    // Drives without the requested CPU return nullptr.
     virtual CPU* getHardwareCPU(uint32_t id) { return nullptr; }
+    virtual CPUBus* getHardwareBus(uint32_t id) { return nullptr; }
+
+    virtual bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context)
+    {
+        context = {};
+
+        if (cpuId != 0)
+            return false;
+
+        context.cpuId = 0;
+        context.busId = 1;
+
+        context.cpu = getHardwareCPU(0);
+        context.bus = getHardwareBus(1);
+
+        return context.cpu != nullptr && context.bus != nullptr;
+    }
+
+    virtual bool debugStepCPU(uint32_t cpuId) { return false; }
 };
 
 #endif // IDRIVEHARDWAREPROVIDER_H

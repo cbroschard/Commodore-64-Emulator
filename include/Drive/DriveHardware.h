@@ -12,6 +12,9 @@
 #include <string>
 #include <vector>
 
+class CPU;
+class CPUBus;
+
 enum class DriveHardwareType
 {
     CPU,
@@ -91,5 +94,14 @@ inline const char* driveHardwareTypeName(
             return "OTHER";
     }
 }
+
+struct DriveCPUContext
+{
+    uint32_t cpuId = 0;
+    uint32_t busId = 0;
+
+    CPU* cpu = nullptr;
+    CPUBus* bus = nullptr;
+};
 
 #endif // DRIVEHARDWARE_H

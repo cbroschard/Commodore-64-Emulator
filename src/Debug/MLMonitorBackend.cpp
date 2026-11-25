@@ -3360,7 +3360,7 @@ void MLMonitorBackend::dumpDriveCPU(int id, DriveBusType busType, uint32_t cpuId
     std::cout << out.str();
 }
 
-void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType)
+void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType, uint32_t cpuId)
 {
     const ResolvedDrive resolved = resolveDrive(id, busType);
 
@@ -3373,7 +3373,16 @@ void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType)
     }
 
     Drive* drive = resolved.drive;
-    CPU* cpu = drive->getDriveCPU();
+    CPU* cpu = drive->getHardwareCPU(cpuId);
+
+    // Backward compatibility for drives not yet migrated.
+    if (!cpu && cpuId == 0)
+    {
+        const auto hardware = drive->enumerateDriveHardware();
+
+        if (hardware.empty())
+            cpu = drive->getDriveCPU();
+    }
 
     if (!cpu)
     {
@@ -3395,10 +3404,31 @@ void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType)
     std::string disASM = Disassembler::disassembleAt(pc, *mem);
     std::cout << disASM << std::endl;
 
-    // Execute tick to step
-    cpu->tick();
-    uint32_t cycles = cpu->getElapsedCycles();
-    mem->tick(cycles);
+    // Let migrated drives control their own CPU stepping.
+    if (!drive->debugStepCPU(cpuId))
+    {
+        // Temporary compatibility for drives that have not
+        // implemented DriveHardware yet.
+        if (cpuId == 0 &&
+            drive->enumerateDriveHardware().empty())
+        {
+            cpu->tick();
+
+            uint32_t cycles = cpu->getElapsedCycles();
+
+            if (cycles == 0)
+                cycles = 1;
+
+            mem->tick(cycles);
+        }
+        else
+        {
+            std::cout << "Drive " << id
+                      << " cannot step CPU hardware ID "
+                      << cpuId << ".\n";
+            return;
+        }
+    }
 
     // Dump CPU registers
     auto st = cpu->getState();

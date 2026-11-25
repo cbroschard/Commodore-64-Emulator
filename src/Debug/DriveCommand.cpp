@@ -70,6 +70,7 @@ Drive Information:
   drive <id> mem <start>-<end> Dump a memory address range
   drive <id> state            Show drive bus/debug state
   drive <id> step             Step/tick drive CPU
+  drive <id> step <cpu-id>    Step the selected drive CPU
 
 Drive Hardware:
   drive <id> hardware         List available hardware components
@@ -595,7 +596,29 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
 
     if (subcmd == "step")
     {
-        backend->driveCPUStep(id, busType);
+        uint32_t cpuId = 0;
+
+        if (args.size() >= 4)
+        {
+            try
+            {
+                size_t parsed = 0;
+                const unsigned long value = std::stoul(args[3], &parsed, 10);
+
+                if (parsed != args[3].size() || value > UINT32_MAX)
+                    throw std::out_of_range("Invalid CPU ID");
+
+                cpuId = static_cast<uint32_t>(value);
+            }
+            catch (const std::exception&)
+            {
+                std::cout << "Invalid CPU hardware ID.\n";
+                std::cout << "Usage: drive <id> step [cpu-id]\n";
+                return;
+            }
+        }
+
+        backend->driveCPUStep(id, busType, cpuId);
         return;
     }
 
