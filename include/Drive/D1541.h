@@ -159,6 +159,9 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         const char* getDriveTypeName() const noexcept override { return "1541"; }
         IECDriveSnapshot snapshotIEC() const override;
 
+        // Hardware discovery
+        std::vector<DriveHardwareInfo> enumerateDriveHardware() const override;
+
     protected:
         bool motorOn;
 

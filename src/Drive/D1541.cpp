@@ -1661,3 +1661,64 @@ void D1541::getDriveIndicators(std::vector<Indicator>& out) const
     act.color = IDriveIndicatorView::DriveIndicatorColor::Red;
     out.push_back(std::move(act));
 }
+
+std::vector<DriveHardwareInfo> D1541::enumerateDriveHardware() const
+{
+    return
+    {
+        {
+            0,
+            DriveHardwareType::CPU,
+            "MAIN-6502",
+            -1,
+            false,
+            0,
+            0
+        },
+        {
+            1,
+            DriveHardwareType::Bus,
+            "CPU-BUS",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            2,
+            DriveHardwareType::Memory,
+            "DRIVE-MEMORY",
+            0,
+            false,
+            0,
+            0
+        },
+        {
+            3,
+            DriveHardwareType::VIA6522,
+            "VIA1-IEC",
+            0,
+            true,
+            0x1800,
+            0x10
+        },
+        {
+            4,
+            DriveHardwareType::VIA6522,
+            "VIA2-DISK",
+            0,
+            true,
+            0x1C00,
+            0x10
+        },
+        {
+            5,
+            DriveHardwareType::Mechanism,
+            "FLOPPY-0",
+            -1,
+            false,
+            0,
+            0
+        }
+    };
+}
