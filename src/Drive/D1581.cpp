@@ -284,7 +284,7 @@ void D1581::tick(uint32_t cycles)
 
 void D1581::syncTrackFromFDC()
 {
-    auto* fdc = getFDC();
+    auto* fdc = &d1581mem.getFDC();
     if (!fdc) return;
 
     currentTrack = fdc->getCurrentTrack();

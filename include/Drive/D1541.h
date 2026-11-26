@@ -149,8 +149,6 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         inline CPU* getDriveCPU() override { return &driveCPU; }
         inline const D1541Memory* getMemory() const override { return &d1541mem; }
         inline D1541Memory* getMemory() override { return &d1541mem; }
-        inline const D1541VIA* getVIA1() const override { return &d1541mem.getVIA1(); }
-        inline const D1541VIA* getVIA2() const override { return &d1541mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
         const char* getDriveTypeName() const noexcept override { return "1541"; }
         IECDriveSnapshot snapshotIEC() const override;

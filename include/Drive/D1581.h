@@ -72,8 +72,6 @@ class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         // Chip getters
         inline CPU* getDriveCPU() override { return &driveCPU; }
         inline DriveMemoryBase* getMemory() override { return &d1581mem; }
-        inline const DriveVIABase* getVIA1() const override { return nullptr; }
-        inline const DriveVIABase* getVIA2() const override { return nullptr; }
 
         // Emulator UI interface
         inline bool hasTrackSector() const override { return true; }
@@ -151,8 +149,6 @@ class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         // ML Monitor
         inline const CPU* getDriveCPU() const override { return &driveCPU; }
         inline const D1581Memory* getMemory() const override { return &d1581mem; }
-        inline const FDC177x* getFDC() const override { return &d1581mem.getFDC(); }
-        inline const DriveCIA* getCIA() const override { return &d1581mem.getCIA(); }
         const char* getDriveTypeName() const noexcept override { return "1581"; }
         bool isDrive() const override { return true; }
 

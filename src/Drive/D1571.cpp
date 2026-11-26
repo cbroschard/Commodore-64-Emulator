@@ -547,7 +547,7 @@ bool D1571::getByteReadyLow() const
     if (isGCRMode())
         return d1571mem.getVIA2().isByteReadyActive();
 
-    auto* fdc = getFDC();
+    const auto* fdc = &d1571mem.getFDC();
     if (!fdc)
         return false;
 
@@ -691,7 +691,7 @@ void D1571::rebuildGCRTrackStream()
 
 void D1571::syncTrackFromFDC()
 {
-    auto* fdc = getFDC();
+    const auto* fdc = &d1571mem.getFDC();
     if (!fdc) return;
 
     currentTrack = fdc->getCurrentTrack();

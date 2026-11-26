@@ -113,8 +113,6 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         inline CPU* getDriveCPU() override { return &driveCPU; }
         inline const D2031Memory* getMemory() const override { return &d2031mem; }
         inline D2031Memory* getMemory() override { return &d2031mem; }
-        inline const D2031VIA* getVIA1() const override { return &d2031mem.getVIA1(); }
-        inline const D2031VIA* getVIA2() const override { return &d2031mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
         inline const char* getDriveTypeName() const noexcept override { return "2031"; }
 

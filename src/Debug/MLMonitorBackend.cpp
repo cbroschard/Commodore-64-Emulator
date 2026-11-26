@@ -478,6 +478,30 @@ static void dumpDriveVIARegisters(const DriveVIABase* via, const std::string& na
     std::cout << oss.str();
 }
 
+static bool findDriveHardware(const Drive* drive, DriveHardwareType type, size_t index, DriveHardwareInfo& result)
+{
+    if (!drive)
+        return false;
+
+    size_t found = 0;
+
+    for (const auto& hardware : drive->enumerateDriveHardware())
+    {
+        if (hardware.type != type)
+            continue;
+
+        if (found == index)
+        {
+            result = hardware;
+            return true;
+        }
+
+        ++found;
+    }
+
+    return false;
+}
+
 const char* ownerName(Vic::BusOwner owner)
 {
     switch (owner)
@@ -3568,166 +3592,40 @@ void MLMonitorBackend::dumpDriveCIA(int id)
 
     Peripheral* dev = iecBus->getDevice(id);
 
-    if (!dev)
+    if (!dev || !dev->isDrive())
     {
-        std::cout << "No such device with ID:" << id << "\n";
-        return;
-    }
-
-    if (!dev->isDrive())
-    {
-        std::cout << "Device is not a Floppy Drive\n";
+        std::cout << "Drive " << id
+                  << " is unavailable.\n";
         return;
     }
 
     Drive* drive = dev->asDrive();
 
-    const DriveCIABase* cia = drive->getCIA();
+    DriveHardwareInfo hardware;
 
-    if (!cia)
+    // Drives may expose either CIA6526 or CIA8520.
+    bool found = findDriveHardware(drive, DriveHardwareType::CIA6526, 0, hardware);
+
+    if (!found)
+        found = findDriveHardware(drive, DriveHardwareType::CIA8520, 0, hardware);
+
+    if (!found)
     {
-        std::cout << "Device has no CIA chip\n";
+        std::cout << "Drive " << id
+                  << " does not have CIA hardware.\n";
         return;
     }
 
-    auto registers = cia->getRegsView();
+    const DriveCIABase* cia = drive->getHardwareCIA(hardware.id);
 
-    std::stringstream oss;
-    oss << "CIA Registers:\n";
-    oss << std::left;
-
-    // Ports
-    oss << "  PORTA:  " << std::setw(10) << "" << "$" << hex2(registers.portA)
-        << std::setw(6) << "" << "PORTB:  " << std::setw(10) << ""
-        << "$" << hex2(registers.portB) << "\n";
-
-    oss << "  DDRA:   " << std::setw(10) << "" << "$" <<hex2(registers.ddrA)
-        << std::setw(4) << ""
-        << "  DDRB:   " << std::setw(10) << "" << "$" << hex2(registers.ddrB) << "\n";
-
-    // Timer bytes
-    oss << "  TimerA Low Byte:  $" << hex2(registers.tAL)
-        << std::setw(6) << ""
-        << "TimerA High Byte: $" << hex2(registers.tAH) << "\n";
-
-    oss << "  TimerB Low Byte:  $" << hex2(registers.tBL)
-        << std::setw(6) << ""
-        << "TimerB High Byte: $" << hex2(registers.tBH) << "\n";
-
-    // Timer words
-    oss << "  TimerA Counter:   $" << hex4(registers.tA)
-        << std::setw(4) << "" << "TimerA Latch:  "
-        << std::setw(3) << "" << "$" << hex4(registers.taLAT) << "\n";
-
-    oss << "  TimerB Counter:   $" << hex4(registers.tB)
-        << std::setw(4) << "" << "TimerB Latch:  "
-        << std::setw(3) << "" << "$" << hex4(registers.tbLAT) << "\n";
-
-    // TOD
-    oss << "  TOD 10ths:        $" << hex2(registers.tod10)
-    << std::setw(6) << ""
-    << "TOD Seconds:      $" << hex2(registers.todSec) << "\n";
-
-    oss << "  TOD Minutes:      $" << hex2(registers.todMin)
-        << std::setw(6) << ""
-        << "TOD Hours:        $" << hex2(registers.todHour) << "\n";
-
-    // Misc (aligned 2-column rows)
-    oss << "  Serial Data:      $" << hex2(registers.sd)
-        << std::setw(6) << ""
-        << "IER:              $" << hex2(registers.ier) << "\n";
-
-    oss << "  CRA:              $" << hex2(registers.cra)
-        << std::setw(6) << ""
-        << "CRB:              $" << hex2(registers.crb) << "\n";
-
-    oss << "  IFR:              $" << hex2(registers.interruptStatus)
-        << std::setw(6) << ""
-        << "IER:              $" << hex2(registers.ier) << "\n";
-
-    auto iec = cia->getIECDecodeView();
-
-    if (iec.available)
+    if (!cia)
     {
-        oss << "\n";
-        oss << "CIA IEC Decode (" << iec.modelName << "):\n";
-
-        oss << "  PR:              $" << hex2(iec.pr)
-            << std::setw(6) << ""
-            << "DDR:             $" << hex2(iec.ddr) << "\n";
-
-        oss << "  Raw pins:        "
-            << "PA=$" << hex2(iec.rawPortAPins)
-            << "  PB=$" << hex2(iec.rawPortBPins)
-            << "\n";
-
-        oss << "  Cached inputs:   "
-            << "ATN="  << (iec.atnInLow  ? "L" : "H")
-            << "  CLK=" << (iec.clkInLow  ? "L" : "H")
-            << "  DATA=" << (iec.dataInLow ? "L" : "H")
-            << "  SRQ=" << (iec.srqInLow  ? "L" : "H")
-            << "\n";
-
-        oss << "  Output decode:   "
-            << "busDirOutput=" << iec.busDirOutput
-            << "  atnAckDataLow=" << iec.atnAckDataLow
-            << "  datOutLow=" << iec.datOutAssertLow
-            << "  clkOutLow=" << iec.clkOutAssertLow
-            << "\n";
-
-        oss << "  Resolved pins:   "
-            << "ATN="  << (iec.resolvedAtnLow  ? "L" : "H")
-            << "  CLK=" << (iec.resolvedClkLow  ? "L" : "H")
-            << "  DATA=" << (iec.resolvedDataLow ? "L" : "H")
-            << "\n";
-
-        oss << "  Final outputs:   "
-            << "DATA_low=" << iec.finalDataLow
-            << "  CLK_low=" << iec.finalClkLow
-            << "\n";
+        std::cout << "Drive " << id
+                  << " CIA hardware is unavailable.\n";
+        return;
     }
 
-    oss << "  Last IEC writes:\n";
-
-    for (int i = 0; i < 8; ++i)
-    {
-        const auto& w = iec.writeHistory[i];
-
-        if (!w.valid)
-            continue;
-
-        oss << "    PC=$" << hex4(w.pc)
-            << " return=$" << hex4(w.retTarget)
-            << " $" << hex4(w.address)
-            << " reg=" << int(w.reg)
-            << " value=$" << hex2(w.value)
-            << " -> PR=$" << hex2(w.prAfter)
-            << " DDR=$" << hex2(w.ddrAfter)
-            << "\n";
-    }
-
-    oss << "  Last IEC reads:\n";
-
-    for (int i = 0; i < 8; ++i)
-    {
-        const auto& r = iec.readHistory[i];
-
-        if (!r.valid)
-            continue;
-
-        oss << "    PC=$" << hex4(r.pc)
-            << " return=$" << hex4(r.retTarget)
-            << " $" << hex4(r.address)
-            << " reg=" << int(r.reg)
-            << " value=$" << hex2(r.value)
-            << "\n";
-    }
-
-    oss << "  Repeated read:   value=$" << hex2(iec.lastReadValue)
-        << " sameCount=" << iec.sameReadCount
-        << "\n";
-
-    std::cout << oss.str();
+    dumpDriveCIARegisters(cia, "Drive " + std::to_string(id) + " (IEC) CIA");
 }
 
 void MLMonitorBackend::dumpDriveCPU(int id, DriveBusType busType, uint32_t cpuId)
@@ -4302,12 +4200,22 @@ void MLMonitorBackend::dumpDriveVIA1(int id, DriveBusType busType)
 
     Drive* drive = resolved.drive;
 
-    const DriveVIABase* via = drive->getVIA1();
+    DriveHardwareInfo hardware;
+
+    // Find the first VIA.
+    if (!findDriveHardware(drive, DriveHardwareType::VIA6522, 0, hardware))
+    {
+        std::cout << "Drive " << id
+                  << " does not have a VIA1 chip.\n";
+        return;
+    }
+
+    const DriveVIABase* via = drive->getHardwareVIA(hardware.id);
 
     if (!via)
     {
         std::cout << "Drive " << id
-                  << " does not have a VIA1 chip.\n";
+                  << " VIA1 hardware is unavailable.\n";
         return;
     }
 
@@ -4328,12 +4236,22 @@ void MLMonitorBackend::dumpDriveVIA2(int id, DriveBusType busType)
 
     Drive* drive = resolved.drive;
 
-    const DriveVIABase* via = drive->getVIA2();
+    DriveHardwareInfo hardware;
+
+    // Find the second VIA.
+    if (!findDriveHardware(drive, DriveHardwareType::VIA6522, 1, hardware))
+    {
+        std::cout << "Drive " << id
+                  << " does not have a VIA2 chip.\n";
+        return;
+    }
+
+    const DriveVIABase* via = drive->getHardwareVIA(hardware.id);
 
     if (!via)
     {
         std::cout << "Drive " << id
-                  << " does not have a VIA2 chip.\n";
+                  << " VIA2 hardware is unavailable.\n";
         return;
     }
 
@@ -4395,19 +4313,27 @@ void MLMonitorBackend::dumpDriveFDC(int id, DriveBusType busType)
 
     if (!resolved)
     {
-        std::cout << "Unable to resolve drive "
-                  << id << ".\n";
+        std::cout << "Unable to resolve drive " << id << ".\n";
         return;
     }
 
     Drive* drive = resolved.drive;
 
-    const DriveFDCBase* fdc = drive->getFDC();
+    DriveHardwareInfo hardware;
+
+    if (!findDriveHardware(drive, DriveHardwareType::FDC177X, 0, hardware))
+    {
+        std::cout << "Drive " << id
+                  << " does not have an FDC.\n";
+        return;
+    }
+
+    const DriveFDCBase* fdc = drive->getHardwareFDC(hardware.id);
 
     if (!fdc)
     {
         std::cout << "Drive " << id
-                  << " does not have an FDC.\n";
+                  << " FDC hardware is unavailable.\n";
         return;
     }
 

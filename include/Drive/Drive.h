@@ -103,12 +103,8 @@ class Drive : public Peripheral, public IDriveHardwareProvider
         Drive* asDrive() override { return this; }
         virtual const CPU* getDriveCPU() const = 0;
         virtual CPU* getDriveCPU() = 0;
-        virtual const FDC177x* getFDC() const { return nullptr; }
         virtual DriveMemoryBase* getMemory() = 0;
         virtual const DriveMemoryBase* getMemory() const = 0;
-        virtual const DriveVIABase* getVIA1() const { return nullptr; }
-        virtual const DriveVIABase* getVIA2() const { return nullptr; }
-        virtual const DriveCIABase* getCIA() const { return nullptr; }
 
         // Hardware discovery for MLMonitor and UI.
         // Drives can override this to expose their components.

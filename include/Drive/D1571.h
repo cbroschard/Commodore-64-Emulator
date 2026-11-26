@@ -146,10 +146,6 @@ class D1571 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         inline CPU* getDriveCPU() override { return &driveCPU; }
         inline const D1571Memory* getMemory() const override { return &d1571mem; }
         inline D1571Memory* getMemory() override { return &d1571mem; }
-        inline const FDC177x* getFDC() const override { return &d1571mem.getFDC(); }
-        inline const DriveCIA* getCIA() const override { return &d1571mem.getCIA(); }
-        inline const D1571VIA* getVIA1() const override { return &d1571mem.getVIA1(); }
-        inline const D1571VIA* getVIA2() const override { return &d1571mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
         inline const char* getDriveTypeName() const noexcept override { return "1571"; }
         IECDriveSnapshot snapshotIEC() const override;
