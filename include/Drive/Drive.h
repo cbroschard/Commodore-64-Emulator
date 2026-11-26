@@ -39,6 +39,8 @@ class Drive : public Peripheral, public IDriveHardwareProvider
 
             Condition condition = Condition::None;
             uint8_t value = 0;
+
+            uint32_t cpuId = 0;
         };
 
         struct DriveWatchpoint
@@ -115,12 +117,12 @@ class Drive : public Peripheral, public IDriveHardwareProvider
         inline const std::vector<DriveBreakpoint>& getBreakpoints() const { return breakpoints; }
         inline bool isBreakpointHit() const { return breakpointHit; }
         inline uint16_t getBreakpointHitAddress() const { return breakpointHitAddress; }
-        inline void clearBreakpointHit()   { breakpointHit = false; }
 
         void addBreakpoint(uint16_t address);
         void addBreakpoint(uint16_t address, DriveBreakpoint::Condition condition, uint8_t value);
         void removeBreakpoint(uint16_t address);
         void clearBreakpoints();
+        void clearBreakpointHit();
         bool hasBreakpoint(uint16_t address) const;
 
         // ML Monitor Watchpoints
@@ -138,10 +140,18 @@ class Drive : public Peripheral, public IDriveHardwareProvider
         void checkWatchRead(uint16_t address, uint8_t value);
         void checkWatchWrite(uint16_t address, uint8_t value);
 
+        void addBreakpoint(uint32_t cpuId, uint16_t address);
+        void addBreakpoint(uint32_t cpuId, uint16_t address, DriveBreakpoint::Condition condition, uint8_t value);
+        void removeBreakpoint(uint32_t cpuId, uint16_t address);
+        bool hasBreakpoint(uint32_t cpuId, uint16_t address) const;
+
+        inline uint32_t getBreakpointHitCPU() const { return breakpointHitCPU; }
+
     protected:
         std::unique_ptr<Disk> diskImage;
 
         bool checkBreakpoint();
+        bool checkBreakpoint(uint32_t cpuId);
 
     private:
         std::vector<DriveBreakpoint> breakpoints;
@@ -149,6 +159,7 @@ class Drive : public Peripheral, public IDriveHardwareProvider
 
         bool breakpointHit;
         uint16_t breakpointHitAddress;
+        uint32_t breakpointHitCPU ;
 
         bool watchpointHit;
         uint16_t watchpointHitAddress;

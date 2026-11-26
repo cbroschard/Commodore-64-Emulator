@@ -155,6 +155,7 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         int64_t driveCycleBalance;
         uint64_t dosInstructionsExecuted;
         uint64_t controllerInstructionsExecuted;
+        int32_t debugSkipBreakpointCPU;
 
         uint8_t currentTrack;
         uint8_t currentSector;

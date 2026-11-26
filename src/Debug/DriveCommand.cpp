@@ -93,13 +93,16 @@ Drive Hardware:
   drive <id> fdc               Show FDC registers (if supported)
 
 Breakpoints:
-  drive <id> bp <addr>               Add CPU breakpoint
-  drive <id> bp <addr> if a <value>  Break when A equals value
-  drive <id> bp <addr> if x <value>  Break when X equals value
-  drive <id> bp <addr> if y <value>  Break when Y equals value
-  drive <id> bp list                 List CPU breakpoints
-  drive <id> clearbp <addr>          Remove CPU breakpoint
-  drive <id> clearbp all             Remove all CPU breakpoints
+  drive <id> bp <addr>                       Add CPU 0 breakpoint
+  drive <id> bp cpu <cpu-id> <addr>          Add selected CPU breakpoint
+  drive <id> bp <addr> if a <value>          Break when A equals value
+  drive <id> bp <addr> if x <value>          Break when X equals value
+  drive <id> bp <addr> if y <value>          Break when Y equals value
+  drive <id> bp cpu <id> <addr> if a <value> Conditional CPU breakpoint
+  drive <id> bp list                         List all CPU breakpoints
+  drive <id> clearbp <addr>                  Remove CPU 0 breakpoint
+  drive <id> clearbp cpu <id> <addr>         Remove selected CPU breakpoint
+  drive <id> clearbp all                     Remove all CPU breakpoints
 
 Watchpoints:
   drive <id> watch read <addr>        Add memory read watchpoint
@@ -138,6 +141,14 @@ Examples - Breakpoints and Watchpoints:
   drive 8 watch write $1800
   drive 8 watch list
   drive 8 clearwatch all
+
+Examples - Dual-CPU Breakpoints (4040):
+  drive ieee488 8 bp cpu 0 $D4DC
+  drive ieee488 8 bp cpu 1 $FF8C
+  drive ieee488 8 bp cpu 1 $FFAA if a $0F
+  drive ieee488 8 bp list
+  drive ieee488 8 clearbp cpu 1 $FF8C
+  drive ieee488 8 clearbp all
 
 Examples - IEC Drives:
   drive iec 8
@@ -292,59 +303,119 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
         {
             std::cout << "Usage:\n";
             std::cout << "  drive " << id << " bp <address>\n";
+            std::cout << "  drive " << id << " bp cpu <cpu-id> <address>\n";
             std::cout << "  drive " << id << " bp <address> if <a|x|y> <value>\n";
+            std::cout << "  drive " << id << " bp cpu <cpu-id> <address> if <a|x|y> <value>\n";
             std::cout << "  drive " << id << " bp list\n";
             return;
         }
 
-        // drive 8 bp list
+        // List all CPU breakpoints.
         if (args[3] == "list")
         {
+            if (args.size() != 4)
+            {
+                std::cout << "Usage: drive " << id << " bp list\n";
+                return;
+            }
+
             backend->dumpDriveBreakpoints(id, busType);
             return;
         }
 
         try
         {
-            const uint16_t address = parseAddress(args[3]);
+            uint32_t cpuId = 0;
+            size_t addressIndex = 3;
 
-            // Normal breakpoint:
-            // drive 8 bp $82BA
-            if (args.size() == 4)
+            // Optional CPU selection:
+            // drive 8 bp cpu 1 $FF8C
+            if (args[3] == "cpu")
             {
-                backend->addDriveBreakpoint(id, address);
+                if (args.size() < 6)
+                {
+                    std::cout << "Usage: drive " << id
+                              << " bp cpu <cpu-id> <address>\n";
+                    return;
+                }
+
+                size_t parsed = 0;
+
+                const unsigned long value =
+                    std::stoul(args[4], &parsed, 10);
+
+                if (parsed != args[4].size() ||
+                    value > UINT32_MAX)
+                {
+                    throw std::out_of_range("Invalid CPU ID");
+                }
+
+                cpuId = static_cast<uint32_t>(value);
+                addressIndex = 5;
+            }
+
+            const uint16_t address =
+                parseAddress(args[addressIndex]);
+
+            const size_t remaining =
+                args.size() - addressIndex - 1;
+
+            // Unconditional breakpoint.
+            if (remaining == 0)
+            {
+                backend->addDriveBreakpoint(
+                    id,
+                    address,
+                    busType,
+                    cpuId);
+
                 return;
             }
 
-            // Conditional breakpoint:
-            // drive 8 bp $82BA if a $00
-            if (args.size() == 7 && args[4] == "if")
+            // Conditional breakpoint.
+            if (remaining == 3 &&
+                args[addressIndex + 1] == "if")
             {
-                const std::string& reg = args[5];
-                const uint8_t value = static_cast<uint8_t>(parseAddress(args[6]) & 0xFF);
+                const std::string& reg =
+                    args[addressIndex + 2];
+
+                const uint8_t value =
+                    static_cast<uint8_t>(
+                        parseAddress(args[addressIndex + 3]) & 0xFF);
 
                 Drive::DriveBreakpoint::Condition condition;
 
                 if (reg == "a" || reg == "A")
                 {
-                    condition = Drive::DriveBreakpoint::Condition::AEquals;
+                    condition =
+                        Drive::DriveBreakpoint::Condition::AEquals;
                 }
                 else if (reg == "x" || reg == "X")
                 {
-                    condition = Drive::DriveBreakpoint::Condition::XEquals;
+                    condition =
+                        Drive::DriveBreakpoint::Condition::XEquals;
                 }
                 else if (reg == "y" || reg == "Y")
                 {
-                    condition = Drive::DriveBreakpoint::Condition::YEquals;
+                    condition =
+                        Drive::DriveBreakpoint::Condition::YEquals;
                 }
                 else
                 {
-                    std::cout << "Invalid breakpoint register: " << reg << "\n";
+                    std::cout << "Invalid breakpoint register: "
+                              << reg << "\n";
+
                     std::cout << "Supported registers: a, x, y\n";
                     return;
                 }
 
-                backend->addDriveConditionalBreakpoint(id, address, condition, value);
+                backend->addDriveConditionalBreakpoint(
+                    id,
+                    address,
+                    condition,
+                    value,
+                    busType,
+                    cpuId);
 
                 return;
             }
@@ -352,12 +423,17 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
             std::cout << "Usage:\n";
             std::cout << "  drive " << id << " bp <address>\n";
             std::cout << "  drive " << id
+                      << " bp cpu <cpu-id> <address>\n";
+            std::cout << "  drive " << id
                       << " bp <address> if <a|x|y> <value>\n";
+            std::cout << "  drive " << id
+                      << " bp cpu <cpu-id> <address> if <a|x|y> <value>\n";
             std::cout << "  drive " << id << " bp list\n";
         }
         catch (const std::exception& e)
         {
-            std::cout << "Invalid breakpoint: " << e.what() << "\n";
+            std::cout << "Invalid breakpoint: "
+                      << e.what() << "\n";
         }
 
         return;
@@ -393,27 +469,68 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
     {
         if (args.size() < 4)
         {
-            std::cout << "Usage: drive " << id
-                      << " clearbp <address|all>\n";
+            std::cout << "Usage:\n";
+            std::cout << "  drive " << id << " clearbp <address>\n";
+            std::cout << "  drive " << id
+                      << " clearbp cpu <cpu-id> <address>\n";
+            std::cout << "  drive " << id << " clearbp all\n";
             return;
         }
 
-        // drive 8 clearbp all
+        // Remove all breakpoints belonging to this drive.
         if (args[3] == "all")
         {
+            if (args.size() != 4)
+            {
+                std::cout << "Usage: drive " << id
+                          << " clearbp all\n";
+                return;
+            }
+
             backend->clearDriveBreakpoints(id, busType);
             return;
         }
 
-        // drive 8 clearbp <address>
         try
         {
-            const uint16_t address = parseAddress(args[3]);
-            backend->removeDriveBreakpoint(id, address);
+            uint32_t cpuId = 0;
+            size_t addressIndex = 3;
+
+            // Optional CPU selection.
+            if (args[3] == "cpu")
+            {
+                if (args.size() != 6)
+                {
+                    std::cout << "Usage: drive " << id
+                              << " clearbp cpu <cpu-id> <address>\n";
+                    return;
+                }
+
+                size_t parsed = 0;
+
+                const unsigned long value =
+                    std::stoul(args[4], &parsed, 10);
+
+                if (parsed != args[4].size() || value > UINT32_MAX)
+                    throw std::out_of_range("Invalid CPU ID");
+
+                cpuId = static_cast<uint32_t>(value);
+                addressIndex = 5;
+            }
+            else if (args.size() != 4)
+            {
+                std::cout << "Usage: drive " << id
+                          << " clearbp <address>\n";
+                return;
+            }
+
+            const uint16_t address = parseAddress(args[addressIndex]);
+
+            backend->removeDriveBreakpoint(id, address, busType, cpuId);
         }
         catch (const std::exception& e)
         {
-            std::cout << "Invalid breakpoint address: "
+            std::cout << "Invalid breakpoint: "
                       << e.what() << "\n";
         }
 

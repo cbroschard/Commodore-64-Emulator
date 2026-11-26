@@ -162,10 +162,10 @@ class MLMonitorBackend
         void dumpDriveHardware(int id, DriveBusType busType = DriveBusType::Auto);
 
         // ML Monitor Drive Breakpoints
-        void addDriveBreakpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
+        void addDriveBreakpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto, uint32_t cpuId = 0);
         void addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition, uint8_t value,
-            DriveBusType busType = DriveBusType::Auto);
-        void removeDriveBreakpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
+            DriveBusType busType = DriveBusType::Auto, uint32_t cpuId = 0);
+        void removeDriveBreakpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto, uint32_t cpuId = 0);
         void clearDriveBreakpoints(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveBreakpoints(int id, DriveBusType busType = DriveBusType::Auto);
 

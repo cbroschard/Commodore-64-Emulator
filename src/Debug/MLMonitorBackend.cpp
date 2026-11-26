@@ -3766,10 +3766,11 @@ void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType, uint32_t cpuId
     uint16_t pc = cpu->getPC();
 
     // Disassemble through the selected CPU's bus.
-    std::string disASM =
-        Disassembler::disassembleAt(pc, *cpuBus);
+    std::string disASM = Disassembler::disassembleAt(pc, *cpuBus);
 
     std::cout << disASM << std::endl;
+
+    drive->clearBreakpointHit();
 
     // Let migrated drives control their own CPU stepping.
     if (instructionStep)
@@ -3789,11 +3790,41 @@ void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType, uint32_t cpuId
                 return;
 
             case DriveStepResult::Stalled:
-                std::cout << "Drive " << id
-                          << " CPU " << cpuId
-                          << " did not complete an instruction "
-                          << "within the cycle limit.\n";
+            {
+                if (drive->isBreakpointHit())
+                {
+                    const uint32_t hitCPU = drive->getBreakpointHitCPU();
+                    const uint16_t hitAddress = drive->getBreakpointHitAddress();
+
+                    std::cout << "Drive " << id
+                              << " (" << (resolved.busType == DriveBusType::IEC
+                                             ? "IEC"
+                                             : "IEEE-488")
+                              << ") breakpoint hit:\n";
+
+                    std::cout << "  CPU:     " << hitCPU << "\n";
+
+                    std::cout << "  Address: $"
+                              << std::uppercase
+                              << std::hex
+                              << std::setw(4)
+                              << std::setfill('0')
+                              << hitAddress
+                              << std::dec
+                              << std::setfill(' ')
+                              << "\n";
+                }
+                else
+                {
+                    std::cout << "Drive " << id
+                              << " CPU " << cpuId
+                              << " did not complete an instruction "
+                              << "within the cycle limit.\n";
+                }
+
                 return;
+
+            }
 
             case DriveStepResult::Unsupported:
                 std::cout << "Drive " << id
@@ -4342,7 +4373,7 @@ void MLMonitorBackend::dumpDriveFDC(int id, DriveBusType busType)
     dumpDriveFDCRegisters(fdc, "Drive " + std::to_string(id) + " (" + busName + ") FDC");
 }
 
-void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address, DriveBusType busType)
+void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address, DriveBusType busType, uint32_t cpuId)
 {
     const ResolvedDrive resolved = resolveDrive(id, busType);
 
@@ -4356,9 +4387,18 @@ void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address, DriveBusType
 
     Drive* drive = resolved.drive;
 
-    drive->addBreakpoint(address);
+    if (!drive->getHardwareCPU(cpuId))
+    {
+        std::cout << "Drive " << id
+                  << " does not have CPU hardware ID "
+                  << cpuId << ".\n";
+        return;
+    }
+
+    drive->addBreakpoint(cpuId, address);
 
     std::cout << "Drive " << id
+              << " CPU [" << cpuId << "]"
               << " breakpoint added at $"
               << std::hex << std::uppercase
               << std::setw(4) << std::setfill('0')
@@ -4366,8 +4406,8 @@ void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address, DriveBusType
               << std::dec << "\n";
 }
 
-void MLMonitorBackend::addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition, uint8_t value,
-            DriveBusType busType)
+void MLMonitorBackend::addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition,
+    uint8_t value, DriveBusType busType, uint32_t cpuId)
 {
     const ResolvedDrive resolved = resolveDrive(id, busType);
 
@@ -4381,38 +4421,54 @@ void MLMonitorBackend::addDriveConditionalBreakpoint(int id, uint16_t address, D
 
     Drive* drive = resolved.drive;
 
-    drive->addBreakpoint(address, condition, value);
-
-    std::cout
-        << "Drive " << id
-        << " conditional breakpoint added at $"
-        << std::hex << std::uppercase
-        << std::setw(4) << std::setfill('0')
-        << address
-        << " value=$"
-        << std::setw(2)
-        << static_cast<unsigned>(value)
-        << std::dec
-        << "\n";
-}
-
-void MLMonitorBackend::removeDriveBreakpoint(int id, uint16_t address, DriveBusType busType)
-{
-    const ResolvedDrive resolved = resolveDrive(id, busType);
-
-    if (!resolved)
+    if (!drive->getHardwareCPU(cpuId))
     {
-        std::cout << "Unable to resolve drive " << id
-                  << ". The device may not exist or its "
-                  << "number may be ambiguous.\n";
+        std::cout << "Drive " << id
+                  << " does not have CPU hardware ID "
+                  << cpuId << ".\n";
         return;
     }
 
-    Drive* drive = resolved.drive;
-
-    drive->removeBreakpoint(address);
+    drive->addBreakpoint(cpuId, address, condition, value);
 
     std::cout << "Drive " << id
+              << " CPU [" << cpuId << "]"
+              << " conditional breakpoint added at $"
+              << std::hex << std::uppercase
+              << std::setw(4) << std::setfill('0')
+              << address
+              << " value=$"
+              << std::setw(2) << std::setfill('0')
+              << static_cast<unsigned>(value)
+              << std::dec << "\n";
+}
+
+void MLMonitorBackend::removeDriveBreakpoint(int id, uint16_t address, DriveBusType busType, uint32_t cpuId)
+{
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
+    {
+        std::cout << "Unable to resolve drive " << id
+                  << ". The device may not exist or its "
+                  << "number may be ambiguous.\n";
+        return;
+    }
+
+    Drive* drive = resolved.drive;
+
+    if (!drive->getHardwareCPU(cpuId))
+    {
+        std::cout << "Drive " << id
+                  << " does not have CPU hardware ID "
+                  << cpuId << ".\n";
+        return;
+    }
+
+    drive->removeBreakpoint(cpuId, address);
+
+    std::cout << "Drive " << id
+              << " CPU [" << cpuId << "]"
               << " breakpoint removed at $"
               << std::hex << std::uppercase
               << std::setw(4) << std::setfill('0')
@@ -4466,7 +4522,8 @@ void MLMonitorBackend::dumpDriveBreakpoints(int id, DriveBusType busType)
 
     for (const Drive::DriveBreakpoint& bp : breakpoints)
     {
-        std::cout << "  $"
+        std::cout << "  CPU " << std::dec << bp.cpuId
+                  << "  $"
                   << std::hex << std::uppercase
                   << std::setw(4) << std::setfill('0')
                   << bp.address;

@@ -57,6 +57,7 @@ void D4040::reset()
     driveCycleBalance               = 0;
     dosInstructionsExecuted         = 0;
     controllerInstructionsExecuted  = 0;
+    debugSkipBreakpointCPU          = -1;
 
      // Reset shared memory-mapped hardware
     d4040mem.reset();
@@ -145,7 +146,8 @@ void D4040::tick(uint32_t cycles)
 
     while (driveCycleBalance > 0)
     {
-        if (checkBreakpoint())
+        // Check DOS 6502 breakpoints before execution.
+        if (debugSkipBreakpointCPU != 0 && checkBreakpoint(0))
             return;
 
         // -----------------------------------------
@@ -158,7 +160,14 @@ void D4040::tick(uint32_t cycles)
 
         // Only count clocks that began at an instruction boundary.
         if (dosAtBoundary)
+        {
             ++dosInstructionsExecuted;
+
+            // The selected instruction has started executing.
+            // Restore breakpoint checking for CPU 0.
+            if (debugSkipBreakpointCPU == 0)
+                debugSkipBreakpointCPU = -1;
+        }
 
         uint32_t dc = driveCPU.getElapsedCycles();
 
@@ -184,6 +193,10 @@ void D4040::tick(uint32_t cycles)
         // -----------------------------------------
         while (controllerCycleBalance > 0)
         {
+            // Check controller 6504 breakpoints before execution.
+            if (debugSkipBreakpointCPU != 1 && checkBreakpoint(1))
+                return;
+
             // Make external status inputs visible before
             // the next controller instruction.
             updateControllerInputs();
@@ -195,7 +208,14 @@ void D4040::tick(uint32_t cycles)
 
             // Only count clocks that began at an instruction boundary.
             if (controllerAtBoundary)
+            {
                 ++controllerInstructionsExecuted;
+
+                // Restore breakpoint checking after the controller
+                // instruction begins executing.
+                if (debugSkipBreakpointCPU == 1)
+                    debugSkipBreakpointCPU = -1;
+            }
 
             uint32_t fc = controllerCPU.getElapsedCycles();
 
@@ -1489,6 +1509,10 @@ DriveStepResult D4040::debugStepInstruction(uint32_t cpuId)
 
     const uint64_t startCount = (cpuId == 0) ? dosInstructionsExecuted : controllerInstructionsExecuted;
 
+    // Temporarily allow the selected CPU to step past
+    // a breakpoint at its current instruction.
+    debugSkipBreakpointCPU = static_cast<int32_t>(cpuId);
+
     constexpr uint32_t MAX_STEP_CYCLES = 100000;
 
     for (uint32_t i = 0; i < MAX_STEP_CYCLES; ++i)
@@ -1496,16 +1520,28 @@ DriveStepResult D4040::debugStepInstruction(uint32_t cpuId)
         const uint64_t currentCount = (cpuId == 0) ? dosInstructionsExecuted : controllerInstructionsExecuted;
 
         if (currentCount != startCount)
+        {
+            debugSkipBreakpointCPU = -1;
             return DriveStepResult::Completed;
+        }
 
-        // Stop if normal drive breakpoint handling
-        // would prevent forward progress.
-        if (checkBreakpoint())
+        // A breakpoint on the other CPU must still stop
+        // the shared drive scheduler.
+        if (isBreakpointHit())
+        {
+            debugSkipBreakpointCPU = -1;
             return DriveStepResult::Stalled;
+        }
 
-        // Advance shared drive timing.
         tick(1);
+
+        if (isBreakpointHit())
+        {
+            debugSkipBreakpointCPU = -1;
+            return DriveStepResult::Stalled;
+        }
     }
 
+    debugSkipBreakpointCPU = -1;
     return DriveStepResult::Stalled;
 }
