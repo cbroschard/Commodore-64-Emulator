@@ -1836,10 +1836,19 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
     }
 
     //
-    // Detach Drive Hardware
+    // Drive Hardware Controls
     //
     ImGui::Separator();
 
+    //
+    // Reset Drive
+    //
+    if (ImGui::MenuItem("Reset Drive", nullptr, false, drivePresent))
+        push(UiCommand::Type::ResetDrive, std::string{}, dev, existingType);
+
+    //
+    // Detach Drive
+    //
     if (ImGui::MenuItem("Detach Drive", nullptr, false, drivePresent))
         push(UiCommand::Type::DetachDrive, std::string{}, dev, existingType);
 

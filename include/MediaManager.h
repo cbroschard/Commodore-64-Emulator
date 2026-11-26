@@ -134,6 +134,9 @@ public:
     void detachCRTImage();
     void detachREU();
 
+    // Drive Reset
+    bool resetDrive(int deviceNum);
+
     // IDE64 Specific
     bool loadIDE64Image(uint32_t deviceIndex, const std::string& path, bool readOnly);
     bool createIDE64Image(uint32_t deviceIndex, const std::string& path, uint32_t sectors);

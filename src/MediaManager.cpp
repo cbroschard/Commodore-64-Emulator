@@ -1017,6 +1017,25 @@ void MediaManager::detachREU()
         coldReset_();
 }
 
+bool MediaManager::resetDrive(int deviceNum)
+{
+    // Validate Commodore device number.
+    if (deviceNum < 8 || deviceNum > 11)
+        return false;
+
+    Drive* drive = components_.drives[deviceNum].get();
+
+    // No drive attached to this device number.
+    if (!drive)
+        return false;
+
+    // Reset drive CPUs, controllers and hardware.
+    // Mounted disk images remain attached.
+    drive->reset();
+
+    return true;
+}
+
 bool MediaManager::loadIDE64Image(uint32_t deviceIndex, const std::string& path, bool readOnly)
 {
     if (!components_.cart)

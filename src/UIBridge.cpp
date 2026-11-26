@@ -452,6 +452,21 @@ void UIBridge::processCommands()
                     media_->detachDiskImage(cmd.deviceNum);
                 break;
 
+            case UiCommand::Type::ResetDrive:
+            {
+                if (media_)
+                {
+                    if (!media_->resetDrive(cmd.deviceNum))
+                    {
+                        std::cerr
+                            << "[UIBridge] Unable to reset drive "
+                            << cmd.deviceNum
+                            << '\n';
+                    }
+                }
+                break;
+            }
+
             case UiCommand::Type::EjectCRT:
                 if (media_)
                     media_->detachCRTImage();

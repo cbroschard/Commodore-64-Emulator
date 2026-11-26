@@ -56,6 +56,7 @@ struct UiCommand
         CreateBlankDisk,
 
         DetachDrive,
+        ResetDrive,
 
         EjectDisk,
         EjectCRT,
