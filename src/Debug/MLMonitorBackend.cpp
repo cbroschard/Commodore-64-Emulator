@@ -3690,10 +3690,7 @@ void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busTy
                 return;
             }
 
-            const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
-
             dumpDriveCIARegisters(cia, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
-
             return;
         }
 
@@ -3706,8 +3703,6 @@ void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busTy
                 std::cout << "FDC hardware is unavailable.\n";
                 return;
             }
-
-            const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
             dumpDriveFDCRegisters(fdc, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
             return;
@@ -3723,8 +3718,7 @@ void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busTy
                 return;
             }
 
-            dumpDriveRIOTRegisters(riot, "Drive " + std::to_string(id) + " (" + busName + ") RIOT6532");
-
+            dumpDriveRIOTRegisters(riot, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
             return;
         }
 
@@ -3738,8 +3732,7 @@ void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busTy
                 return;
             }
 
-            dumpDriveRRIOTRegisters(rriot, "Drive " + std::to_string(id) + " (" + busName + ") RRIOT6530");
-
+            dumpDriveRRIOTRegisters(rriot, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
             return;
         }
 
@@ -3755,7 +3748,6 @@ void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busTy
                 return;
             }
 
-            const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
             dumpDriveVIARegisters(via, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
             return;
         }
