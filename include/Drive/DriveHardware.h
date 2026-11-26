@@ -8,6 +8,7 @@
 #ifndef DRIVEHARDWARE_H
 #define DRIVEHARDWARE_H
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -50,6 +51,54 @@ struct DriveHardwareInfo
     bool memoryMapped = false;
     uint16_t baseAddress = 0;
     uint32_t addressSize = 0;
+};
+
+struct DriveMechanismDebugView
+{
+    // Basic identification
+    uint32_t mechanismId = 0;
+    std::string name;
+
+    // Media
+    bool diskInserted = false;
+    std::string diskPath;
+
+    // Motor and head
+    bool motorOn = false;
+    uint8_t track = 0;
+    uint8_t sector = 0;
+
+    // Optional physical head information
+    bool hasHalfTrack = false;
+    uint8_t halfTrack = 0;
+
+    bool hasStepperPhase = false;
+    uint8_t stepperPhase = 0;
+
+    // Optional write-protect information
+    bool hasWriteProtect = false;
+    bool writeProtected = false;
+
+    // Optional GCR information
+    bool hasGCR = false;
+    bool gcrValid = false;
+    size_t gcrPosition = 0;
+    uint8_t loadedGCRTrack = 0;
+
+    // Optional disk signals
+    bool hasDiskSignals = false;
+    bool syncDetected = false;
+    bool byteReady = false;
+
+    // Optional data latches
+    bool hasDataLatches = false;
+    uint8_t readLatch = 0;
+    uint8_t writeLatch = 0;
+
+    // Optional modified-track information
+    bool hasDirtyState = false;
+    bool gcrDirty = false;
+    uint32_t gcrBytesWritten = 0;
 };
 
 inline const char* driveHardwareTypeName(

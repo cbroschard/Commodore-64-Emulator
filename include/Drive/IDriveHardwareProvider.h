@@ -64,6 +64,9 @@ public:
 
     // MOS 6532
     virtual MOS6532* getHardwareRIOT(uint32_t hardwareId) { return nullptr; }
+
+    // Retrieve a read-only snapshot of a floppy mechanism.
+    virtual bool getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugView& view) const { return false; }
 };
 
 #endif // IDRIVEHARDWAREPROVIDER_H

@@ -1511,6 +1511,78 @@ bool D4040::getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context)
     return context.cpu != nullptr && context.bus != nullptr;
 }
 
+bool D4040::getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugView& view) const
+{
+    uint32_t mechanismIndex = 0;
+
+    switch (hardwareId)
+    {
+        case 10:
+            mechanismIndex = 0;
+            break;
+
+        case 11:
+            mechanismIndex = 1;
+            break;
+
+        default:
+            return false;
+    }
+
+    const D4040Mechanism& mechanism = mechanisms[mechanismIndex];
+
+    // Reset the output so no stale values remain.
+    view = DriveMechanismDebugView{};
+
+    // Identification
+    view.mechanismId = mechanismIndex;
+    view.name = mechanismIndex == 0 ? "FLOPPY-0" : "FLOPPY-1";
+
+    // Media
+    view.diskInserted = mechanism.diskInserted;
+    view.diskPath = mechanism.diskPath;
+
+    // Motor and head
+    view.motorOn = mechanism.motorOn;
+    view.track = mechanism.track;
+    view.sector = mechanism.sector;
+
+    // Physical head position
+    view.hasHalfTrack = true;
+    view.halfTrack = mechanism.halfTrack;
+
+    // Stepper
+    view.hasStepperPhase = true;
+    view.stepperPhase = mechanism.stepperPhase;
+
+    // Write protection
+    view.hasWriteProtect = true;
+    view.writeProtected = mechanism.writeProtected;
+
+    // GCR state
+    view.hasGCR = true;
+    view.gcrValid = mechanism.gcrValid;
+    view.gcrPosition = mechanism.gcrPos;
+    view.loadedGCRTrack = mechanism.loadedGCRTrack;
+
+    // Disk signals
+    view.hasDiskSignals = true;
+    view.syncDetected = mechanism.syncDetected;
+    view.byteReady = mechanism.byteReady;
+
+    // Data latches
+    view.hasDataLatches = true;
+    view.readLatch = mechanism.readLatch;
+    view.writeLatch = mechanism.writeLatch;
+
+    // Modified-track information
+    view.hasDirtyState = true;
+    view.gcrDirty = mechanism.hasUncommittedGCR();
+    view.gcrBytesWritten = mechanism.gcrBytesWritten;
+
+    return true;
+}
+
 bool D4040::debugStepCPU(uint32_t cpuId)
 {
     if (cpuId > 1)

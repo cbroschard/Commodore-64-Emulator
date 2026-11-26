@@ -391,6 +391,144 @@ static void dumpDriveFDCRegisters(const DriveFDCBase* fdc, const std::string& na
     std::cout << oss.str();
 }
 
+static void dumpDriveMechanism(const DriveMechanismDebugView& m, const std::string& name)
+{
+    std::ostringstream out;
+
+    auto yesNo = [](bool value)
+    {
+        return value ? "YES" : "NO";
+    };
+
+    auto hex8 = [](uint8_t value)
+    {
+        std::ostringstream s;
+
+        s << "$"
+          << std::uppercase
+          << std::hex
+          << std::setfill('0')
+          << std::setw(2)
+          << static_cast<unsigned>(value);
+
+        return s.str();
+    };
+
+    out << name << ":\n";
+
+    // -----------------------------------------
+    // Media
+    // -----------------------------------------
+    out << "\nMedia\n";
+    out << "-------------------\n";
+
+    out << "Disk Inserted:   " << yesNo(m.diskInserted) << "\n";
+
+    if (m.diskInserted)
+    {
+        out << "Disk Path:       "
+            << (m.diskPath.empty() ? "(unknown)" : m.diskPath)
+            << "\n";
+    }
+
+    if (m.hasWriteProtect)
+    {
+        out << "Write Protected: "
+            << yesNo(m.writeProtected) << "\n";
+    }
+
+    // -----------------------------------------
+    // Motor / Head
+    // -----------------------------------------
+    out << "\nMotor / Head\n";
+    out << "-------------------\n";
+
+    out << "Motor:           " << (m.motorOn ? "ON" : "OFF") << "\n";
+
+    out << "Track:           "
+        << static_cast<unsigned>(m.track) << "\n";
+
+    out << "Sector:          "
+        << static_cast<unsigned>(m.sector) << "\n";
+
+    if (m.hasHalfTrack)
+    {
+        out << "Half Track:      "
+            << static_cast<unsigned>(m.halfTrack) << "\n";
+    }
+
+    if (m.hasStepperPhase)
+    {
+        out << "Stepper Phase:   "
+            << static_cast<unsigned>(m.stepperPhase) << "\n";
+    }
+
+    // -----------------------------------------
+    // GCR
+    // -----------------------------------------
+    if (m.hasGCR)
+    {
+        out << "\nGCR\n";
+        out << "-------------------\n";
+
+        out << "Track Loaded:    "
+            << static_cast<unsigned>(m.loadedGCRTrack) << "\n";
+
+        out << "Stream Valid:    "
+            << yesNo(m.gcrValid) << "\n";
+
+        out << "Position:        "
+            << m.gcrPosition << "\n";
+    }
+
+    // -----------------------------------------
+    // Disk signals
+    // -----------------------------------------
+    if (m.hasDiskSignals)
+    {
+        out << "\nDisk Signals\n";
+        out << "-------------------\n";
+
+        out << "SYNC:            "
+            << yesNo(m.syncDetected) << "\n";
+
+        out << "Byte Ready:      "
+            << yesNo(m.byteReady) << "\n";
+    }
+
+    // -----------------------------------------
+    // Data latches
+    // -----------------------------------------
+    if (m.hasDataLatches)
+    {
+        out << "\nData Latches\n";
+        out << "-------------------\n";
+
+        out << "Read Latch:      "
+            << hex8(m.readLatch) << "\n";
+
+        out << "Write Latch:     "
+            << hex8(m.writeLatch) << "\n";
+    }
+
+    // -----------------------------------------
+    // Modified track information
+    // -----------------------------------------
+    if (m.hasDirtyState)
+    {
+        out << "\nModified Tracks\n";
+        out << "-------------------\n";
+
+        out << "Pending Changes: "
+            << yesNo(m.gcrDirty) << "\n";
+
+        out << "Bytes Written:   "
+            << m.gcrBytesWritten << "\n";
+    }
+
+    std::cout << out.str();
+}
+
 static void dumpDriveRIOTRegisters(const MOS6532* riot, const std::string& name)
 {
     if (!riot)
@@ -3705,6 +3843,23 @@ void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busTy
             }
 
             dumpDriveFDCRegisters(fdc, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
+            return;
+        }
+
+        case DriveHardwareType::Mechanism:
+        {
+            DriveMechanismDebugView view;
+
+            if (!drive->getHardwareMechanismDebug(chipId, view))
+            {
+                std::cout << "Mechanism component "
+                          << chipId
+                          << " is unavailable.\n";
+                return;
+            }
+
+            dumpDriveMechanism(view, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
+
             return;
         }
 

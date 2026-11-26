@@ -126,6 +126,9 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // CPU execution context
         bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
 
+        // Floppy mechanism inspection
+        bool getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugView& view) const override;
+
         // Monitor execution
         bool debugStepCPU(uint32_t cpuId) override;
         DriveStepResult debugStepInstruction(uint32_t cpuId) override;
