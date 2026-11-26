@@ -49,11 +49,20 @@ class EmulatorUI
             DriveLightColor color = DriveLightColor::Green;
         };
 
+        struct DriveMechanismView
+        {
+            uint32_t mechanismId = 0;
+            bool diskInserted = false;
+            std::string imagePath;
+        };
+
         struct DriveStatusView
         {
             int deviceNum = 8;
             bool present = false;
             bool diskInserted = false;
+
+            std::vector<DriveMechanismView> mechanisms;
 
             std::string modelName;
             std::string imagePath;

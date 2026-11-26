@@ -1447,6 +1447,38 @@ void MediaManager::fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>
             ds.imagePath = ds.diskInserted ? drive->getCurrentDiskPath() : std::string{};
         }
 
+        //
+        // Populate individual mechanism information.
+        //
+        if (auto* d4040 = dynamic_cast<D4040*>(drive))
+        {
+            // Commodore 4040 has two independent mechanisms.
+            for (uint32_t unit = 0; unit < 2; ++unit)
+            {
+                EmulatorUI::DriveMechanismView mechanism;
+
+                mechanism.mechanismId = unit;
+                mechanism.diskInserted = d4040->isDiskLoaded(static_cast<uint8_t>(unit));
+
+                if (mechanism.diskInserted)
+                    mechanism.imagePath = d4040->getDiskPath(static_cast<uint8_t>(unit));
+
+                ds.mechanisms.push_back(std::move(mechanism));
+            }
+        }
+        else
+        {
+            // Single-mechanism drives:
+            // 1541, 1571, 1581, 2031.
+            EmulatorUI::DriveMechanismView mechanism;
+
+            mechanism.mechanismId = 0;
+            mechanism.diskInserted = ds.diskInserted;
+            mechanism.imagePath = ds.imagePath;
+
+            ds.mechanisms.push_back(std::move(mechanism));
+        }
+
         if (auto* pos = dynamic_cast<IDrivePositionView*>(drive))
         {
             ds.hasTrackSector = pos->hasTrackSector();

@@ -1791,26 +1791,46 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
 
     if (existingType == UiCommand::DriveType::D4040)
     {
-        //
-        // Commodore 4040 - Dual mechanism
-        //
+        // Find the UI status for this drive.
+        const DriveStatusView* driveStatus = nullptr;
+
+        for (const auto& ds : v.drives)
+        {
+            if (ds.deviceNum == dev && ds.present)
+            {
+                driveStatus = &ds;
+                break;
+            }
+        }
+
         if (ImGui::BeginMenu("Eject Disk", hasDisk))
         {
-            if (ImGui::MenuItem("Mechanism 0"))
-                pushEjectDisk(dev, 0);
+            if (driveStatus)
+            {
+                for (const auto& mechanism : driveStatus->mechanisms)
+                {
+                    // Construct menu label.
+                    std::string label = "Mechanism " + std::to_string(mechanism.mechanismId);
 
-            if (ImGui::MenuItem("Mechanism 1"))
-                pushEjectDisk(dev, 1);
+                    if (mechanism.diskInserted && !mechanism.imagePath.empty())
+                    {
+                        const std::filesystem::path imagePath(mechanism.imagePath);
+                        label += " - " + imagePath.filename().string();
+                    }
+                    else
+                        label += " - Empty";
+
+                    if (ImGui::MenuItem(label.c_str(), nullptr, false, mechanism.diskInserted))
+                        pushEjectDisk(dev, mechanism.mechanismId);
+                }
+            }
 
             ImGui::EndMenu();
         }
     }
     else
     {
-        //
-        // Single-mechanism drives:
-        // 1541, 1571, 1581, 2031
-        //
+        // Existing single-mechanism drives.
         if (ImGui::MenuItem("Eject Disk", nullptr, false, hasDisk))
             pushEjectDisk(dev, 0);
     }
