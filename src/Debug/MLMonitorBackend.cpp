@@ -7,6 +7,8 @@
 // strictly prohibited without the prior written consent of the author.
 #include <algorithm>
 #include "6502/Disassembler.h"
+#include "Chip/MOS6530.h"
+#include "Chip/MOS6532.h"
 #include "Drive/FDC177x.h"
 #include "IEC/IECBus.h"
 #include "IEC/IECDevice.h"
@@ -387,6 +389,162 @@ static void dumpDriveFDCRegisters(const DriveFDCBase* fdc, const std::string& na
         << registers.cyclesUntilEvent << "\n";
 
     std::cout << oss.str();
+}
+
+static void dumpDriveRIOTRegisters(const MOS6532* riot, const std::string& name)
+{
+    if (!riot)
+    {
+        std::cout << name << " is unavailable.\n";
+        return;
+    }
+
+    const auto r = riot->getDebugView();
+
+    std::ostringstream out;
+
+    out << name << " Registers:\n";
+
+    out << std::uppercase
+        << std::hex
+        << std::setfill('0');
+
+    auto hex8 = [](uint8_t value)
+    {
+        std::ostringstream s;
+        s << "$"
+          << std::uppercase
+          << std::hex
+          << std::setfill('0')
+          << std::setw(2)
+          << static_cast<unsigned>(value);
+        return s.str();
+    };
+
+    auto hex16 = [](uint16_t value)
+    {
+        std::ostringstream s;
+        s << "$"
+          << std::uppercase
+          << std::hex
+          << std::setfill('0')
+          << std::setw(4)
+          << static_cast<unsigned>(value);
+        return s.str();
+    };
+
+    auto yesNo = [](bool value)
+    {
+        return value ? "YES" : "NO";
+    };
+
+    out << "\nPorts\n";
+    out << "-------------------\n";
+
+    out << "Port A Output: " << hex8(r.portA)
+        << "  Input: " << hex8(r.portAInput)
+        << "  DDRA: " << hex8(r.ddrA) << "\n";
+
+    out << "Port B Output: " << hex8(r.portB)
+        << "  Input: " << hex8(r.portBInput)
+        << "  DDRB: " << hex8(r.ddrB) << "\n";
+
+    out << "\nTimer\n";
+    out << "-------------------\n";
+
+    out << "Counter:       " << hex8(r.timer) << "\n";
+    out << "Prescaler:     " << hex16(r.timerPrescaler) << "\n";
+    out << "Divider:       " << hex16(r.timerDivider) << "\n";
+
+    out << "Running:       " << yesNo(r.timerRunning) << "\n";
+    out << "Underflowed:   " << yesNo(r.timerUnderflowed) << "\n";
+
+    out << "\nInterrupts\n";
+    out << "-------------------\n";
+
+    out << "Flags:         " << hex8(r.interruptFlags) << "\n";
+    out << "Timer IRQ En:  " << yesNo(r.timerIRQEnabled) << "\n";
+    out << "PA7 IRQ En:    " << yesNo(r.pa7IRQEnabled) << "\n";
+    out << "PA7 Edge:      "
+        << (r.pa7PositiveEdge ? "POSITIVE" : "NEGATIVE") << "\n";
+    out << "Previous PA7:  " << (r.previousPA7 ? 1 : 0) << "\n";
+    out << "IRQ Active:    " << yesNo(r.irqActive) << "\n";
+
+    std::cout << out.str();
+}
+
+static void dumpDriveRRIOTRegisters(const MOS6530* rriot, const std::string& name)
+{
+    if (!rriot)
+    {
+        std::cout << name << " is unavailable.\n";
+        return;
+    }
+
+    const auto r = rriot->getDebugView();
+
+    std::ostringstream out;
+
+    auto hex8 = [](uint8_t value)
+    {
+        std::ostringstream s;
+        s << "$"
+          << std::uppercase
+          << std::hex
+          << std::setfill('0')
+          << std::setw(2)
+          << static_cast<unsigned>(value);
+        return s.str();
+    };
+
+    auto hex16 = [](uint16_t value)
+    {
+        std::ostringstream s;
+        s << "$"
+          << std::uppercase
+          << std::hex
+          << std::setfill('0')
+          << std::setw(4)
+          << static_cast<unsigned>(value);
+        return s.str();
+    };
+
+    auto yesNo = [](bool value)
+    {
+        return value ? "YES" : "NO";
+    };
+
+    out << name << " Registers:\n";
+
+    out << "\nPorts\n";
+    out << "-------------------\n";
+
+    out << "Port A Output: " << hex8(r.portA)
+        << "  Input: " << hex8(r.portAInput)
+        << "  DDRA: " << hex8(r.ddrA) << "\n";
+
+    out << "Port B Output: " << hex8(r.portB)
+        << "  Input: " << hex8(r.portBInput)
+        << "  DDRB: " << hex8(r.ddrB) << "\n";
+
+    out << "\nTimer\n";
+    out << "-------------------\n";
+
+    out << "Counter:       " << hex8(r.timer) << "\n";
+    out << "Prescaler:     " << hex16(r.timerPrescaler) << "\n";
+    out << "Divider:       " << hex16(r.timerDivider) << "\n";
+
+    out << "Running:       " << yesNo(r.timerRunning) << "\n";
+    out << "Underflowed:   " << yesNo(r.timerUnderflowed) << "\n";
+
+    out << "\nInterrupts\n";
+    out << "-------------------\n";
+
+    out << "Flags:         " << hex8(r.interruptFlags) << "\n";
+    out << "Timer IRQ En:  " << yesNo(r.timerIRQEnabled) << "\n";
+    out << "IRQ Active:    " << yesNo(r.irqActive) << "\n";
+
+    std::cout << out.str();
 }
 
 static void dumpDriveVIARegisters(const DriveVIABase* via, const std::string& name)
@@ -3517,6 +3675,8 @@ void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busTy
         return;
     }
 
+    const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
+
     switch (it->type)
     {
         case DriveHardwareType::CIA6526:
@@ -3550,6 +3710,36 @@ void MLMonitorBackend::dumpDriveChip(int id, uint32_t chipId, DriveBusType busTy
             const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
             dumpDriveFDCRegisters(fdc, "Drive " + std::to_string(id) + " (" + busName + ") " + it->name);
+            return;
+        }
+
+        case DriveHardwareType::RIOT6532:
+        {
+            const MOS6532* riot = drive->getHardwareRIOT(chipId);
+
+            if (!riot)
+            {
+                std::cout << "RIOT6532 hardware is unavailable.\n";
+                return;
+            }
+
+            dumpDriveRIOTRegisters(riot, "Drive " + std::to_string(id) + " (" + busName + ") RIOT6532");
+
+            return;
+        }
+
+        case DriveHardwareType::RRIOT6530:
+        {
+            const MOS6530* rriot = drive->getHardwareRRIOT(chipId);
+
+            if (!rriot)
+            {
+                std::cout << "RRIOT6530 hardware is unavailable.\n";
+                return;
+            }
+
+            dumpDriveRRIOTRegisters(rriot, "Drive " + std::to_string(id) + " (" + busName + ") RRIOT6530");
+
             return;
         }
 

@@ -280,3 +280,35 @@ void MOS6530::writeRAM(uint8_t address, uint8_t value)
 {
     ram[address & 0x3F] = value;
 }
+
+MOS6530::DebugView MOS6530::getDebugView() const
+{
+    DebugView view;
+
+    // Port registers
+    view.portA = registers.portA;
+    view.portB = registers.portB;
+    view.ddrA = registers.ddrA;
+    view.ddrB = registers.ddrB;
+
+    // External inputs
+    view.portAInput = portAInput;
+    view.portBInput = portBInput;
+
+    // Timer
+    view.timer = registers.timer;
+    view.timerPrescaler = timerPrescaler;
+    view.timerDivider = timerDivider;
+
+    // Timer runtime state
+    view.timerRunning = timerRunning;
+    view.timerUnderflowed = timerUnderflowed;
+
+    // Interrupt state
+    view.interruptFlags = registers.interruptFlags;
+    view.timerIRQEnabled = registers.timerIRQEnabled;
+
+    view.irqActive = isIRQActive();
+
+    return view;
+}

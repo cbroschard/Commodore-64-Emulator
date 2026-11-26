@@ -354,3 +354,38 @@ void MOS6532::updatePA7()
 
     previousPA7 = currentPA7;
 }
+
+MOS6532::DebugView MOS6532::getDebugView() const
+{
+    DebugView view;
+
+    // Port registers
+    view.portA = registers.portA;
+    view.portB = registers.portB;
+    view.ddrA = registers.ddrA;
+    view.ddrB = registers.ddrB;
+
+    // External inputs
+    view.portAInput = portAInput;
+    view.portBInput = portBInput;
+
+    // Timer
+    view.timer = registers.timer;
+    view.timerPrescaler = timerPrescaler;
+    view.timerDivider = timerDivider;
+
+    // Timer runtime state
+    view.timerRunning = timerRunning;
+    view.timerUnderflowed = timerUnderflowed;
+
+    // Interrupt state
+    view.interruptFlags = registers.interruptFlags;
+    view.timerIRQEnabled = registers.timerIRQEnabled;
+    view.pa7IRQEnabled = registers.pa7IRQEnabled;
+    view.pa7PositiveEdge = registers.pa7PositiveEdge;
+    view.previousPA7 = previousPA7;
+
+    view.irqActive = isIRQActive();
+
+    return view;
+}

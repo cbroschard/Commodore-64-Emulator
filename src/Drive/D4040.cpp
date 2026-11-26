@@ -1453,6 +1453,29 @@ DriveVIABase* D4040::getHardwareVIA(uint32_t id)
     return nullptr;
 }
 
+MOS6532* D4040::getHardwareRIOT(uint32_t id)
+{
+    switch (id)
+    {
+        case 6:
+            return &d4040mem.getRIOT1();
+
+        case 7:
+            return &d4040mem.getRIOT2();
+
+        default:
+            return nullptr;
+    }
+}
+
+MOS6530* D4040::getHardwareRRIOT(uint32_t id)
+{
+    if (id == 9)
+        return &d4040mem.getRRIOT();
+
+    return nullptr;
+}
+
 bool D4040::getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context)
 {
     context = {};

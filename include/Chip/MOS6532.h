@@ -47,6 +47,39 @@ class MOS6532
         // Interrupt output
         bool isIRQActive() const;
 
+        // ML Monitor
+        struct DebugView
+        {
+            // Port registers
+            uint8_t portA = 0;
+            uint8_t portB = 0;
+            uint8_t ddrA = 0;
+            uint8_t ddrB = 0;
+
+            // External port inputs
+            uint8_t portAInput = 0;
+            uint8_t portBInput = 0;
+
+            // Timer registers
+            uint8_t timer = 0;
+            uint16_t timerPrescaler = 0;
+            uint16_t timerDivider = 0;
+
+            // Timer runtime state
+            bool timerRunning = false;
+            bool timerUnderflowed = false;
+
+            // Interrupt state
+            uint8_t interruptFlags = 0;
+            bool timerIRQEnabled = false;
+            bool pa7IRQEnabled = false;
+            bool pa7PositiveEdge = false;
+            bool previousPA7 = false;
+            bool irqActive = false;
+        };
+
+        DebugView getDebugView() const;
+
     private:
         struct Registers
         {

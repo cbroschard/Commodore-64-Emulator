@@ -17,6 +17,8 @@ class CPUBus;
 class DriveCIABase;
 class DriveFDCBase;
 class DriveVIABase;
+class MOS6530;
+class MOS6532;
 
 class IDriveHardwareProvider
 {
@@ -56,6 +58,12 @@ public:
 
     // VIA
     virtual DriveVIABase* getHardwareVIA(uint32_t id) { return nullptr; }
+
+    // MOS 6530
+    virtual MOS6530* getHardwareRRIOT(uint32_t hardwareId) { return nullptr; }
+
+    // MOS 6532
+    virtual MOS6532* getHardwareRIOT(uint32_t hardwareId) { return nullptr; }
 };
 
 #endif // IDRIVEHARDWAREPROVIDER_H

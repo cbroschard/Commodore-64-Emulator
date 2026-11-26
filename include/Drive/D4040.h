@@ -119,6 +119,10 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // VIA access
         DriveVIABase* getHardwareVIA(uint32_t id) override;
 
+        // RIOT/RRIOT access
+        MOS6532* getHardwareRIOT(uint32_t id) override;
+        MOS6530* getHardwareRRIOT(uint32_t id) override;
+
         // CPU execution context
         bool getDriveCPUContext(uint32_t cpuId, DriveCPUContext& context) override;
 

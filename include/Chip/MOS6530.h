@@ -45,6 +45,36 @@ class MOS6530
 
         inline bool isIRQActive() const { return registers.timerIRQEnabled && (registers.interruptFlags & 0x80) != 0; }
 
+        // ML Monitor
+        struct DebugView
+        {
+            // Port registers
+            uint8_t portA = 0;
+            uint8_t portB = 0;
+            uint8_t ddrA = 0;
+            uint8_t ddrB = 0;
+
+            // External inputs
+            uint8_t portAInput = 0;
+            uint8_t portBInput = 0;
+
+            // Timer registers
+            uint8_t timer = 0;
+            uint16_t timerPrescaler = 0;
+            uint16_t timerDivider = 0;
+
+            // Timer runtime state
+            bool timerRunning = false;
+            bool timerUnderflowed = false;
+
+            // Interrupt state
+            uint8_t interruptFlags = 0;
+            bool timerIRQEnabled = false;
+            bool irqActive = false;
+        };
+
+        DebugView getDebugView() const;
+
     private:
         static constexpr size_t RAM_SIZE = 0x40;
 
