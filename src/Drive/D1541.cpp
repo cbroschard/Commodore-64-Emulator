@@ -215,13 +215,10 @@ void D1541::reset()
     status                      = DriveStatus::IDLE;
 
     // Disk
-    diskLoaded                  = false;
-    diskWriteProtected          = false;
     currentTrack                = 17;
     currentSector               = 0;
     densityCode                 = 3;
     halfTrackPos                = currentTrack * 2;
-    loadedDiskName.clear();
 
     // IEC BUS reset
     atnLineLow                  = false;
