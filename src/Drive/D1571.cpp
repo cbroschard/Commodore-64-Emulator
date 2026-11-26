@@ -1789,6 +1789,64 @@ std::vector<DriveHardwareInfo> D1571::enumerateDriveHardware() const
     };
 }
 
+bool D1571::getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugView& view) const
+{
+    // The 1571 has one floppy mechanism.
+    if (hardwareId != 7)
+        return false;
+
+    view = DriveMechanismDebugView{};
+
+    view.mechanismId = 0;
+    view.name = "FLOPPY-0";
+
+    // Disk information
+    view.diskInserted = diskLoaded;
+    view.diskPath = diskLoaded ? loadedDiskName : std::string{};
+
+    view.motorOn = motorOn;
+
+    // Current head position
+    view.track = currentTrack;
+    view.sector = currentSector;
+
+    // 1571 supports two disk sides.
+    view.hasSide = true;
+    view.side = currentSide ? 1 : 0;
+
+    // Half-track stepping applies to GCR operation.
+    const bool gcrMode = isGCRMode();
+
+    view.hasHalfTrack = gcrMode;
+
+    if (gcrMode)
+        view.halfTrack = static_cast<uint8_t>(halfTrackPos);
+
+    // Write protection
+    view.hasWriteProtect = true;
+    view.writeProtected = diskWriteProtected;
+
+    // GCR information
+    view.hasGCR = gcrMode;
+
+    if (gcrMode)
+    {
+        view.gcrValid = diskLoaded && !gcrDirty && !gcrTrack.empty();
+
+        view.gcrPosition = gcrPos;
+
+        view.loadedGCRTrack = view.gcrValid ? currentTrackOnSide1Based() : 0;
+    }
+
+    // Not exposed by this debug view yet.
+    view.hasStepperPhase = false;
+    view.hasDiskSignals = false;
+    view.hasDataLatches = false;
+    view.hasDirtyState = false;
+
+    return true;
+}
+
 CPU* D1571::getHardwareCPU(uint32_t id)
 {
     if (id == 0)

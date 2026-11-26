@@ -832,6 +832,51 @@ std::vector<DriveHardwareInfo> D1581::enumerateDriveHardware() const
     };
 }
 
+bool D1581::getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugView& view) const
+{
+    // The 1581 has one floppy mechanism.
+    if (hardwareId != 5)
+        return false;
+
+    view = DriveMechanismDebugView{};
+
+    view.mechanismId = 0;
+    view.name = "FLOPPY-0";
+
+    // Disk information
+    view.diskInserted = diskLoaded;
+
+    view.diskPath = diskLoaded ? loadedDiskName : std::string{};
+
+    // Motor and head position
+    view.motorOn = motorOn;
+
+    view.track = currentTrack;
+    view.sector = currentSector;
+
+    // The 1581 is double-sided.
+    view.hasSide = true;
+    view.side = currentSide & 0x01;
+
+    // Write protection
+    view.hasWriteProtect = true;
+    view.writeProtected = diskWriteProtected;
+
+    // The 1581 uses an FDC177x with MFM encoding.
+    // It does not use the GCR mechanism fields.
+    view.hasGCR = false;
+    view.hasHalfTrack = false;
+    view.hasStepperPhase = false;
+
+    // These details are not exposed through the
+    // mechanism debug interface.
+    view.hasDiskSignals = false;
+    view.hasDataLatches = false;
+    view.hasDirtyState = false;
+
+    return true;
+}
+
 CPU* D1581::getHardwareCPU(uint32_t id)
 {
     if (id == 0)

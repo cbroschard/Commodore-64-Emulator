@@ -1735,6 +1735,82 @@ std::vector<DriveHardwareInfo> D1541::enumerateDriveHardware() const
     };
 }
 
+bool D1541::getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugView& view) const
+{
+    // FLOPPY-0 is hardware component 5.
+    if (hardwareId != 5)
+        return false;
+
+    // Clear the output structure.
+    view = DriveMechanismDebugView{};
+
+    // -----------------------------------------
+    // Identification
+    // -----------------------------------------
+    view.mechanismId = 0;
+    view.name = "FLOPPY-0";
+
+    // -----------------------------------------
+    // Media
+    // -----------------------------------------
+    view.diskInserted = diskLoaded;
+    view.diskPath = diskLoaded ? loadedDiskName : std::string{};
+
+    // -----------------------------------------
+    // Motor / Head
+    // -----------------------------------------
+    view.motorOn = motorOn;
+    view.track = currentTrack;
+    view.sector = currentSector;
+
+    // Physical head position.
+    view.hasHalfTrack = true;
+    view.halfTrack = static_cast<uint8_t>(halfTrackPos);
+
+    // -----------------------------------------
+    // Write protection
+    // -----------------------------------------
+    view.hasWriteProtect = true;
+    view.writeProtected = diskWriteProtected;
+
+    // -----------------------------------------
+    // GCR
+    // -----------------------------------------
+    view.hasGCR = true;
+
+    // A stream awaiting regeneration should not be
+    // reported as a currently valid decoded track.
+    view.gcrValid = diskLoaded && !gcrDirty && !gcrTrack.empty();
+
+    view.gcrPosition = gcrPos;
+
+    // The 1541 stores currentTrack as a zero-based index.
+    view.loadedGCRTrack = view.gcrValid ? static_cast<uint8_t>(currentTrack + 1) : 0;
+
+    // -----------------------------------------
+    // Optional information
+    // -----------------------------------------
+
+    // Stepper phase is not represented as a simple
+    // mechanism field in this implementation.
+    view.hasStepperPhase = false;
+
+    // The 1541's disk signals are handled through VIA2.
+    // We can expose them later through a dedicated view.
+    view.hasDiskSignals = false;
+
+    // Data latches also belong to the VIA implementation.
+    view.hasDataLatches = false;
+
+    // gcrDirty means the stream needs rebuilding; it
+    // does not mean the disk contains unsaved writes.
+    // Therefore, do not map it directly to the common
+    // pending-changes field.
+    view.hasDirtyState = false;
+
+    return true;
+}
+
 CPU* D1541::getHardwareCPU(uint32_t id)
 {
     if (id == 0)

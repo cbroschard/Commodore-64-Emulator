@@ -1672,6 +1672,67 @@ std::vector<DriveHardwareInfo> D2031::enumerateDriveHardware() const
     };
 }
 
+bool D2031::getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugView& view) const
+{
+    // The 2031 has one floppy mechanism.
+    if (hardwareId != 5)
+        return false;
+
+    view = DriveMechanismDebugView{};
+
+    view.mechanismId = 0;
+    view.name = "FLOPPY-0";
+
+    // -----------------------------------------
+    // Disk information
+    // -----------------------------------------
+
+    view.diskInserted = diskLoaded;
+
+    view.diskPath = diskLoaded ? loadedDiskName : std::string{};
+
+    view.hasWriteProtect = true;
+    view.writeProtected = diskWriteProtected;
+
+    // -----------------------------------------
+    // Motor / Head
+    // -----------------------------------------
+
+    view.motorOn = motorOn;
+
+    view.track = currentTrack;
+    view.sector = currentSector;
+
+    view.hasHalfTrack = true;
+    view.halfTrack = static_cast<uint8_t>(halfTrackPos);
+
+    // Single-sided drive.
+    view.hasSide = false;
+
+    // -----------------------------------------
+    // GCR
+    // -----------------------------------------
+
+    view.hasGCR = true;
+
+    view.gcrValid = diskLoaded && !gcrDirty && !gcrTrack.empty();
+
+    view.gcrPosition = gcrPos;
+
+    view.loadedGCRTrack = view.gcrValid ? static_cast<uint8_t>(currentTrack + 1) : 0;
+
+    // -----------------------------------------
+    // Additional debug capabilities
+    // -----------------------------------------
+
+    view.hasStepperPhase = false;
+    view.hasDiskSignals = false;
+    view.hasDataLatches = false;
+    view.hasDirtyState = false;
+
+    return true;
+}
+
 CPU* D2031::getHardwareCPU(uint32_t id)
 {
     if (id == 0)

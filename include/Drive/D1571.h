@@ -153,6 +153,8 @@ class D1571 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         // DriveHardware discovery
         std::vector<DriveHardwareInfo> enumerateDriveHardware() const override;
 
+        bool getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugView& view) const override;
+
         // Hardware access
         CPU* getHardwareCPU(uint32_t id) override;
         CPUBus* getHardwareBus(uint32_t id) override;

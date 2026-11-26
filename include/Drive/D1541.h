@@ -161,6 +161,9 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         // Hardware discovery
         std::vector<DriveHardwareInfo> enumerateDriveHardware() const override;
 
+        // Floppy mechanism inspection
+        bool getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugView& view) const override;
+
     protected:
         bool motorOn;
 

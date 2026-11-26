@@ -99,6 +99,9 @@ struct DriveMechanismDebugView
     bool hasDirtyState = false;
     bool gcrDirty = false;
     uint32_t gcrBytesWritten = 0;
+
+    bool hasSide = false;
+    uint8_t side = 0;
 };
 
 inline const char* driveHardwareTypeName(

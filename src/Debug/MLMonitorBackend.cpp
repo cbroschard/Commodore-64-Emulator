@@ -457,6 +457,12 @@ static void dumpDriveMechanism(const DriveMechanismDebugView& m, const std::stri
             << static_cast<unsigned>(m.halfTrack) << "\n";
     }
 
+    if (m.hasSide)
+    {
+        out << "Side:            "
+            << static_cast<unsigned>(m.side) << "\n";
+    }
+
     if (m.hasStepperPhase)
     {
         out << "Stepper Phase:   "
