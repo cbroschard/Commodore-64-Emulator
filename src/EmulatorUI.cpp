@@ -9,6 +9,28 @@
 #include <fstream>
 #include "EmulatorUI.h"
 
+namespace
+{
+    uint32_t getDriveModelMechanismCount(UiCommand::DriveType type)
+    {
+        switch (type)
+        {
+            case UiCommand::DriveType::D1541:
+            case UiCommand::DriveType::D1571:
+            case UiCommand::DriveType::D1581:
+            case UiCommand::DriveType::D2031:
+                return 1;
+
+            case UiCommand::DriveType::D4040:
+                return 2;
+
+            case UiCommand::DriveType::None:
+            default:
+                return 0;
+        }
+    }
+}
+
 EmulatorUI::EmulatorUI() :
     fileDialogOpen_(false),
     pendingIDE64DeviceIndex_(0),
@@ -1721,15 +1743,51 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
                 startDiskFileDialog(dev, UiCommand::DriveType::D2031, 0);
 
             //
-            // Commodore 4040 - Dual mechanism
+            // Commodore 4040 - Mechanism-aware insertion
             //
             if (ImGui::BeginMenu("4040 (D64)", canUse4040))
             {
-                if (ImGui::MenuItem("Mechanism 0..."))
-                    startDiskFileDialog(dev, UiCommand::DriveType::D4040, 0);
+                const DriveStatusView* driveStatus = nullptr;
 
-                if (ImGui::MenuItem("Mechanism 1..."))
-                    startDiskFileDialog(dev, UiCommand::DriveType::D4040, 1);
+                // Find the currently attached drive.
+                for (const auto& ds : v.drives)
+                {
+                    if (ds.deviceNum == dev && ds.present)
+                    {
+                        driveStatus = &ds;
+                        break;
+                    }
+                }
+
+                if (driveStatus && driveStatus->driveType == UiCommand::DriveType::D4040 && !driveStatus->mechanisms.empty())
+                {
+                    // Existing drive: use its reported mechanisms.
+                    for (const auto& mechanism : driveStatus->mechanisms)
+                    {
+                        const std::string label = "Mechanism " + std::to_string(mechanism.mechanismId) + "...";
+
+                        if (ImGui::MenuItem(label.c_str()))
+                            startDiskFileDialog(dev, UiCommand::DriveType::D4040, mechanism.mechanismId);
+                    }
+                }
+                else
+                {
+                    //
+                    // No drive instance exists yet.
+                    // Use the model's declared mechanism count.
+                    //
+                    const uint32_t mechanismCount = getDriveModelMechanismCount(UiCommand::DriveType::D4040);
+
+                    for (uint32_t mechanism = 0;
+                         mechanism < mechanismCount;
+                         ++mechanism)
+                    {
+                        const std::string label = "Mechanism " + std::to_string(mechanism) + "...";
+
+                        if (ImGui::MenuItem(label.c_str()))
+                            startDiskFileDialog(dev, UiCommand::DriveType::D4040, mechanism);
+                    }
+                }
 
                 ImGui::EndMenu();
             }
@@ -1787,42 +1845,51 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
     //
     // Eject Disk
     //
-    const bool hasDisk = driveHasDisk(v, dev);
+    const DriveStatusView* driveStatus = nullptr;
 
-    if (existingType == UiCommand::DriveType::D4040)
+    // Locate the attached drive.
+    for (const auto& ds : v.drives)
     {
-        // Find the UI status for this drive.
-        const DriveStatusView* driveStatus = nullptr;
-
-        for (const auto& ds : v.drives)
+        if (ds.deviceNum == dev && ds.present)
         {
-            if (ds.deviceNum == dev && ds.present)
+            driveStatus = &ds;
+            break;
+        }
+    }
+
+    if (driveStatus && driveStatus->mechanisms.size() > 1)
+    {
+        //
+        // Multi-mechanism drive
+        //
+        bool anyDiskInserted = false;
+
+        for (const auto& mechanism : driveStatus->mechanisms)
+        {
+            if (mechanism.diskInserted)
             {
-                driveStatus = &ds;
+                anyDiskInserted = true;
                 break;
             }
         }
 
-        if (ImGui::BeginMenu("Eject Disk", hasDisk))
+        if (ImGui::BeginMenu("Eject Disk", anyDiskInserted))
         {
-            if (driveStatus)
+            for (const auto& mechanism : driveStatus->mechanisms)
             {
-                for (const auto& mechanism : driveStatus->mechanisms)
+                std::string label = "Mechanism " + std::to_string(mechanism.mechanismId);
+
+                if (mechanism.diskInserted && !mechanism.imagePath.empty())
                 {
-                    // Construct menu label.
-                    std::string label = "Mechanism " + std::to_string(mechanism.mechanismId);
+                    const std::filesystem::path imagePath(mechanism.imagePath);
 
-                    if (mechanism.diskInserted && !mechanism.imagePath.empty())
-                    {
-                        const std::filesystem::path imagePath(mechanism.imagePath);
-                        label += " - " + imagePath.filename().string();
-                    }
-                    else
-                        label += " - Empty";
-
-                    if (ImGui::MenuItem(label.c_str(), nullptr, false, mechanism.diskInserted))
-                        pushEjectDisk(dev, mechanism.mechanismId);
+                    label += " - " + imagePath.filename().string();
                 }
+                else
+                    label += " - Empty";
+
+                if (ImGui::MenuItem(label.c_str(), nullptr, false, mechanism.diskInserted))
+                    pushEjectDisk(dev, mechanism.mechanismId);
             }
 
             ImGui::EndMenu();
@@ -1830,7 +1897,11 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
     }
     else
     {
-        // Existing single-mechanism drives.
+        //
+        // Single-mechanism drive
+        //
+        const bool hasDisk = driveStatus && !driveStatus->mechanisms.empty() && driveStatus->mechanisms.front().diskInserted;
+
         if (ImGui::MenuItem("Eject Disk", nullptr, false, hasDisk))
             pushEjectDisk(dev, 0);
     }

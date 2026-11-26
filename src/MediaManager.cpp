@@ -268,12 +268,6 @@ MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, c
     if (model == DriveModel::None)
         return MediaLoadResult::fail("Invalid drive model.");
 
-    // Currently only the 4040 supports multiple mechanisms.
-    const uint32_t mechanismCount = (model == DriveModel::D4040) ? 2 : 1;
-
-    if (mechanism >= mechanismCount)
-        return MediaLoadResult::fail("Invalid drive mechanism.");
-
     const std::string ext = lowerExt(path);
 
     if (!isExtCompatible(model, ext))
@@ -306,18 +300,9 @@ MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, c
         if (!drive)
             return MediaLoadResult::fail("The selected drive is unavailable.");
 
-        bool inserted = false;
-
-        if (model == DriveModel::D4040)
-        {
-            // Use the existing mechanism-aware interface.
-            inserted = drive->mountDiskToMechanism(mechanism, path);
-        }
-        else
-        {
-            // Preserve existing behavior for single-mechanism drives.
-            inserted = drive->insert(path);
-        }
+        // Insert the disk into the requested mechanism.
+        // Each drive determines which mechanisms it supports.
+        const bool inserted = drive->mountDiskToMechanism(mechanism, path);
 
         if (!inserted)
         {
@@ -826,35 +811,19 @@ bool MediaManager::ejectDiskImage(int deviceNum, uint32_t mechanism)
     if (!drive)
         return false;
 
-    const DriveModel model = drive->getDriveModel();
-
-    if (model == DriveModel::D4040)
+    //
+    // Eject media through the shared Drive interface.
+    // Each drive validates its own mechanism IDs.
+    //
+    if (!drive->unmountDiskFromMechanism(mechanism))
     {
-        // The 4040 has two independent mechanisms.
-        if (mechanism >= 2)
-            return false;
+        std::cerr
+            << "[MediaManager] Failed to eject disk from "
+            << "drive " << deviceNum
+            << " mechanism " << mechanism
+            << '\n';
 
-        // Safely save and eject only the selected mechanism.
-        if (!drive->unmountDiskFromMechanism(mechanism))
-        {
-            std::cerr
-                << "[MediaManager] Failed to eject disk from "
-                << "drive " << deviceNum
-                << " mechanism " << mechanism
-                << '\n';
-
-            return false;
-        }
-    }
-    else
-    {
-        // All other supported drives have one mechanism.
-        if (mechanism != 0)
-            return false;
-
-        // Preserve existing single-drive ejection behavior.
-        drive->flushAndSaveDisk();
-        drive->unloadDisk();
+        return false;
     }
 
     // Refresh the global disk attachment state.
@@ -1467,28 +1436,35 @@ void MediaManager::fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>
         }
 
         //
-        // Populate individual mechanism information.
+        // Discover disk mechanisms through DriveHardware.
         //
-        if (auto* d4040 = dynamic_cast<D4040*>(drive))
+        const auto hardware = drive->enumerateDriveHardware();
+
+        for (const auto& component : hardware)
         {
-            // Commodore 4040 has two independent mechanisms.
-            for (uint32_t unit = 0; unit < 2; ++unit)
-            {
-                EmulatorUI::DriveMechanismView mechanism;
+            if (component.type != DriveHardwareType::Mechanism)
+                continue;
 
-                mechanism.mechanismId = unit;
-                mechanism.diskInserted = d4040->isDiskLoaded(static_cast<uint8_t>(unit));
+            DriveMechanismDebugView debug;
 
-                if (mechanism.diskInserted)
-                    mechanism.imagePath = d4040->getDiskPath(static_cast<uint8_t>(unit));
+            if (!drive->getHardwareMechanismDebug(component.id, debug))
+                continue;
 
-                ds.mechanisms.push_back(std::move(mechanism));
-            }
+            EmulatorUI::DriveMechanismView mechanism;
+
+            mechanism.mechanismId = debug.mechanismId;
+            mechanism.diskInserted = debug.diskInserted;
+            mechanism.imagePath = debug.diskPath;
+
+            ds.mechanisms.push_back(std::move(mechanism));
         }
-        else
+
+        //
+        // Compatibility fallback for drives that do not yet
+        // expose mechanism-specific information.
+        //
+        if (ds.mechanisms.empty())
         {
-            // Single-mechanism drives:
-            // 1541, 1571, 1581, 2031.
             EmulatorUI::DriveMechanismView mechanism;
 
             mechanism.mechanismId = 0;
