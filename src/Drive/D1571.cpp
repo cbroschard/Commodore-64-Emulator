@@ -1376,21 +1376,69 @@ void D1571::invalidateRawGcrCache()
     gcrDirty = true;
 }
 
-void D1571::flushAndSaveDisk()
+bool D1571::tryFlushAndSaveDisk()
 {
-    if (!diskImage || loadedDiskName.empty())
-        return;
+    if (!diskImage)
+        return true;
 
+    // Flush modified GCR data into the disk image.
     if (diskImage->supportsRawTracks())
+    {
         saveCurrentRawTrackToCache();
+
+        // A modified track remaining means the raw-track
+        // write did not complete successfully.
+        if (trackModifiedByWrite)
+        {
+            std::cout << "[D1571] Failed to flush raw GCR track.\n";
+            return false;
+        }
+    }
     else if (diskImage->supportsSectorAccess())
+    {
         flushAllDirtyRawTracksToImage();
 
-    if (diskImage->isDirty())
-    {
-        if (diskImage->saveDisk(loadedDiskName))
-            diskImage->clearDirty();
+        // Check both sides of the disk.
+        // Dirty tracks remaining indicate that conversion
+        // or writing back to the disk image failed.
+        for (bool dirty : rawGcrTrackDirty)
+        {
+            if (dirty)
+            {
+                std::cout << "[D1571] Failed to flush GCR track to disk image.\n";
+                return false;
+            }
+        }
     }
+
+    // Nothing has changed.
+    if (!diskImage->isDirty())
+        return true;
+
+    // A dirty disk requires a valid destination filename.
+    if (loadedDiskName.empty())
+    {
+        std::cout << "[D1571] Cannot save modified disk: no filename.\n";
+        return false;
+    }
+
+    // Save the disk image.
+    if (!diskImage->saveDisk(loadedDiskName))
+    {
+        std::cout << "[D1571] Failed to save disk: "
+                  << loadedDiskName << "\n";
+        return false;
+    }
+
+    // Only clear the dirty flag after a successful save.
+    diskImage->clearDirty();
+
+    return true;
+}
+
+void D1571::flushAndSaveDisk()
+{
+    (void)tryFlushAndSaveDisk();
 }
 
 void D1571::saveCurrentRawTrackToCache()

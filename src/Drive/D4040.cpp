@@ -484,8 +484,10 @@ bool D4040::tryUnloadAllDisks()
     return tryUnloadDisk(0) && tryUnloadDisk(1);
 }
 
-void D4040::flushAndSaveDisk()
+bool D4040::tryFlushAndSaveDisk()
 {
+    // Attempt to save both mechanisms independently.
+    // Always attempt unit 1, even if unit 0 fails.
     const bool unit0Saved = flushMechanism(0);
     const bool unit1Saved = flushMechanism(1);
 
@@ -494,7 +496,16 @@ void D4040::flushAndSaveDisk()
         std::cerr
             << "[D4040] WARNING: One or more disk "
                "images could not be saved\n";
+
+        return false;
     }
+
+    return true;
+}
+
+void D4040::flushAndSaveDisk()
+{
+    (void)tryFlushAndSaveDisk();
 }
 
 uint8_t D4040::getSelectedMechanism() const

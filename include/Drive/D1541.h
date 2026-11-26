@@ -142,6 +142,7 @@ class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public
 
         // Force flush to disk
         void flushAndSaveDisk() override;
+        bool tryFlushAndSaveDisk() override;
 
         // ML Monitor
         inline bool isDrive() const override { return true;  }

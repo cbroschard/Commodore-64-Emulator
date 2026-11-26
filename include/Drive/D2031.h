@@ -63,6 +63,7 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void stopMotor() override;
 
         // Disk persistence
+        bool tryFlushAndSaveDisk() override;
         void flushAndSaveDisk() override;
 
         uint8_t getHardwareAddressBits() const;

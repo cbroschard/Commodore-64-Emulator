@@ -1627,31 +1627,77 @@ void D1541::forceSyncIEC()
     iecLinesPrimed = true;
 }
 
-void D1541::flushAndSaveDisk()
+bool D1541::tryFlushAndSaveDisk()
 {
-    if (!diskImage || loadedDiskName.empty())
-        return;
+    // No mounted image means nothing to save.
+    if (!diskImage)
+        return true;
 
+    // First, transfer any modified GCR data into the disk image.
     if (diskImage->supportsRawTracks())
     {
-        //
-        // Push live raw track through the generic Disk interface.
-        //
         saveCurrentRawTrackToCache();
+
+        // A failed raw-track write leaves this flag set.
+        if (trackModifiedByWrite)
+        {
+            std::cerr
+                << "[D1541] Failed to save modified raw GCR track.\n";
+
+            return false;
+        }
     }
     else if (diskImage->supportsSectorAccess())
     {
-        //
-        // Decode synthesized GCR modifications back into sectors.
-        //
         flushAllDirtyRawTracksToImage();
+
+        // A track remains dirty if decoding or sector
+        // writeback did not complete successfully.
+        for (bool dirty : rawGcrTrackDirty)
+        {
+            if (dirty)
+            {
+                std::cerr
+                    << "[D1541] Failed to flush modified GCR track.\n";
+
+                return false;
+            }
+        }
     }
 
-    if (diskImage->isDirty())
+    // No pending disk-image changes.
+    if (!diskImage->isDirty())
+        return true;
+
+    // We cannot save modified media without an image path.
+    if (loadedDiskName.empty())
     {
-        if (diskImage->saveDisk(loadedDiskName))
-            diskImage->clearDirty();
+        std::cerr
+            << "[D1541] Cannot save modified disk: "
+            << "image path is empty.\n";
+
+        return false;
     }
+
+    // Persist changes to the backing image.
+    if (!diskImage->saveDisk(loadedDiskName))
+    {
+        std::cerr
+            << "[D1541] Failed to save disk image: "
+            << loadedDiskName << '\n';
+
+        return false;
+    }
+
+    diskImage->clearDirty();
+
+    return true;
+}
+
+void D1541::flushAndSaveDisk()
+{
+    // Preserve compatibility with existing callers.
+    (void)tryFlushAndSaveDisk();
 }
 
 void D1541::getDriveIndicators(std::vector<Indicator>& out) const

@@ -86,6 +86,7 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         bool tryUnloadAllDisks();
 
         // Disk persistence
+        bool tryFlushAndSaveDisk() override;
         void flushAndSaveDisk() override;
 
         uint8_t getSelectedMechanism() const;

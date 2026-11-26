@@ -145,6 +145,7 @@ class D1581 : public Drive, public IECDevice, public IECDriveDiagnostics, public
 
         // Force flush to disk
         void flushAndSaveDisk() override;
+        bool tryFlushAndSaveDisk() override;
 
         // ML Monitor
         inline const CPU* getDriveCPU() const override { return &driveCPU; }

@@ -101,6 +101,7 @@ class Drive : public Peripheral, public IDriveHardwareProvider
         virtual bool isMotorOn() const = 0;
 
         virtual void flushAndSaveDisk() = 0;
+        virtual bool tryFlushAndSaveDisk() = 0;
 
         // ML Monitor
         virtual DriveStatus getDriveStatus() const = 0;

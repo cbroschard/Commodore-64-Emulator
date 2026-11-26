@@ -139,6 +139,7 @@ class D1571 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         bool getByteReadyLow() const;
 
         // Force flush to disk
+        bool tryFlushAndSaveDisk() override;
         void flushAndSaveDisk() override;
 
         // ML Monitor

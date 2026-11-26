@@ -629,19 +629,47 @@ void D1581::getDriveIndicators(std::vector<Indicator>& out) const
         --activityPulseFrames;
 }
 
+bool D1581::tryFlushAndSaveDisk()
+{
+    // No disk means there is nothing to save.
+    if (!diskImage)
+        return true;
+
+    // No changes means saving is unnecessary.
+    if (!diskImage->isDirty())
+        return true;
+
+    // A modified disk must have a valid destination.
+    if (loadedDiskName.empty())
+    {
+        std::cerr
+            << "[D1581] Cannot save modified disk: "
+            << "image path is empty.\n";
+
+        return false;
+    }
+
+    // Attempt to save the modified image.
+    if (!diskImage->saveDisk(loadedDiskName))
+    {
+        std::cerr
+            << "[D1581] Failed to save disk image: "
+            << loadedDiskName << '\n';
+
+        return false;
+    }
+
+    // Only clear dirty state after successful persistence.
+    diskImage->clearDirty();
+
+    return true;
+}
+
 void D1581::flushAndSaveDisk()
 {
-    if (!diskLoaded || !diskImage)
-        return;
-
-    if (loadedDiskName.empty())
-        return;
-
-    if (!diskImage->isDirty())
-        return;
-
-    if (diskImage->saveDisk(loadedDiskName))
-        diskImage->clearDirty();
+    // Preserve the original void interface.
+    // The failure-aware method performs the actual save.
+    (void)tryFlushAndSaveDisk();
 }
 
 void D1581::pulseDiskActivity(uint8_t track, uint8_t sector)

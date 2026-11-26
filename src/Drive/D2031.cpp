@@ -775,32 +775,69 @@ void D2031::stopMotor()
     motorOn = false;
 }
 
-void D2031::flushAndSaveDisk()
+bool D2031::tryFlushAndSaveDisk()
 {
-    if (!diskImage || loadedDiskName.empty())
-        return;
+    if (!diskImage)
+        return true;
 
+    // Flush pending GCR changes into the disk image.
     if (diskImage->supportsRawTracks())
     {
-        //
-        // Push the live raw GCR track into the disk image.
-        //
         saveCurrentRawTrackToCache();
+
+        // A pending modification indicates that
+        // the raw-track write failed.
+        if (trackModifiedByWrite)
+        {
+            std::cout << "[D2031] Failed to flush raw GCR track.\n";
+            return false;
+        }
     }
     else if (diskImage->supportsSectorAccess())
     {
-        //
-        // Decode modified GCR tracks back into disk sectors.
-        //
         flushAllDirtyRawTracksToImage();
+
+        // Ensure every modified track was successfully
+        // decoded and written back to the disk image.
+        for (bool dirty : rawGcrTrackDirty)
+        {
+            if (dirty)
+            {
+                std::cout
+                    << "[D2031] Failed to flush GCR track to disk image.\n";
+                return false;
+            }
+        }
     }
 
-    // Persist modified disk data to the image file.
-    if (diskImage->isDirty())
+    // No changes need saving.
+    if (!diskImage->isDirty())
+        return true;
+
+    if (loadedDiskName.empty())
     {
-        if (diskImage->saveDisk(loadedDiskName))
-            diskImage->clearDirty();
+        std::cout
+            << "[D2031] Cannot save modified disk: no filename.\n";
+        return false;
     }
+
+    // Persist modified disk data.
+    if (!diskImage->saveDisk(loadedDiskName))
+    {
+        std::cout << "[D2031] Failed to save disk: "
+                  << loadedDiskName << "\n";
+        return false;
+    }
+
+    // Clear the dirty flag only after a successful save.
+    diskImage->clearDirty();
+
+    return true;
+}
+
+void D2031::flushAndSaveDisk()
+{
+    (void)tryFlushAndSaveDisk();
 }
 
 uint8_t D2031::getHardwareAddressBits() const
