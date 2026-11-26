@@ -55,6 +55,8 @@ struct UiCommand
 
         CreateBlankDisk,
 
+        DetachDrive,
+
         EjectDisk,
         EjectCRT,
         EjectTape,

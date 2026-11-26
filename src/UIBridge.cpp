@@ -444,9 +444,13 @@ void UIBridge::processCommands()
                     break;
 
                 media_->createBlankDisk(cmd.deviceNum, model, cmd.path);
-
                 break;
             }
+
+            case UiCommand::Type::DetachDrive:
+                if (media_)
+                    media_->detachDiskImage(cmd.deviceNum);
+                break;
 
             case UiCommand::Type::EjectCRT:
                 if (media_)
