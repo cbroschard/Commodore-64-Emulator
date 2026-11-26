@@ -37,13 +37,10 @@ void D2031::reset()
     motorOn                     = false;
 
     // Disk
-    diskLoaded                  = false;
-    diskWriteProtected          = false;
     currentTrack                = 17;
     currentSector               = 0;
     densityCode                 = 3;
     halfTrackPos                = currentTrack * 2;
-    loadedDiskName.clear();
 
     gcrPos                      = 0;
     gcrBitCounter               = 0;
