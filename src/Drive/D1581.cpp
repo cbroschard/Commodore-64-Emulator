@@ -292,7 +292,16 @@ void D1581::syncTrackFromFDC()
 
 void D1581::unloadDisk()
 {
-    flushAndSaveDisk();
+    // Save pending disk changes before ejecting.
+    // If saving fails, preserve the mounted disk.
+    if (!tryFlushAndSaveDisk())
+    {
+        std::cerr
+            << "[D1581] Cannot eject disk: "
+               "unsaved changes remain.\n";
+
+        return;
+    }
 
     diskImage.reset();
     diskLoaded = false;

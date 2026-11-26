@@ -708,8 +708,16 @@ void D2031::loadDisk(const std::string& path)
 
 void D2031::unloadDisk()
 {
-    // Commit any pending disk writes before ejecting.
-    flushAndSaveDisk();
+    // Attempt to save pending disk changes before ejecting.
+    // If saving fails, preserve the mounted disk and its data.
+    if (!tryFlushAndSaveDisk())
+    {
+        std::cerr
+            << "[D2031] Cannot eject disk: "
+               "unsaved changes remain.\n";
+
+        return;
+    }
 
     // Remove the disk image.
     diskImage.reset();

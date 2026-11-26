@@ -28,6 +28,17 @@ Drive::~Drive() = default;
 
 bool Drive::insert(const std::string &path)
 {
+    // Preserve the existing disk if pending changes
+    // cannot be saved.
+    if (!tryFlushAndSaveDisk())
+    {
+        std::cerr
+            << "Drive: cannot replace disk because "
+               "unsaved changes remain.\n";
+
+        return false;
+    }
+
     // Detect disk format
     auto fmt = DiskFactory::detectFormat(path);
 

@@ -606,7 +606,16 @@ void D1541::loadDisk(const std::string& path)
 
 void D1541::unloadDisk()
 {
-    flushAndSaveDisk();
+    // Save pending disk changes before ejecting.
+    // If saving fails, keep the disk mounted.
+    if (!tryFlushAndSaveDisk())
+    {
+        std::cerr
+            << "[D1541] Cannot eject disk: "
+               "unsaved changes remain.\n";
+
+        return;
+    }
 
     diskImage.reset();  // Reset disk image by assigning a fresh instance
     loadedDiskName.clear();

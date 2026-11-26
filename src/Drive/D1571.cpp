@@ -853,15 +853,24 @@ void D1571::loadDisk(const std::string& path)
 
 void D1571::unloadDisk()
 {
-    flushAndSaveDisk();
+    // Attempt to save pending changes before ejecting.
+    // Keep the disk mounted if saving fails.
+    if (!tryFlushAndSaveDisk())
+    {
+        std::cerr
+            << "[D1571] Cannot eject disk: "
+               "unsaved changes remain.\n";
 
-    // Drop the current image
+        return;
+    }
+
+    // Drop the current image.
     diskWriteProtected = false;
     diskImage.reset();
     diskLoaded = false;
     loadedDiskName.clear();
 
-    // Reset basic geometry/status
+    // Reset basic geometry/status.
     currentTrack        = 17;
     currentSector       = 0;
     uiTrack             = currentTrack;
