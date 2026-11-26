@@ -23,8 +23,16 @@ struct D4040Mechanism
     std::string diskPath;
     std::unique_ptr<Disk> diskImage;
 
-    // Motor and head
+    // Electrical command from the controller VIA.
+    bool motorCommandOn = false;
+
+    // Physical spindle state.
     bool motorOn = false;
+
+    // Emulated controller cycles remaining before
+    // the spindle stops after motor power is removed.
+    uint32_t motorSpinDownCycles = 0;
+
     uint8_t track = 18;
     uint8_t sector = 0;
     uint8_t stepperPhase = 0;
@@ -48,6 +56,17 @@ struct D4040Mechanism
     // Per-mechanism GCR state
     GCRTrackStream gcrTrack;
 
+    // GCR read decoder state.
+    //
+    // The physical track contains five GCR bytes for
+    // every four decoded data bytes.
+    //
+    // The controller receives decoded bytes through VIA Port A.
+    uint8_t gcrEncodedBuffer[5] = {};
+    uint8_t gcrEncodedCount = 0;
+
+    uint8_t gcrDecodedBuffer[4] = {};
+    uint8_t gcrDecodedIndex = 4;
 
     // Only modified tracks are cached.
     // Key: physical whole-track number (1-35).
@@ -121,7 +140,10 @@ struct D4040Mechanism
 
     void reset()
     {
+        motorCommandOn = false;
         motorOn = false;
+        motorSpinDownCycles = 0;
+
         stepperPhase = 0;
 
         syncDetected = false;
@@ -147,6 +169,8 @@ struct D4040Mechanism
         loadedGCRTrack = 0;
         gcrValid = false;
         gcrCycleAccumulator = 0;
+        gcrEncodedCount = 0;
+        gcrDecodedIndex = 4;
         gcrDirty = false;
         gcrBytesWritten = 0;
         gcrSyncBytesWritten = 0;

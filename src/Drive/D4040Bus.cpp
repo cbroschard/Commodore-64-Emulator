@@ -147,8 +147,7 @@ void D4040Bus::updateRIOTInputs(const IEEE488Bus::BusState& state)
 
 void D4040Bus::updateIEEE488Outputs()
 {
-    if (!mem || !ieee488Device ||
-        !ieee488Device->isConnected())
+    if (!mem || !ieee488Device || !ieee488Device->isConnected())
         return;
 
     const MOS6532& riot1 = mem->getRIOT1();
@@ -157,43 +156,37 @@ void D4040Bus::updateIEEE488Outputs()
     // Resolve RIOT output pins.
     // Input-configured pins are treated as high.
     const uint8_t riot1PB = static_cast<uint8_t>(riot1.getPortBOutput() | ~riot1.getDDRB());
+
     const uint8_t riot2PA = static_cast<uint8_t>(riot2.getPortAOutput() | ~riot2.getDDRA());
 
     // IEEE-488 ATN is active-low.
     const bool atn = ieee488Device->getBusSignal(IEEE488Bus::Signal::ATN);
+
     const bool atnActive = !atn;
 
-    // RIOT 2 Port A output bits
-    const bool atna = (riot2PA & 0x01) != 0;
+    // RIOT2 Port A outputs.
+    //
+    // PA0 = ATNA
+    // PA1 = /DACO
+    // PA2 = RFDO
+    // PA3 = EOIO
+    // PA4 = DAVO
+
+    const bool atna   = (riot2PA & 0x01) != 0;
     const bool daco_n = (riot2PA & 0x02) != 0;
-    const bool rfdo = (riot2PA & 0x04) != 0;
-    const bool eoio = (riot2PA & 0x08) != 0;
-    const bool davo = (riot2PA & 0x10) != 0;
+    const bool rfdo   = (riot2PA & 0x04) != 0;
+    const bool eoio   = (riot2PA & 0x08) != 0;
+    const bool davo   = (riot2PA & 0x10) != 0;
 
-    // IEEE-488 handshake logic.
-    // Bus levels are active-low.
-    //
-    // NRFD currently asserts when ATN-active differs
-    // from the firmware-controlled ATNA output and RFDO is high.
-    //
-    // NDAC currently asserts when /DACO is low and
-    // either ATNA is high or ATN is inactive.
-    //
-    // These equations must be verified against the
-    // Commodore 4040 IEEE-488 interface schematic.
-    const bool nrfdAsserted = (atnActive != atna) && rfdo;
-    const bool ndacAsserted = !daco_n && (atna || !atnActive);
+    const bool nrfdLevel = (atnActive == atna) && rfdo;
+    const bool ndacLevel = !daco_n && (atna || !atnActive);
 
-    // IEEE488Device:
-    // true  = released / high
-    // false = asserted / low
-    ieee488Device->setBusSignal(IEEE488Bus::Signal::NRFD, !nrfdAsserted);
-    ieee488Device->setBusSignal(IEEE488Bus::Signal::NDAC, !ndacAsserted);
+    // Apply IEEE-488 control outputs.
+    ieee488Device->setBusSignal(IEEE488Bus::Signal::NRFD, nrfdLevel);
+    ieee488Device->setBusSignal(IEEE488Bus::Signal::NDAC, ndacLevel);
     ieee488Device->setBusSignal(IEEE488Bus::Signal::EOI, eoio);
     ieee488Device->setBusSignal(IEEE488Bus::Signal::DAV, davo);
 
-    // RIOT 1 Port B drives the eight data lines.
-    // During ATN, the drive releases DIO.
     const uint8_t data = atnActive ? 0xFF : riot1PB;
 
     ieee488Device->setBusDIO(data);

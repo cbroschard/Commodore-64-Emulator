@@ -254,6 +254,7 @@ D4040MotorSignals D4040VIA::getMotorSignals() const
 void D4040VIA::clearMechBytePending()
 {
     mechBytePending = false;
+    clearIFR(IFR_CA1);
 }
 
 

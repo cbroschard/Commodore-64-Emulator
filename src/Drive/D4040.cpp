@@ -240,7 +240,9 @@ void D4040::tick(uint32_t cycles)
 
 void D4040::updateIRQ()
 {
-    // Drive 6502 Interrupt
+    // -----------------------------------------
+    // DOS CPU (6502)
+    // -----------------------------------------
     const bool riotIRQ = d4040mem.getRIOT1().isIRQActive() || d4040mem.getRIOT2().isIRQActive();
 
     if (riotIRQ)
@@ -248,10 +250,16 @@ void D4040::updateIRQ()
     else
         driveIRQ.clearIRQ(IRQLine::D4040_IRQ);
 
-     // Controller 6504: VIA interrupt
+    // -----------------------------------------
+    // Disk Controller CPU (6504)
+    // -----------------------------------------
     const bool viaIRQ = d4040mem.getVIA().checkIRQActive();
 
-    if (viaIRQ)
+    const bool rriotIRQ = d4040mem.getRRIOT().isIRQActive();
+
+    const bool controllerInterrupt = viaIRQ || rriotIRQ;
+
+    if (controllerInterrupt)
         controllerIRQ.raiseIRQ(IRQLine::D4040_IRQ);
     else
         controllerIRQ.clearIRQ(IRQLine::D4040_IRQ);
@@ -395,10 +403,6 @@ bool D4040::mountDisk(uint8_t unit, const std::string& path)
     lastError = DriveError::NONE;
     status = DriveStatus::READY;
 
-    std::cout << "[D4040] Mounted disk in unit "
-              << static_cast<int>(unit)
-              << ": " << path << '\n';
-
     return true;
 }
 
@@ -525,7 +529,11 @@ void D4040::updateMechanisms()
         D4040Mechanism& mech = mechanisms[unit];
 
         const uint8_t newPhase = (unit == 0) ? signals.stepper0 : signals.stepper1;
-        mech.motorOn = (unit == 0) ? signals.motor0On : signals.motor1On;
+
+        // Record the electrical motor command.
+        // Physical spindle movement is handled by advanceGCR().
+        mech.motorCommandOn = (unit == 0) ? signals.motor0On : signals.motor1On;
+
         const uint8_t oldHalfTrack = mech.halfTrack;
 
         // Apply stepper transition exactly once.
@@ -663,12 +671,6 @@ bool D4040::flushMechanism(uint8_t unit)
                 << e.what() << '\n';
             return false;
         }
-
-        std::cout
-            << "[D4040] Unit "
-            << static_cast<int>(unit)
-            << ": staged " << changes.size()
-            << " modified sectors\n";
     }
 
     // Save the sector-backed image to disk.
@@ -886,12 +888,48 @@ void D4040::advanceGCR(uint32_t cycles)
     {
         D4040Mechanism& mech = mechanisms[unit];
 
-        // A stopped motor cannot produce disk bytes.
+        static constexpr uint32_t MOTOR_SPINDOWN_CYCLES = 200000;
+
+        if (mech.motorCommandOn)
+        {
+            // Motor power is enabled.
+            // The spindle is running.
+            mech.motorOn = true;
+
+            // Maintain a full spin-down interval
+            // while motor power remains enabled.
+            mech.motorSpinDownCycles = MOTOR_SPINDOWN_CYCLES;
+        }
+        else if (mech.motorOn)
+        {
+            // Motor power has been removed.
+            // Allow the spindle to coast.
+
+            if (cycles >= mech.motorSpinDownCycles)
+            {
+                // Spin-down has completed.
+                mech.motorSpinDownCycles = 0;
+                mech.motorOn = false;
+            }
+            else
+            {
+                // Continue rotating while slowing down.
+                mech.motorSpinDownCycles -= cycles;
+            }
+        }
+
         if (!mech.motorOn || !mech.diskImage)
         {
             mech.gcrCycleAccumulator = 0;
             mech.syncDetected = false;
             mech.byteReady = false;
+
+            if (unit == selectedUnit)
+            {
+                via.clearMechBytePending();
+                via.setSyncDetected(false);
+            }
+
             continue;
         }
 
@@ -1011,17 +1049,81 @@ void D4040::advanceGCR(uint32_t cycles)
             // -----------------------------------------
             if (via.isDiskReadMode())
             {
-                mech.syncDetected = inSync;
-                mech.byteReady = !inSync;
-                mech.readLatch = byte;
+                // -------------------------------------
+                // SYNC detection
+                // -------------------------------------
+                if (inSync)
+                {
+                    mech.syncDetected = true;
+                    mech.byteReady = false;
 
-                via.diskByteFromMedia(byte, inSync);
+                    // A SYNC field establishes a new GCR
+                    // decoding boundary.
+                    mech.gcrEncodedCount = 0;
+                    mech.gcrDecodedIndex = 4;
+
+                    // Report SYNC to the controller.
+                    via.diskByteFromMedia(0xFF, true);
+
+                    continue;
+                }
+
+                mech.syncDetected = false;
+                mech.byteReady = false;
+
+                // -------------------------------------
+                // Collect five encoded GCR bytes
+                // -------------------------------------
+                mech.gcrEncodedBuffer[mech.gcrEncodedCount++] = byte;
+
+                if (mech.gcrEncodedCount == 5)
+                {
+                    // Decode five physical GCR bytes into
+                    // four bytes visible to the controller.
+                    const bool decoded = gcrCodec.decode5Bytes(mech.gcrEncodedBuffer, mech.gcrDecodedBuffer);
+
+                    mech.gcrEncodedCount = 0;
+
+                    if (decoded)
+                    {
+                        // Four decoded bytes are now available.
+                        mech.gcrDecodedIndex = 0;
+                    }
+                    else
+                    {
+                        // Invalid GCR group, typically a gap
+                        // between disk blocks.
+                        mech.gcrDecodedIndex = 4;
+                    }
+                }
+
+                // -------------------------------------
+                // Deliver one decoded byte
+                // -------------------------------------
+                if (mech.gcrDecodedIndex < 4)
+                {
+                    const uint8_t decodedByte = mech.gcrDecodedBuffer[mech.gcrDecodedIndex++];
+
+                    mech.readLatch = decodedByte;
+                    mech.byteReady = true;
+
+                    // Present decoded data and generate
+                    // the controller's byte-ready signal.
+                    via.diskByteFromMedia(decodedByte, false);
+                }
+                else
+                {
+                    via.setSyncDetected(false);
+                }
             }
             else
             {
                 // Controller is not actively reading.
                 mech.syncDetected = false;
                 mech.byteReady = false;
+
+                mech.gcrEncodedCount = 0;
+                mech.gcrDecodedIndex = 4;
 
                 via.clearMechBytePending();
                 via.setSyncDetected(false);
