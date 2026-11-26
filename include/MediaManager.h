@@ -111,7 +111,7 @@ public:
     void setTapePath(const std::string& p) { state_.tapePath = p; }
 
     // Attachments
-    MediaLoadResult attachDiskImage(int deviceNum, DriveModel model, const std::string& path);
+    MediaLoadResult attachDiskImage(int deviceNum, DriveModel model, const std::string& path, uint32_t mechanism = 0);
     MediaLoadResult attachPRGImage(PRGLoadMode mode);
     MediaLoadResult attachCRTImage();
     bool attachT64Image();
@@ -129,6 +129,7 @@ public:
     void createBlankDisk(int deviceNum, DriveModel model, const std::string& path);
 
     // Detachments
+    bool ejectDiskImage(int dev, uint32_t mechanism = 0);
     bool detachDiskImage(int dev);
     void detachCRTImage();
     void detachREU();

@@ -169,7 +169,6 @@ class EmulatorUI
         void showMediaLoadError(const MediaError& error);
 
     private:
-
         bool fileDialogOpen_;
         std::string pendingPath_;
         UiCommand::Type pendingType_;
@@ -180,6 +179,7 @@ class EmulatorUI
 
         int pendingDevice_;
         UiCommand::DriveType pendingDriveType_;
+        uint32_t pendingMechanism_;
 
         bool joy1Attached;
         bool joy2Attached;
@@ -227,7 +227,7 @@ class EmulatorUI
         void installMenu(const MediaViewState& v);
         void startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type);
         void startSaveFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type, bool allowOverwrite = false);
-        void startDiskFileDialog(int deviceNum, UiCommand::DriveType driveType);
+        void startDiskFileDialog(int deviceNum, UiCommand::DriveType driveType, uint32_t mechanism = 0);
         void startCreateBlankDiskDialog(int deviceNum, UiCommand::DriveType driveType);
         void drawFileDialog();
 
@@ -240,7 +240,7 @@ class EmulatorUI
 
         bool driveHasDisk(const MediaViewState& v, int dev);
         void drawDriveDiskMenu(const MediaViewState& v, int dev);
-        void pushEjectDisk(int deviceNum);
+        void pushEjectDisk(int deviceNum, uint32_t mechanism = 0);
         UiCommand::DriveType getDriveTypeForDev(const MediaViewState& v, int dev) const;
 
         void push(UiCommand::Type t, std::string path = {}, int deviceNum = 8, UiCommand::DriveType driveType = UiCommand::DriveType::D1541);

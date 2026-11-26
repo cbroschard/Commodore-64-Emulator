@@ -16,6 +16,7 @@ EmulatorUI::EmulatorUI() :
     pendingIDE64Sectors_(0),
     pendingDevice_(8),
     pendingDriveType_(UiCommand::DriveType::D1541),
+    pendingMechanism_(0),
     gettingStartedOpen(false),
     keyboardShortcutsOpen(false),
     mediaErrorPending(false)
@@ -262,11 +263,12 @@ void EmulatorUI::startSaveFileDialog(const char* title, std::initializer_list<co
     pendingType_ = type;
 }
 
-void EmulatorUI::startDiskFileDialog(int deviceNum, UiCommand::DriveType driveType)
+void EmulatorUI::startDiskFileDialog(int deviceNum, UiCommand::DriveType driveType, uint32_t mechanism)
 {
-    pendingType_      = UiCommand::Type::AttachDisk;
-    pendingDevice_    = deviceNum;
-    pendingDriveType_ = driveType;
+    pendingType_       = UiCommand::Type::AttachDisk;
+    pendingDevice_     = deviceNum;
+    pendingDriveType_  = driveType;
+    pendingMechanism_  = mechanism;
 
     // Filter by drive type
     switch (driveType)
@@ -1467,10 +1469,17 @@ bool EmulatorUI::isAllowedByExtension(const std::filesystem::path& path) const
 
 void EmulatorUI::emitChosenPath(const std::filesystem::path& path)
 {
-    if (pendingType_ == UiCommand::Type::AttachDisk ||
-        pendingType_ == UiCommand::Type::CreateBlankDisk)
+    if (pendingType_ == UiCommand::Type::AttachDisk || pendingType_ == UiCommand::Type::CreateBlankDisk)
     {
-        push(pendingType_, path.string(), pendingDevice_, pendingDriveType_);
+        UiCommand cmd;
+
+        cmd.type       = pendingType_;
+        cmd.path       = path.string();
+        cmd.deviceNum  = pendingDevice_;
+        cmd.driveType  = pendingDriveType_;
+        cmd.mechanism  = pendingMechanism_;
+
+        out_.push_back(std::move(cmd));
     }
     else if (pendingType_ == UiCommand::Type::LoadIDE64Image)
     {
@@ -1705,27 +1714,39 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
     {
         if (ieee488Active)
         {
-            // IEEE-488 cartridge active:
-            // Only expose the Commodore 2031 or 4040.
-
+            //
+            // Commodore 2031
+            //
             if (ImGui::MenuItem("2031 (D64/G64/NIB)", nullptr, false, canUse2031))
-                startDiskFileDialog(dev, UiCommand::DriveType::D2031);
+                startDiskFileDialog(dev, UiCommand::DriveType::D2031, 0);
 
-            if (ImGui::MenuItem("4040 (D64)", nullptr, false, canUse4040))
-                startDiskFileDialog(dev, UiCommand::DriveType::D4040);
+            //
+            // Commodore 4040 - Dual mechanism
+            //
+            if (ImGui::BeginMenu("4040 (D64)", canUse4040))
+            {
+                if (ImGui::MenuItem("Mechanism 0..."))
+                    startDiskFileDialog(dev, UiCommand::DriveType::D4040, 0);
+
+                if (ImGui::MenuItem("Mechanism 1..."))
+                    startDiskFileDialog(dev, UiCommand::DriveType::D4040, 1);
+
+                ImGui::EndMenu();
+            }
         }
         else
         {
-            // Standard IEC serial interface.
-
+            //
+            // Standard IEC drives
+            //
             if (ImGui::MenuItem("1541 (D64/G64/NIB)", nullptr, false, canUse1541))
-                startDiskFileDialog(dev, UiCommand::DriveType::D1541);
+                startDiskFileDialog(dev, UiCommand::DriveType::D1541, 0);
 
             if (ImGui::MenuItem("1571 (D64/G64/G71/NIB/D71)", nullptr, false, canUse1571))
-                startDiskFileDialog(dev, UiCommand::DriveType::D1571);
+                startDiskFileDialog(dev, UiCommand::DriveType::D1571, 0);
 
             if (ImGui::MenuItem("1581 (D81)", nullptr, false, canUse1581))
-                startDiskFileDialog(dev, UiCommand::DriveType::D1581);
+                startDiskFileDialog(dev, UiCommand::DriveType::D1581, 0);
         }
 
         ImGui::EndMenu();
@@ -1768,8 +1789,31 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
     //
     const bool hasDisk = driveHasDisk(v, dev);
 
-    if (ImGui::MenuItem("Eject Disk", nullptr, false, hasDisk))
-        pushEjectDisk(dev);
+    if (existingType == UiCommand::DriveType::D4040)
+    {
+        //
+        // Commodore 4040 - Dual mechanism
+        //
+        if (ImGui::BeginMenu("Eject Disk", hasDisk))
+        {
+            if (ImGui::MenuItem("Mechanism 0"))
+                pushEjectDisk(dev, 0);
+
+            if (ImGui::MenuItem("Mechanism 1"))
+                pushEjectDisk(dev, 1);
+
+            ImGui::EndMenu();
+        }
+    }
+    else
+    {
+        //
+        // Single-mechanism drives:
+        // 1541, 1571, 1581, 2031
+        //
+        if (ImGui::MenuItem("Eject Disk", nullptr, false, hasDisk))
+            pushEjectDisk(dev, 0);
+    }
 
     ImGui::EndMenu();
 }
@@ -1785,15 +1829,15 @@ bool EmulatorUI::driveHasDisk(const MediaViewState& v, int dev)
     return false;
 }
 
-void EmulatorUI::pushEjectDisk(int deviceNum)
+void EmulatorUI::pushEjectDisk(int deviceNum, uint32_t mechanism)
 {
-    push
-    (
-        UiCommand::Type::EjectDisk,
-        std::string{},
-        deviceNum,
-        UiCommand::DriveType::D1541 // placeholder; ignored for eject
-    );
+    UiCommand cmd;
+
+    cmd.type = UiCommand::Type::EjectDisk;
+    cmd.deviceNum = deviceNum;
+    cmd.mechanism = mechanism;
+
+    out_.push_back(std::move(cmd));
 }
 
 UiCommand::DriveType EmulatorUI::getDriveTypeForDev(const MediaViewState& v, int dev) const

@@ -257,7 +257,7 @@ bool MediaManager::isExtCompatible(DriveModel model, const std::string& ext)
     return false;
 }
 
-MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::string& path)
+MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::string& path, uint32_t mechanism)
 {
     if (path.empty())
         return MediaLoadResult::fail("No disk image was selected.");
@@ -267,6 +267,12 @@ MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, c
 
     if (model == DriveModel::None)
         return MediaLoadResult::fail("Invalid drive model.");
+
+    // Currently only the 4040 supports multiple mechanisms.
+    const uint32_t mechanismCount = (model == DriveModel::D4040) ? 2 : 1;
+
+    if (mechanism >= mechanismCount)
+        return MediaLoadResult::fail("Invalid drive mechanism.");
 
     const std::string ext = lowerExt(path);
 
@@ -279,8 +285,7 @@ MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, c
 
     try
     {
-        // A disk insertion must not silently replace a different
-        // drive model already occupying this device slot.
+        // Do not replace a different drive model.
         if (components_.drives[deviceNum])
         {
             if (components_.drives[deviceNum]->getDriveModel() != model)
@@ -292,30 +297,40 @@ MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, c
             }
         }
 
-        // Create and attach the drive to the appropriate bus.
-        // D2031 and D4040 uses IEEE-488; all other supported models use IEC.
+        // Create and attach the drive if necessary.
         if (!ensureDriveExists(deviceNum, model))
-        {
-            return MediaLoadResult::fail(
-                "Unable to create or attach the selected disk drive.");
-        }
+            return MediaLoadResult::fail("Unable to create or attach the selected disk drive.");
 
         Drive* drive = components_.drives[deviceNum].get();
 
         if (!drive)
             return MediaLoadResult::fail("The selected drive is unavailable.");
 
-        // Insert the disk image.
-        if (!drive->insert(path))
+        bool inserted = false;
+
+        if (model == DriveModel::D4040)
+        {
+            // Use the existing mechanism-aware interface.
+            inserted = drive->mountDiskToMechanism(mechanism, path);
+        }
+        else
+        {
+            // Preserve existing behavior for single-mechanism drives.
+            inserted = drive->insert(path);
+        }
+
+        if (!inserted)
         {
             return MediaLoadResult::fail(
                 "The disk image could not be inserted. "
-                "It may be invalid, corrupted, or unsupported.");
+                "It may be invalid, corrupted, unsupported, "
+                "or the previous disk could not be saved.");
         }
 
         // Update media state only after successful insertion.
         state_.diskAttached = true;
-        state_.diskPath = "Drive " + std::to_string(deviceNum) + ": " + path;
+
+        state_.diskPath = "Drive " + std::to_string(deviceNum) + " Mechanism " + std::to_string(mechanism) + ": " + path;
 
         return MediaLoadResult::ok();
     }
@@ -800,6 +815,87 @@ void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::s
     }
 }
 
+bool MediaManager::ejectDiskImage(int deviceNum, uint32_t mechanism)
+{
+    if (deviceNum < 8 || deviceNum > 11)
+        return false;
+
+    Drive* drive = components_.drives[deviceNum].get();
+
+    // No drive is attached.
+    if (!drive)
+        return false;
+
+    const DriveModel model = drive->getDriveModel();
+
+    if (model == DriveModel::D4040)
+    {
+        // The 4040 has two independent mechanisms.
+        if (mechanism >= 2)
+            return false;
+
+        // Safely save and eject only the selected mechanism.
+        if (!drive->unmountDiskFromMechanism(mechanism))
+        {
+            std::cerr
+                << "[MediaManager] Failed to eject disk from "
+                << "drive " << deviceNum
+                << " mechanism " << mechanism
+                << '\n';
+
+            return false;
+        }
+    }
+    else
+    {
+        // All other supported drives have one mechanism.
+        if (mechanism != 0)
+            return false;
+
+        // Preserve existing single-drive ejection behavior.
+        drive->flushAndSaveDisk();
+        drive->unloadDisk();
+    }
+
+    // Refresh the global disk attachment state.
+    state_.diskAttached = false;
+    state_.diskPath.clear();
+
+    for (int dev = 8; dev <= 11; ++dev)
+    {
+        Drive* remaining = components_.drives[dev].get();
+
+        if (!remaining)
+            continue;
+
+        if (auto* d4040 = dynamic_cast<D4040*>(remaining))
+        {
+            // Check both 4040 mechanisms independently.
+            for (uint32_t unit = 0; unit < 2; ++unit)
+            {
+                if (d4040->isDiskLoaded(static_cast<uint8_t>(unit)))
+                {
+                    state_.diskAttached = true;
+
+                    state_.diskPath = "Drive " + std::to_string(dev) + " Mechanism " + std::to_string(unit) + ": " +
+                        d4040->getDiskPath(static_cast<uint8_t>(unit));
+
+                    break;
+                }
+            }
+        }
+        else if (remaining->isDiskLoaded())
+        {
+            state_.diskAttached = true;
+            state_.diskPath = "Drive " + std::to_string(dev) + ": " + remaining->getCurrentDiskPath();
+        }
+
+        if (state_.diskAttached)
+            break;
+    }
+
+    return true;
+}
 
 bool MediaManager::detachDiskImage(int dev)
 {

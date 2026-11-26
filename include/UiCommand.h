@@ -108,6 +108,11 @@ struct UiCommand
     int deviceNum                   = 8;
     DriveType driveType             = DriveType::D1541;
 
+    // Physical disk mechanism within the selected drive.
+    // 0 = first mechanism
+    // 1 = second mechanism (4040)
+    uint32_t mechanism              = 0;
+
     Type type;
     std::string path;
 

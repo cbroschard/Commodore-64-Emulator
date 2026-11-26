@@ -262,7 +262,7 @@ void UIBridge::processCommands()
                 if (model == DriveModel::None)
                     break;
 
-                MediaLoadResult result = media_->attachDiskImage(cmd.deviceNum, model, cmd.path);
+                MediaLoadResult result = media_->attachDiskImage(cmd.deviceNum, model, cmd.path, cmd.mechanism);
 
                 if (!result.success)
                     ui_.showMediaLoadError({MediaType::Disk, cmd.path, result.error});
@@ -455,7 +455,7 @@ void UIBridge::processCommands()
 
             case UiCommand::Type::EjectDisk:
                 if (media_)
-                    media_->detachDiskImage(cmd.deviceNum);
+                    media_->ejectDiskImage(cmd.deviceNum, cmd.mechanism);
                 break;
 
             case UiCommand::Type::SaveState:
