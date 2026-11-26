@@ -629,60 +629,35 @@ void D2031::getDriveIndicators(std::vector<Indicator>& out) const
 
 void D2031::loadDisk(const std::string& path)
 {
-    resetForMediaChange();
-
+    // Prepare the replacement image without disturbing
+    // the currently mounted disk.
     auto img = DiskFactory::create(path);
 
-    if (!img)
+    if (!img || !img->loadDisk(path))
     {
-        // Door open / no media behavior.
-        // Do not reset the drive CPU or IEEE-488 interface.
-        loadedDiskName.clear();
-        diskImage.reset();
-        diskLoaded = false;
-        diskWriteProtected = false;
+        std::cerr
+            << "[D2031] Failed to load disk image: "
+            << path << '\n';
+
         lastError = DriveError::NO_DISK;
-        status = DriveStatus::IDLE;
+        return;
+    }
 
-        // Invalidate the previous media stream.
-        gcrDirty = true;
-        gcrPos = 0;
-        gcrBitCounter = 0;
-
-        gcrTrack.clear();
-        gcrTrack.getSyncMap().clear();
-        gcrSectorAtPos.clear();
-
-        d2031mem.getVIA2().clearMechBytePending();
+    // Save pending changes to the existing disk.
+    // Preserve the mounted disk if saving fails.
+    if (!tryFlushAndSaveDisk())
+    {
+        std::cerr
+            << "[D2031] Cannot replace disk: "
+               "unsaved changes remain.\n";
 
         return;
     }
 
-    if (!img->loadDisk(path))
-    {
-        // Invalid or unreadable image.
-        // Preserve the drive computer, but remove media.
-        loadedDiskName.clear();
-        diskImage.reset();
-        diskLoaded = false;
-        diskWriteProtected = false;
-        lastError = DriveError::NO_DISK;
-        status = DriveStatus::IDLE;
+    // The replacement is valid and the old disk is safe.
+    resetForMediaChange();
 
-        gcrDirty = true;
-        gcrPos = 0;
-        gcrBitCounter = 0;
-
-        gcrTrack.clear();
-        gcrTrack.getSyncMap().clear();
-        gcrSectorAtPos.clear();
-
-        d2031mem.getVIA2().clearMechBytePending();
-
-        return;
-    }
-
-    // HOT SWAP
+    // Install the replacement image.
     diskImage = std::move(img);
 
     diskWriteProtected = diskImage->isWriteProtected();
@@ -694,7 +669,7 @@ void D2031::loadDisk(const std::string& path)
     status = DriveStatus::READY;
     lastError = DriveError::NONE;
 
-    // Rebuild the media stream for the newly inserted disk.
+    // Rebuild the media stream for the new disk.
     gcrDirty = true;
     gcrPos = 0;
     gcrBitCounter = 0;

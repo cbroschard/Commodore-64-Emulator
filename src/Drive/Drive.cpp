@@ -26,10 +26,34 @@ Drive::Drive() :
 
 Drive::~Drive() = default;
 
-bool Drive::insert(const std::string &path)
+bool Drive::insert(const std::string& path)
 {
-    // Preserve the existing disk if pending changes
-    // cannot be saved.
+    // Verify that this drive supports the disk format.
+    const auto fmt = DiskFactory::detectFormat(path);
+
+    if (!canMount(fmt))
+    {
+        std::cerr
+            << "Drive: unsupported disk format: "
+            << path << '\n';
+
+        return false;
+    }
+
+    // Validate the replacement image before disturbing
+    // the currently mounted disk.
+    auto candidate = DiskFactory::create(path);
+
+    if (!candidate || !candidate->loadDisk(path))
+    {
+        std::cerr
+            << "Drive: failed to load disk image: "
+            << path << '\n';
+
+        return false;
+    }
+
+    // Preserve the current disk if saving fails.
     if (!tryFlushAndSaveDisk())
     {
         std::cerr
@@ -39,55 +63,42 @@ bool Drive::insert(const std::string &path)
         return false;
     }
 
-    // Detect disk format
-    auto fmt = DiskFactory::detectFormat(path);
-
-    // Ask the concrete drive (1571, etc.) if it supports this format
-    if (!canMount(fmt))
-    {
-        currentDriveError  = DriveError::NO_DISK;
-        currentDriveStatus = DriveStatus::IDLE;
-        std::cerr << "Drive: format not supported for '" << path << "'\n";
-        return false;
-    }
-
-    // Create disk implementation
-    std::unique_ptr<Disk> d = DiskFactory::create(path);
-    if (!d)
-    {
-        currentDriveError  = DriveError::NO_DISK;
-        currentDriveStatus = DriveStatus::IDLE;
-        std::cerr << "Drive: no disk implementation for '" << path << "'\n";
-        return false;
-    }
-
-    // Load backing file
-    if (!d->loadDisk(path))
-    {
-        currentDriveError  = DriveError::READ_ERROR;
-        currentDriveStatus = DriveStatus::IDLE;
-        std::cerr << "Drive: failed to load disk image '" << path << "'\n";
-        return false;
-    }
-
-    // Take ownership
-    diskImage = std::move(d);
-
-    // Let concrete drive sync its internal state (track, side, etc.)
+    // The concrete drive owns the replacement process.
+    // Do not assign diskImage here.
     try
     {
         loadDisk(path);
     }
+    catch (const std::exception& e)
+    {
+        std::cerr
+            << "Drive: exception while mounting disk: "
+            << e.what() << '\n';
+
+        return false;
+    }
     catch (...)
     {
-        currentDriveError  = DriveError::READ_ERROR;
-        currentDriveStatus = DriveStatus::IDLE;
-        std::cerr << "Drive: exception while mounting disk '" << path << "'\n";
+        std::cerr
+            << "Drive: unknown exception while mounting disk.\n";
+
+        return false;
+    }
+
+    // A failed replacement may leave the old disk mounted.
+    // Therefore, isDiskLoaded() alone is insufficient.
+    if (!isDiskLoaded() || getCurrentDiskPath() != path)
+    {
+        std::cerr
+            << "Drive: disk replacement failed: "
+            << path << '\n';
+
         return false;
     }
 
     currentDriveError  = DriveError::NONE;
     currentDriveStatus = DriveStatus::READY;
+
     return true;
 }
 

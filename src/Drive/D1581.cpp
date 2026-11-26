@@ -536,44 +536,61 @@ bool D1581::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer,
 
 void D1581::loadDisk(const std::string& path)
 {
-    flushAndSaveDisk();
-
+    // Prepare the replacement image first.
     auto img = DiskFactory::create(path);
+
     if (!img)
     {
-        diskImage.reset();
-        diskLoaded = false;
-        loadedDiskName.clear();
+        std::cerr
+            << "[D1581] Failed to create disk image: "
+            << path << '\n';
+
         lastError = DriveError::NO_DISK;
         return;
     }
 
-    // For now the 1581 drive path expects a CBM sector image.
+    // The 1581 expects a CBM sector-backed image.
     CBMImage* cbmImage = dynamic_cast<CBMImage*>(img.get());
+
     if (!cbmImage)
     {
-        diskImage.reset();
-        diskLoaded = false;
-        loadedDiskName.clear();
+        std::cerr
+            << "[D1581] Unsupported disk image: "
+            << path << '\n';
+
         lastError = DriveError::NO_DISK;
         return;
     }
 
-    // Try to load the disk image from file
+    // Load the new image without disturbing the old one.
     if (!cbmImage->loadDisk(path))
     {
-        diskImage.reset();
-        diskLoaded = false;
-        loadedDiskName.clear();
+        std::cerr
+            << "[D1581] Failed to load disk image: "
+            << path << '\n';
+
         lastError = DriveError::NO_DISK;
         return;
     }
 
+    // Save pending changes to the existing disk.
+    // Refuse replacement if saving fails.
+    if (!tryFlushAndSaveDisk())
+    {
+        std::cerr
+            << "[D1581] Cannot replace disk: "
+               "unsaved changes remain.\n";
+
+        return;
+    }
+
+    // The old disk is safe and the new image is ready.
     resetForMediaChange();
 
-    // Success - transfer ownership from unique_ptr<Disk>
+    // Transfer ownership from Disk to CBMImage.
+    // The dynamic_cast above already verified the type.
     img.release();
-    diskImage.reset(cbmImage);
+    diskImage.reset(cbmImage);;
 
     diskWriteProtected = diskImage->isWriteProtected();
 

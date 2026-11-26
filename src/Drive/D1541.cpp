@@ -536,55 +536,38 @@ void D1541::updateIRQ()
 
 void D1541::loadDisk(const std::string& path)
 {
-    resetForMediaChange();
-
+    // Prepare the replacement disk without disturbing
+    // the currently mounted image.
     auto img = DiskFactory::create(path);
 
-    if (!img)
+    if (!img || !img->loadDisk(path))
     {
-        // "Door open / no media" behavior: don't reset the drive computer
-        loadedDiskName.clear();
-        diskImage.reset();
-        diskLoaded = false;
+        std::cerr
+            << "[D1541] Failed to load disk image: "
+            << path << '\n';
+
         lastError = DriveError::NO_DISK;
-
-        // Invalidate any ongoing media stream
-        gcrDirty = true;
-        gcrPos = 0;
-        gcrBitCounter = 0;
-
-        gcrTrack.clear();
-        gcrTrack.getSyncMap().clear();
-        gcrSectorAtPos.clear();
-        d1541mem.getVIA2().clearMechBytePending();
         return;
     }
 
-    if (!img->loadDisk(path))
+    // Save pending changes to the existing disk.
+    // If saving fails, preserve the current image.
+    if (!tryFlushAndSaveDisk())
     {
-        // "Door open / no media" behavior: don't reset the drive computer
-        loadedDiskName.clear();
-        diskImage.reset();
-        diskLoaded = false;
-        lastError = DriveError::NO_DISK;
+        std::cerr
+            << "[D1541] Cannot replace disk: "
+               "unsaved changes remain.\n";
 
-        // Invalidate any ongoing media stream
-        gcrDirty = true;
-        gcrPos = 0;
-        gcrBitCounter = 0;
-
-        gcrTrack.clear();
-        gcrTrack.getSyncMap().clear();
-        gcrSectorAtPos.clear();
-        d1541mem.getVIA2().clearMechBytePending();
         return;
     }
 
-    // HOT SWAP
+    // The replacement is ready and the old disk is safe.
+    resetForMediaChange();
+
+    // Install the new image.
     diskImage = std::move(img);
 
     diskWriteProtected = diskImage->isWriteProtected();
-
     diskLoaded = true;
 
     invalidateRawGcrCache();
@@ -593,7 +576,7 @@ void D1541::loadDisk(const std::string& path)
     status = DriveStatus::READY;
     lastError = DriveError::NONE;
 
-    // Invalidate/rebuild media stream for the newly inserted disk
+    // Invalidate/rebuild the media stream.
     gcrDirty = true;
     gcrPos = 0;
     gcrBitCounter = 0;
@@ -601,6 +584,7 @@ void D1541::loadDisk(const std::string& path)
     gcrTrack.clear();
     gcrTrack.getSyncMap().clear();
     gcrSectorAtPos.clear();
+
     d1541mem.getVIA2().clearMechBytePending();
 }
 

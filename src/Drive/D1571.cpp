@@ -751,60 +751,44 @@ void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 
 void D1571::loadDisk(const std::string& path)
 {
-    flushAndSaveDisk();
-
-    resetForMediaChange();
-
-
+    // Prepare the replacement image before modifying
+    // the currently mounted disk.
     auto img = DiskFactory::create(path);
 
-    if (!img)
+    if (!img || !img->loadDisk(path))
     {
-        loadedDiskName.clear();
-        diskImage.reset();
-        diskLoaded = false;
+        std::cerr
+            << "[D1571] Failed to load disk image: "
+            << path << '\n';
+
         lastError = DriveError::NO_DISK;
+        return;
+    }
 
-        gcrDirty = true;
-        gcrPos = 0;
-        gcrBitCounter = 0;
-
-        gcrTrack.clear();
-        gcrTrack.getSyncMap().clear();
-        gcrSectorAtPos.clear();
-
-        d1571mem.getVIA2().clearMechBytePending();
+    // Save any pending changes to the existing disk.
+    // Preserve the original disk if saving fails.
+    if (!tryFlushAndSaveDisk())
+    {
+        std::cerr
+            << "[D1571] Cannot replace disk: "
+               "unsaved changes remain.\n";
 
         return;
     }
 
-    if (!img->loadDisk(path))
-    {
-        loadedDiskName.clear();
-        diskImage.reset();
-        diskLoaded = false;
-        lastError = DriveError::NO_DISK;
+    // The replacement is valid and the old disk is safe.
+    resetForMediaChange();
 
-        gcrDirty = true;
-        gcrPos = 0;
-        gcrBitCounter = 0;
-
-        gcrTrack.clear();
-        gcrTrack.getSyncMap().clear();
-        gcrSectorAtPos.clear();
-
-        d1571mem.getVIA2().clearMechBytePending();
-
-        return;
-    }
-
+    // Install the new disk image.
     diskImage = std::move(img);
 
     diskWriteProtected = diskImage->isWriteProtected();
 
     // Determine media path from actual image type.
     if (diskImage->supportsRawTracks())
+    {
         mediaPath = MediaPath::GCR_RAW;
+    }
     else
     {
         auto lowerExt = [](const std::string& p) -> std::string
@@ -817,7 +801,10 @@ void D1571::loadDisk(const std::string& path)
             std::string ext = p.substr(dot);
 
             for (auto& c : ext)
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            {
+                c = static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(c)));
+            }
 
             return ext;
         };
@@ -840,6 +827,7 @@ void D1571::loadDisk(const std::string& path)
     status = DriveStatus::READY;
     lastError = DriveError::NONE;
 
+    // Rebuild the media stream for the replacement disk.
     gcrDirty = true;
     gcrPos = 0;
     gcrBitCounter = 0;

@@ -279,41 +279,13 @@ void D4040::getDriveIndicators(std::vector<Indicator>& out) const
 
 void D4040::loadDisk(const std::string& path)
 {
-    // Drive::insert() has already loaded the image.
-    if (!diskImage)
-        throw std::runtime_error("D4040: disk image was not loaded");
-
-    D4040Mechanism& mech = mechanisms[0];
-
-    if (!flushMechanism(0))
+    // The legacy single-disk interface targets mechanism 0.
+    // Delegate to the mechanism-aware mounting function.
+    if (!mountDisk(0, path))
     {
         throw std::runtime_error(
-            "D4040: cannot replace unit 0; previous disk save failed");
+            "D4040: failed to mount disk in mechanism 0");
     }
-
-    mech.diskImage = std::move(diskImage);
-
-    // A newly mounted disk must not inherit
-    // cached GCR tracks from the previous disk.
-    mech.clearDirtyTrackCache();
-
-    mech.diskInserted = true;
-    mech.diskPath = path;
-    mech.writeProtected = mech.diskImage->isWriteProtected();
-
-    mech.syncDetected = false;
-    mech.byteReady = false;
-    mech.readLatch = 0xFF;
-    mech.writeLatch = 0xFF;
-
-    mech.gcrTrack.clear();
-    mech.gcrPos = 0;
-    mech.loadedGCRTrack = 0;
-    mech.gcrValid = false;
-    mech.gcrCycleAccumulator = 0;
-
-    lastError = DriveError::NONE;
-    status = DriveStatus::READY;
 }
 
 void D4040::unloadDisk()
