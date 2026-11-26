@@ -82,12 +82,12 @@ bool Drive::insert(const std::string &path)
 
 bool Drive::mountDiskToMechanism(uint32_t mechanismId, const std::string& path)
 {
+    // Default implementation supports one mechanism.
     if (mechanismId != 0)
         return false;
 
-    loadDisk(path);
-
-    return isDiskLoaded();
+    // Use the existing validated disk insertion path.
+    return insert(path);
 }
 
 bool Drive::unmountDiskFromMechanism(uint32_t mechanismId)
