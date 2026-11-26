@@ -3723,11 +3723,85 @@ void MLMonitorBackend::dumpDriveSummary(int id, DriveBusType busType)
     oss << "Drive " << id << " Summary:\n";
     oss << "  Bus:         " << busName << "\n";
     oss << "  Type:        " << drive->getDriveTypeName() << "\n";
-    oss << "  Image:       " << drive->getLoadedDiskName() << "\n";
-    oss << "  Disk Loaded: " << (drive->isDiskLoaded() ? "Yes" : "No") << "\n\n";
-    oss << "  Track:       " << static_cast<int>(drive->getCurrentTrack()) << "\n";
-    oss << "  Sector:      " << static_cast<int>(drive->getCurrentSector()) << "\n";
-    oss << "  Motor:       " << (drive->isMotorOn() ? "On" : "Off") << "\n\n";
+
+    // Discover available floppy mechanisms.
+    const auto hardware = drive->enumerateDriveHardware();
+
+    std::vector<DriveHardwareInfo> mechanisms;
+
+    for (const auto& component : hardware)
+    {
+        if (component.type == DriveHardwareType::Mechanism)
+            mechanisms.push_back(component);
+    }
+
+    // Preserve existing summary formatting for single-mechanism drives.
+    if (mechanisms.size() <= 1)
+    {
+        oss << "  Image:       "
+            << drive->getLoadedDiskName() << "\n";
+
+        oss << "  Disk Loaded: "
+            << (drive->isDiskLoaded() ? "Yes" : "No")
+            << "\n\n";
+
+        oss << "  Track:       "
+            << static_cast<int>(drive->getCurrentTrack())
+            << "\n";
+
+        oss << "  Sector:      "
+            << static_cast<int>(drive->getCurrentSector())
+            << "\n";
+
+        oss << "  Motor:       "
+            << (drive->isMotorOn() ? "On" : "Off")
+            << "\n\n";
+    }
+    else
+    {
+        oss << "\n  Disk Mechanisms:\n";
+
+        for (const auto& component : mechanisms)
+        {
+            DriveMechanismDebugView view;
+
+            if (!drive->getHardwareMechanismDebug(component.id, view))
+            {
+                oss << "    " << component.name
+                    << ": Information unavailable.\n";
+                continue;
+            }
+
+            oss << "\n    " << component.name << ":\n";
+
+            oss << "      Disk Loaded: "
+                << (view.diskInserted ? "Yes" : "No")
+                << "\n";
+
+            if (view.diskInserted)
+            {
+                oss << "      Image:       "
+                    << (view.diskPath.empty()
+                            ? "(unknown)"
+                            : view.diskPath)
+                    << "\n";
+            }
+
+            oss << "      Track:       "
+                << static_cast<unsigned>(view.track)
+                << "\n";
+
+            oss << "      Sector:      "
+                << static_cast<unsigned>(view.sector)
+                << "\n";
+
+            oss << "      Motor:       "
+                << (view.motorOn ? "On" : "Off")
+                << "\n";
+        }
+
+        oss << "\n";
+    }
 
     if (resolved.busType == DriveBusType::IEC)
     {
@@ -4626,6 +4700,73 @@ void MLMonitorBackend::dumpDriveVIA2(int id, DriveBusType busType)
     const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
     dumpDriveVIARegisters(via, "Drive " + std::to_string(id) + " (" + busName + ") VIA2");
+}
+
+void MLMonitorBackend::mountDriveMechanism(int id, uint32_t mechanismId, const std::string& path, DriveBusType busType)
+{
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
+    {
+        std::cout << "Unable to resolve drive " << id
+                  << ". The device may not exist or its "
+                  << "number may be ambiguous.\n";
+        return;
+    }
+
+    Drive* drive = resolved.drive;
+
+    if (path.empty())
+    {
+        std::cout << "Disk image path cannot be empty.\n";
+        return;
+    }
+
+    if (!drive->mountDiskToMechanism(mechanismId, path))
+    {
+        std::cout << "Unable to mount disk image in drive "
+                  << id << " mechanism " << mechanismId
+                  << ".\n";
+        return;
+    }
+
+    const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
+
+    std::cout << "Drive " << id
+              << " (" << busName << ")"
+              << " mechanism " << mechanismId
+              << " mounted:\n"
+              << "  " << path << "\n";
+}
+
+void MLMonitorBackend::unmountDriveMechanism(int id, uint32_t mechanismId, DriveBusType busType)
+{
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
+    {
+        std::cout << "Unable to resolve drive " << id
+                  << ". The device may not exist or its "
+                  << "number may be ambiguous.\n";
+        return;
+    }
+
+    Drive* drive = resolved.drive;
+
+    if (!drive->unmountDiskFromMechanism(mechanismId))
+    {
+        std::cout << "Unable to unmount disk from drive "
+                  << id << " mechanism " << mechanismId
+                  << ".\n";
+        return;
+    }
+
+    const std::string busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
+
+    std::cout << "Drive " << id
+              << " (" << busName << ")"
+              << " mechanism " << mechanismId
+              << " unmounted.\n";
 }
 
 void MLMonitorBackend::dumpDriveHardware(int id, DriveBusType busType)

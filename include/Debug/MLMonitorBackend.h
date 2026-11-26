@@ -158,6 +158,10 @@ class MLMonitorBackend
         void dumpDriveVIA1(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveVIA2(int id, DriveBusType busType = DriveBusType::Auto);
 
+        // Drive mechanism disk management
+        void mountDriveMechanism(int id, uint32_t mechanismId, const std::string& path, DriveBusType busType = DriveBusType::Auto);
+        void unmountDriveMechanism(int id, uint32_t mechanismId, DriveBusType busType = DriveBusType::Auto);
+
         // Hardware discovery
         void dumpDriveHardware(int id, DriveBusType busType = DriveBusType::Auto);
 

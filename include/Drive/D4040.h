@@ -68,6 +68,9 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void loadDisk(const std::string& path) override;
         void unloadDisk() override;
 
+        bool mountDiskToMechanism(uint32_t mechanismId, const std::string& path) override;
+        bool unmountDiskFromMechanism(uint32_t mechanismId) override;
+
         // 4040-specific dual-mechanism interface.
         bool mountDisk(uint8_t unit, const std::string& path);
         void unloadDisk(uint8_t unit);

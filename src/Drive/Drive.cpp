@@ -80,6 +80,26 @@ bool Drive::insert(const std::string &path)
     return true;
 }
 
+bool Drive::mountDiskToMechanism(uint32_t mechanismId, const std::string& path)
+{
+    if (mechanismId != 0)
+        return false;
+
+    loadDisk(path);
+
+    return isDiskLoaded();
+}
+
+bool Drive::unmountDiskFromMechanism(uint32_t mechanismId)
+{
+    if (mechanismId != 0)
+        return false;
+
+    unloadDisk();
+
+    return !isDiskLoaded();
+}
+
 void Drive::addBreakpoint(uint16_t address)
 {
     addBreakpoint(0, address);

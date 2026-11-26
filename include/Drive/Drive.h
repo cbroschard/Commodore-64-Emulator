@@ -77,6 +77,9 @@ class Drive : public Peripheral, public IDriveHardwareProvider
         virtual void loadDisk(const std::string& path) = 0;
         virtual void unloadDisk() = 0;
 
+        virtual bool mountDiskToMechanism(uint32_t mechanismId, const std::string& path);
+        virtual bool unmountDiskFromMechanism(uint32_t mechanismId);
+
         // Getters
         virtual uint8_t getCurrentTrack() const = 0;
         virtual uint8_t getCurrentSector() const = 0;

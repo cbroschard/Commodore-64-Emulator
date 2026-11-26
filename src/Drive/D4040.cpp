@@ -319,6 +319,30 @@ void D4040::unloadDisk()
     diskImage.reset();
 }
 
+bool D4040::mountDiskToMechanism(uint32_t mechanismId, const std::string& path)
+{
+    if (mechanismId >= mechanisms.size())
+        return false;
+
+    return mountDisk(static_cast<uint8_t>(mechanismId), path);
+}
+
+bool D4040::unmountDiskFromMechanism(uint32_t mechanismId)
+{
+    if (mechanismId >= mechanisms.size())
+        return false;
+
+    const uint8_t unit = static_cast<uint8_t>(mechanismId);
+
+    if (!isDiskLoaded(unit))
+        return true;
+
+    if (!tryUnloadDisk(unit))
+        return false;
+
+    return !isDiskLoaded(unit);
+}
+
 bool D4040::mountDisk(uint8_t unit, const std::string& path)
 {
     if (unit >= mechanisms.size() || path.empty())

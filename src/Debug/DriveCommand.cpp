@@ -76,6 +76,10 @@ CPU Execution:
   drive <id> cycle             Advance one cycle on CPU 0
   drive <id> cycle <cpu-id>    Advance one cycle on selected CPU
 
+Disk Management:
+  drive <id> mount <unit> <path>   Mount disk image in mechanism
+  drive <id> unmount <unit>        Unmount disk from mechanism
+
 Memory Inspection:
   drive <id> mem <addr>                  Dump default CPU memory
   drive <id> mem <addr> <count>          Dump memory bytes
@@ -165,6 +169,14 @@ Examples - IEEE-488 Drives:
   drive ieee488 8 mem $0300 64
   drive ieee488 8 step
   drive ieee488 8 cycle
+
+Examples - Dual-Mechanism Drives (4040):
+  drive ieee488 8 mount 0 "disk1.d64"
+  drive ieee488 8 mount 1 "disk2.d64"
+  drive ieee488 8 chip 10
+  drive ieee488 8 chip 11
+  drive ieee488 8 unmount 0
+  drive ieee488 8 unmount 1
 
 Examples - Dual-CPU Drives (4040):
   drive ieee488 8 hardware
@@ -832,6 +844,91 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
         const bool instructionStep = (subcmd == "step");
 
         backend->driveCPUStep(id, busType, cpuId, instructionStep);
+
+        return;
+    }
+
+    if (subcmd == "mount")
+    {
+        if (args.size() < 5)
+        {
+            std::cout << "Usage: drive " << id
+                      << " mount <mechanism-id> <disk-image-path>\n";
+            return;
+        }
+
+        try
+        {
+            // Parse mechanism ID.
+            size_t parsed = 0;
+
+            const unsigned long value = std::stoul(args[3], &parsed, 10);
+
+            if (parsed != args[3].size() || value > UINT32_MAX)
+                throw std::out_of_range("Invalid mechanism ID");
+
+            const uint32_t mechanismId = static_cast<uint32_t>(value);
+
+            // Reassemble the disk path in case the monitor
+            // tokenizer split a path containing spaces.
+            std::string path;
+
+            for (size_t i = 4; i < args.size(); ++i)
+            {
+                if (!path.empty())
+                    path += " ";
+
+                path += args[i];
+            }
+
+            // Remove surrounding quotes if present.
+            if (path.size() >= 2 && path.front() == '"' && path.back() == '"')
+                path = path.substr(1, path.size() - 2);
+
+            if (path.empty())
+            {
+                std::cout << "Disk image path cannot be empty.\n";
+                return;
+            }
+
+            backend->mountDriveMechanism(id, mechanismId, path, busType);
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "Invalid mount command: "
+                      << e.what() << "\n";
+        }
+
+        return;
+    }
+
+    if (subcmd == "unmount")
+    {
+        if (args.size() != 4)
+        {
+            std::cout << "Usage: drive " << id
+                      << " unmount <mechanism-id>\n";
+            return;
+        }
+
+        try
+        {
+            size_t parsed = 0;
+
+            const unsigned long value = std::stoul(args[3], &parsed, 10);
+
+            if (parsed != args[3].size() || value > UINT32_MAX)
+                throw std::out_of_range("Invalid mechanism ID");
+
+            const uint32_t mechanismId = static_cast<uint32_t>(value);
+
+            backend->unmountDriveMechanism(id, mechanismId, busType);
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "Invalid unmount command: "
+                      << e.what() << "\n";
+        }
 
         return;
     }
