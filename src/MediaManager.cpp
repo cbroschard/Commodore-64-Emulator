@@ -66,7 +66,7 @@ MediaManager::MediaManager(MachineComponents& components,
 void MediaManager::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("MED0");
-    wrtr.writeU32(1); // version
+    wrtr.writeU32(2); // version
 
     // Dump Cartridge
     wrtr.writeBool(state_.cartAttached);
@@ -91,7 +91,9 @@ void MediaManager::saveState(StateWriter& wrtr) const
     wrtr.writeBool(state_.tapeAttached);
     wrtr.writeString(state_.tapePath);
 
-    // Dump Drive mount table (8..11)
+    // -----------------------------------------
+    // Drive mount table (8..11)
+    // -----------------------------------------
     constexpr uint8_t kFirstDev = 8;
     constexpr uint8_t kLastDev  = 11;
 
@@ -100,23 +102,61 @@ void MediaManager::saveState(StateWriter& wrtr) const
 
     for (uint8_t dev = kFirstDev; dev <= kLastDev; ++dev)
     {
-        const bool present = (components_.drives[dev] != nullptr);
+        Drive* drive = components_.drives[dev].get();
+
+        const bool present = (drive != nullptr);
+
         wrtr.writeBool(present);
 
-        uint8_t modelId = 0;
-        bool hasDisk = false;
-        std::string diskPath;
+        if (!present)
+            continue;
 
-        if (present)
+        // Drive model
+        wrtr.writeU8(static_cast<uint8_t>(drive->getDriveModel()));
+
+        // Discover physical disk mechanisms.
+        const auto hardware = drive->enumerateDriveHardware();
+
+        std::vector<DriveMechanismDebugView> mechanisms;
+
+        for (const auto& component : hardware)
         {
-            modelId = static_cast<uint8_t>(components_.drives[dev]->getDriveModel());
-            hasDisk = components_.drives[dev]->isDiskLoaded();
-            diskPath = hasDisk ? components_.drives[dev]->getCurrentDiskPath() : std::string{};
+            if (component.type != DriveHardwareType::Mechanism)
+                continue;
+
+            DriveMechanismDebugView debug;
+
+            if (!drive->getHardwareMechanismDebug(component.id, debug))
+                continue;
+
+            mechanisms.push_back(std::move(debug));
         }
 
-        wrtr.writeU8(modelId);
-        wrtr.writeBool(hasDisk);
-        wrtr.writeString(diskPath);
+        // Compatibility fallback for single-mechanism drives.
+        if (mechanisms.empty())
+        {
+            DriveMechanismDebugView debug;
+
+            debug.mechanismId = 0;
+            debug.diskInserted = drive->isDiskLoaded();
+
+            if (debug.diskInserted)
+                debug.diskPath = drive->getCurrentDiskPath();
+
+            mechanisms.push_back(std::move(debug));
+        }
+
+        // Number of mechanisms.
+        wrtr.writeU32(static_cast<uint32_t>(mechanisms.size()));
+
+        // Save each mechanism independently.
+        for (const auto& mechanism : mechanisms)
+        {
+            wrtr.writeU32(mechanism.mechanismId);
+            wrtr.writeBool(mechanism.diskInserted);
+
+            wrtr.writeString(mechanism.diskInserted ? mechanism.diskPath : std::string{});
+        }
     }
 
     // Dump REU attachment
@@ -134,7 +174,7 @@ bool MediaManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1 && ver != 2)                               { rdr.exitChunkPayload(chunk); return false; }
 
         // Cartridge
         if (!rdr.readBool(state_.cartAttached))                 { rdr.exitChunkPayload(chunk); return false; }
@@ -167,39 +207,189 @@ bool MediaManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(state_.tapeAttached))                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readString(state_.tapePath))                   { rdr.exitChunkPayload(chunk); return false; }
 
+        // -----------------------------------------
         // Drive mount table (8..11)
-        uint8_t firstDev = 0, lastDev = 0;
+        // -----------------------------------------
+        uint8_t firstDev = 0;
+        uint8_t lastDev = 0;
+
         if (!rdr.readU8(firstDev))                              { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(lastDev))                               { rdr.exitChunkPayload(chunk); return false; }
 
-        // We only expect 8..11 from your saver, but tolerate other ranges safely.
-        for (uint8_t dev = firstDev; dev <= lastDev; ++dev)
+        // Validate device range.
+        if (firstDev < 8 || lastDev > 11 || firstDev > lastDev) { rdr.exitChunkPayload(chunk); return false; }
+
+        for (int dev = firstDev; dev <= lastDev; ++dev)
         {
             bool present = false;
+
             if (!rdr.readBool(present))                         { rdr.exitChunkPayload(chunk); return false; }
 
+            // -------------------------------------
+            // Version 1: Legacy single-disk format
+            // -------------------------------------
+            if (ver == 1)
+            {
+                uint8_t modelId = 0;
+                bool hasDisk = false;
+                std::string diskPath;
+
+                if (!rdr.readU8(modelId) || !rdr.readBool(hasDisk) || !rdr.readString(diskPath))
+                {
+                    rdr.exitChunkPayload(chunk);
+                    return false;
+                }
+
+                if (!present)
+                    continue;
+
+                if (!isValidDriveModelId(modelId))
+                {
+                    rdr.exitChunkPayload(chunk);
+                    return false;
+                }
+
+                const DriveModel model =
+                    static_cast<DriveModel>(modelId);
+
+                if (model == DriveModel::None)
+                    continue;
+
+                if (!ensureDriveExists(dev, model))
+                {
+                    rdr.exitChunkPayload(chunk);
+                    return false;
+                }
+
+                if (hasDisk && !diskPath.empty())
+                {
+                    if (!components_.drives[dev]->mountDiskToMechanism(0, diskPath))
+                    {
+                        rdr.exitChunkPayload(chunk);
+                        return false;
+                    }
+                }
+
+                continue;
+            }
+
+            // -------------------------------------
+            // Version 2: Multiple mechanisms
+            // -------------------------------------
+
+            // Version 2 writes no additional fields
+            // when the drive is absent.
+            if (!present)
+                continue;
+
             uint8_t modelId = 0;
-            bool hasDisk = false;
-            std::string diskPath;
 
-            if (!rdr.readU8(modelId))                           { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readBool(hasDisk))                         { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readString(diskPath))                      { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(modelId))
+            {
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
 
-            if (!present) continue;
-
-            if (dev < 8 || dev > 11) continue;
-
-            // Validate modelId to avoid corrupted-file crashes
-            if (!isValidDriveModelId(modelId)) continue;
+            if (!isValidDriveModelId(modelId))
+            {
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
 
             const DriveModel model = static_cast<DriveModel>(modelId);
-            if (model == DriveModel::None) continue;
 
-            if (hasDisk && !diskPath.empty())
+            if (model == DriveModel::None)
             {
-                // This will create the drive if missing and register it
-                attachDiskImage(static_cast<int>(dev), model, diskPath);
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
+
+            uint32_t mechanismCount = 0;
+
+            if (!rdr.readU32(mechanismCount))
+            {
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
+
+            // Prevent unreasonable mechanism counts
+            // from corrupted save-state files.
+            if (mechanismCount == 0 || mechanismCount > 16)
+            {
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
+
+            // Ensure the correct drive exists before
+            // restoring its mounted media.
+            if (!ensureDriveExists(dev, model))
+            {
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
+
+            Drive* drive = components_.drives[dev].get();
+
+            if (!drive)
+            {
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
+
+            for (uint32_t i = 0; i < mechanismCount; ++i)
+            {
+                uint32_t mechanismId = 0;
+                bool hasDisk = false;
+                std::string diskPath;
+
+                if (!rdr.readU32(mechanismId) || !rdr.readBool(hasDisk) || !rdr.readString(diskPath))
+                {
+                    rdr.exitChunkPayload(chunk);
+                    return false;
+                }
+
+                // -------------------------------------
+                // Restore mechanism media
+                // -------------------------------------
+                if (!hasDisk)
+                {
+                    // The saved mechanism was empty.
+                    // Remove any currently mounted disk.
+                    if (!drive->unmountDiskFromMechanism(mechanismId))
+                    {
+                        std::cerr
+                            << "[MediaManager] Failed to eject disk "
+                            << "from drive " << dev
+                            << " mechanism " << mechanismId
+                            << '\n';
+
+                        rdr.exitChunkPayload(chunk);
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                // A populated mechanism must have an image path.
+                if (diskPath.empty())
+                {
+                    rdr.exitChunkPayload(chunk);
+                    return false;
+                }
+
+                // Mount the saved disk in its original mechanism.
+                if (!drive->mountDiskToMechanism(mechanismId, diskPath))
+                {
+                    std::cerr
+                        << "[MediaManager] Failed to restore disk "
+                        << diskPath
+                        << " in drive " << dev
+                        << " mechanism " << mechanismId
+                        << '\n';
+
+                    rdr.exitChunkPayload(chunk);
+                    return false;
+                }
             }
         }
 
