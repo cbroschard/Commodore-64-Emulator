@@ -83,6 +83,11 @@ bool StateManager::save(const std::string& path)
     components_.userPortRS232Adapter->saveState(wrtr);
     components_.rs232Device->saveState(wrtr);
 
+    // Save media state before drive hardware state.
+    // During loading, disk images must be mounted
+    // before restoring drive CPU and GCR state.
+    components_.media->saveState(wrtr);
+
     // Save all installed disk drives
     for (const auto& drive : components_.drives)
     {
@@ -92,9 +97,6 @@ bool StateManager::save(const std::string& path)
 
     // Save joystick state
     components_.inputMgr->saveState(wrtr);
-
-    // Save media state
-    components_.media->saveState(wrtr);
 
     // Save cartridge state if attached
     if (components_.media->getState().cartAttached) components_.cart->saveState(wrtr);
@@ -119,7 +121,7 @@ bool StateManager::load(const std::string& path)
 
     try
     {
-        const auto rollbackPath =
+        rollbackPath =
             std::filesystem::temp_directory_path() /
             (
                 "commodore_state_rollback_" +
@@ -511,7 +513,25 @@ bool StateManager::loadInternal(const std::string& path)
             std::cout << "Loaded 1581 drive\n";
             #endif
         }
-        else if (std::memcmp(chunk.tag, "UR23", 4) == 0)
+        else if (std::memcmp(chunk.tag, "D231", 4) == 0)
+        {
+            if (!restoreDriveState(DriveModel::D2031, chunk))
+                return false;
+
+            #ifdef Debug
+            std::cout << "Loaded 2031 drive\n";
+            #endif
+        }
+        else if (std::memcmp(chunk.tag, "4040", 4) == 0)
+        {
+            if (!restoreDriveState(DriveModel::D4040, chunk))
+                return false;
+
+            #ifdef Debug
+            std::cout << "Loaded 4040 drive\n";
+            #endif
+        }
+                else if (std::memcmp(chunk.tag, "UR23", 4) == 0)
         {
             if (!components_.userPortRS232Adapter->loadState(chunk, rdr))
                 return false;
