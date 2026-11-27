@@ -63,6 +63,7 @@ class D4040Mechanism
         uint8_t getSector() const;
         uint8_t getHalfTrack() const;
         uint8_t getStepperPhase() const;
+        void setSector(uint8_t sector);
 
         // Motor timing
         uint32_t getMotorSpinDownCycles() const;

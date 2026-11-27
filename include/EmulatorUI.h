@@ -52,8 +52,17 @@ class EmulatorUI
         struct DriveMechanismView
         {
             uint32_t mechanismId = 0;
+
+            // Media
             bool diskInserted = false;
             std::string imagePath;
+
+            // Motor / activity
+            bool motorOn = false;
+
+            // Head position
+            int track = -1;
+            int sector = -1;
         };
 
         struct DriveStatusView

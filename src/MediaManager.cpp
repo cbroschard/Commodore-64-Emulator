@@ -1709,9 +1709,19 @@ void MediaManager::fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>
 
             EmulatorUI::DriveMechanismView mechanism;
 
+            // Identification
             mechanism.mechanismId = debug.mechanismId;
+
+            // Media
             mechanism.diskInserted = debug.diskInserted;
             mechanism.imagePath = debug.diskPath;
+
+            // Motor
+            mechanism.motorOn = debug.motorOn;
+
+            // Head position
+            mechanism.track = debug.track;
+            mechanism.sector = debug.sector;
 
             ds.mechanisms.push_back(std::move(mechanism));
         }
@@ -1739,6 +1749,21 @@ void MediaManager::fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>
                 ds.track = pos->getTrack();
                 ds.sector = pos->getSector();
             }
+        }
+
+        // Supply legacy position information to drives
+        // without mechanism-specific hardware reporting.
+        if (hardware.empty() && !ds.mechanisms.empty())
+        {
+            auto& mechanism = ds.mechanisms.front();
+
+            if (ds.hasTrackSector)
+            {
+                mechanism.track = ds.track;
+                mechanism.sector = ds.sector;
+            }
+
+            mechanism.motorOn = drive->isMotorOn();
         }
 
         if (auto* ind = dynamic_cast<IDriveIndicatorView*>(drive))

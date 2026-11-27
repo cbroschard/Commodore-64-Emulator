@@ -1639,15 +1639,66 @@ void EmulatorUI::drawDriveStatus(const MediaViewState& v)
                 //
                 // Track / sector
                 //
-                if (drive.diskInserted)
+                if (drive.mechanisms.size() > 1)
                 {
-                    if (drive.hasTrackSector)
-                        ImGui::Text("T/S %d/%d", drive.track, drive.sector);
-                    else
-                        ImGui::TextUnformatted("T/S --/--");
+                    // Multi-mechanism drives, such as the 4040.
+                    bool first = true;
+
+                    for (const auto& mech : drive.mechanisms)
+                    {
+                        if (!first)
+                            ImGui::SameLine(0.0f, 10.0f);
+
+                        first = false;
+
+                        if (!mech.diskInserted)
+                        {
+                            ImGui::Text(
+                                "%u: No Disk",
+                                static_cast<unsigned>(mech.mechanismId)
+                            );
+                        }
+                        else if (mech.track >= 0 && mech.sector >= 0)
+                        {
+                            ImGui::Text(
+                                "%u: T/S %d/%d",
+                                static_cast<unsigned>(mech.mechanismId),
+                                mech.track,
+                                mech.sector
+                            );
+                        }
+                        else
+                        {
+                            ImGui::Text(
+                                "%u: T/S --/--",
+                                static_cast<unsigned>(mech.mechanismId)
+                            );
+                        }
+                    }
                 }
                 else
-                    ImGui::TextUnformatted("No Disk");
+                {
+                    // Single-mechanism drives retain their existing display.
+                    if (drive.diskInserted)
+                    {
+                        if (drive.hasTrackSector)
+                        {
+                            ImGui::Text(
+                                "T/S %d/%d",
+                                drive.track,
+                                drive.sector
+                            );
+                        }
+                        else
+                        {
+                            ImGui::TextUnformatted("T/S --/--");
+                        }
+                    }
+                    else
+                    {
+                        ImGui::TextUnformatted("No Disk");
+                    }
+                }
             }
 
             ImGui::EndTable();

@@ -459,12 +459,19 @@ void D4040::getDriveIndicators(std::vector<Indicator>& out) const
 {
     out.clear();
 
-    Indicator act;
-    act.name = "ACT";
-    act.on = false;
-    act.color = IDriveIndicatorView::DriveIndicatorColor::Red;
+    Indicator unit0;
+    unit0.name = "0";
+    unit0.on = mechanisms[0].isMotorRunning();
+    unit0.color = IDriveIndicatorView::DriveIndicatorColor::Red;
 
-    out.push_back(std::move(act));
+    out.push_back(std::move(unit0));
+
+    Indicator unit1;
+    unit1.name = "1";
+    unit1.on = mechanisms[1].isMotorRunning();
+    unit1.color = IDriveIndicatorView::DriveIndicatorColor::Red;
+
+    out.push_back(std::move(unit1));
 }
 
 void D4040::loadDisk(const std::string& path)
@@ -1113,6 +1120,57 @@ void D4040::advanceGCR(uint32_t cycles)
             const size_t pos = mech.getGCRPosition() % trackSize;
             const uint8_t byte = data[pos];
             const bool inSync = pos < sync.size() && sync[pos] != 0;
+
+            // -------------------------------------------------
+            // Track the sector currently passing the read head.
+            // -------------------------------------------------
+            //
+            // Sector headers immediately follow a SYNC region.
+            // Decode the header for UI/debug position reporting.
+            // This does not affect the controller's GCR data path.
+            //
+
+            const size_t previousPos = (pos + trackSize - 1) % trackSize;
+
+            const bool previousWasSync = previousPos < sync.size() && sync[previousPos] != 0;
+
+            // We just left a SYNC region.
+            if (previousWasSync && !inSync && trackSize >= 10)
+            {
+                uint8_t encodedHeader[10] = {};
+                uint8_t header[8] = {};
+
+                bool validHeaderBytes = true;
+
+                for (size_t i = 0; i < 10; ++i)
+                {
+                    const size_t index = (pos + i) % trackSize;
+
+                    if (index < sync.size() && sync[index] != 0)
+                    {
+                        validHeaderBytes = false;
+                        break;
+                    }
+
+                    encodedHeader[i] = data[index];
+                }
+
+                if (validHeaderBytes && gcrCodec.decode5Bytes(encodedHeader, header) && gcrCodec.decode5Bytes(encodedHeader + 5, header + 4))
+                {
+                    // Commodore GCR sector header.
+                    if (header[0] == 0x08)
+                    {
+                        const uint8_t sectorNumber = header[2];
+                        const uint8_t trackNumber = header[3];
+
+                        const uint8_t checksum = header[2] ^ header[3] ^ header[4] ^ header[5];
+                        const int sectorCount = gcrCodec.sectorsPerTrack1541(physicalTrack);
+
+                        if (header[1] == checksum && trackNumber == physicalTrack && sectorNumber < sectorCount)
+                            mech.setSector(sectorNumber);
+                    }
+                }
+            }
 
             // Advance the rotational position.
             mech.setGCRPosition((pos + 1) % trackSize);

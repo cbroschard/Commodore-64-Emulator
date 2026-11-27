@@ -415,6 +415,11 @@ void D4040Mechanism::updateStepperPhase(uint8_t newPhase)
         track = static_cast<uint8_t>(halfTrack / 2);
 }
 
+void D4040Mechanism::setSector(uint8_t sector)
+{
+    this->sector = sector;
+}
+
 bool D4040Mechanism::writeGCRByte(size_t position, uint8_t value, bool writeSync)
 {
         if (!diskImage || writeProtected || !gcrValid)
