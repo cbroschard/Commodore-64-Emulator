@@ -14,6 +14,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class Drive;
 class IEEE488Device;
@@ -41,6 +43,10 @@ class IEEE488Bus
 
             bool operator==(const BusState&) const = default;
         };
+
+        // Save/load state
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
 
         void reset();
 
@@ -159,6 +165,10 @@ class IEEE488Bus
 
         void resolveSignals();
         AttachedDevice* findDevice(DeviceId id);
+
+        // Restore resolved signal levels without
+        // generating new bus transitions.
+        void resolveSignalsWithoutNotification();
 
         BusState captureState() const;
 };

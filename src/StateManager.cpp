@@ -101,6 +101,20 @@ bool StateManager::save(const std::string& path)
     // Save cartridge state if attached
     if (components_.media->getState().cartAttached) components_.cart->saveState(wrtr);
 
+    // -----------------------------------------
+    // Save IEEE-488 bus state
+    // -----------------------------------------
+    if (components_.ieee488Bus)
+    {
+        wrtr.beginChunk("I488");
+
+        wrtr.writeU32(1); // IEEE-488 state format
+
+        components_.ieee488Bus->saveState(wrtr);
+
+        wrtr.endChunk();
+    }
+
     // Save Cassette and tape state if attached
     if (components_.media->getState().tapeAttached) components_.cass->saveState(wrtr);
 
@@ -465,6 +479,32 @@ bool StateManager::loadInternal(const std::string& path)
 
             #ifdef Debug
             std::cout << "Loaded Cartridge\n";
+            #endif
+        }
+        else if (std::memcmp(chunk.tag, "I488", 4) == 0)
+        {
+            if (!components_.ieee488Bus)
+                return false;
+
+            rdr.enterChunkPayload(chunk);
+
+            uint32_t version = 0;
+
+            bool ok = rdr.readU32(version);
+
+            if (ok && version != 1)
+                ok = false;
+
+            if (ok)
+                ok = components_.ieee488Bus->loadState(rdr);
+
+            rdr.exitChunkPayload(chunk);
+
+            if (!ok)
+                return false;
+
+            #ifdef Debug
+            std::cout << "Loaded IEEE-488 bus\n";
             #endif
         }
         else if (std::memcmp(chunk.tag, "CASS", 4) == 0)

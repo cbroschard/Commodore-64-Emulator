@@ -5,6 +5,9 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
+#include <deque>
+#include <vector>
 #include "Drive/Drive.h"
 #include "IEEE488/IEEE488Bus.h"
 #include "IEEE488/IEEE488Device.h"
@@ -26,6 +29,310 @@ IEEE488Bus::IEEE488Bus() :
 }
 
 IEEE488Bus::~IEEE488Bus() = default;
+
+void IEEE488Bus::saveState(StateWriter& wrtr) const
+{
+    // -----------------------------------------
+    // IEEE-488 participants
+    // -----------------------------------------
+    wrtr.writeU32(static_cast<uint32_t>(devices.size()));
+
+    for (const auto& device : devices)
+    {
+        // Participant identity
+        wrtr.writeU32(device.id);
+
+        // Participant type
+        wrtr.writeBool(device.device != nullptr);
+
+        // Data bus output
+        wrtr.writeU8(device.dio);
+
+        // Control-line outputs
+        wrtr.writeBool(device.dav);
+        wrtr.writeBool(device.nrfd);
+        wrtr.writeBool(device.ndac);
+        wrtr.writeBool(device.atn);
+        wrtr.writeBool(device.eoi);
+        wrtr.writeBool(device.ifc);
+        wrtr.writeBool(device.ren);
+        wrtr.writeBool(device.srq);
+    }
+
+    // -----------------------------------------
+    // Pending bus transitions
+    // -----------------------------------------
+    wrtr.writeU32(
+        static_cast<uint32_t>(pendingTransitions.size())
+    );
+
+    for (const auto& transition : pendingTransitions)
+    {
+        const BusState& oldState = transition.oldState;
+        const BusState& newState = transition.newState;
+
+        // Previous bus state
+        wrtr.writeBool(oldState.dav);
+        wrtr.writeBool(oldState.nrfd);
+        wrtr.writeBool(oldState.ndac);
+        wrtr.writeBool(oldState.atn);
+        wrtr.writeBool(oldState.eoi);
+        wrtr.writeBool(oldState.ifc);
+        wrtr.writeBool(oldState.ren);
+        wrtr.writeBool(oldState.srq);
+        wrtr.writeU8(oldState.dio);
+
+        // New bus state
+        wrtr.writeBool(newState.dav);
+        wrtr.writeBool(newState.nrfd);
+        wrtr.writeBool(newState.ndac);
+        wrtr.writeBool(newState.atn);
+        wrtr.writeBool(newState.eoi);
+        wrtr.writeBool(newState.ifc);
+        wrtr.writeBool(newState.ren);
+        wrtr.writeBool(newState.srq);
+        wrtr.writeU8(newState.dio);
+    }
+}
+
+bool IEEE488Bus::loadState(StateReader& rdr)
+{
+    // Do not restore while dispatching bus callbacks.
+    if (dispatchingChanges)
+        return false;
+
+    // -----------------------------------------
+    // Read participant count
+    // -----------------------------------------
+    uint32_t deviceCount = 0;
+
+    if (!rdr.readU32(deviceCount))
+        return false;
+
+    // Protect against corrupted save-state data.
+    if (deviceCount > 64)
+        return false;
+
+    // Saved participant outputs.
+    struct SavedDevice
+    {
+        DeviceId id = 0;
+        bool peripheral = false;
+
+        uint8_t dio = 0xFF;
+
+        bool dav = true;
+        bool nrfd = true;
+        bool ndac = true;
+        bool atn = true;
+        bool eoi = true;
+        bool ifc = true;
+        bool ren = true;
+        bool srq = true;
+    };
+
+    std::vector<SavedDevice> savedDevices;
+    savedDevices.reserve(deviceCount);
+
+    // -----------------------------------------
+    // Read participant outputs
+    // -----------------------------------------
+    for (uint32_t i = 0; i < deviceCount; ++i)
+    {
+        SavedDevice saved;
+
+        if (!rdr.readU32(saved.id))
+            return false;
+
+        if (!rdr.readBool(saved.peripheral))
+            return false;
+
+        if (!rdr.readU8(saved.dio))
+            return false;
+
+        if (!rdr.readBool(saved.dav))
+            return false;
+
+        if (!rdr.readBool(saved.nrfd))
+            return false;
+
+        if (!rdr.readBool(saved.ndac))
+            return false;
+
+        if (!rdr.readBool(saved.atn))
+            return false;
+
+        if (!rdr.readBool(saved.eoi))
+            return false;
+
+        if (!rdr.readBool(saved.ifc))
+            return false;
+
+        if (!rdr.readBool(saved.ren))
+            return false;
+
+        if (!rdr.readBool(saved.srq))
+            return false;
+
+        savedDevices.push_back(saved);
+    }
+
+    // -----------------------------------------
+    // Validate participant configuration
+    // -----------------------------------------
+
+    // All saved participants must exist in the
+    // currently attached bus.
+    if (savedDevices.size() != devices.size())
+        return false;
+
+    for (size_t i = 0; i < savedDevices.size(); ++i)
+    {
+        const SavedDevice& saved = savedDevices[i];
+
+        // Reject duplicate participant IDs.
+        for (size_t j = 0; j < i; ++j)
+        {
+            if (savedDevices[j].id == saved.id)
+                return false;
+        }
+
+        const auto it = std::find_if(
+            devices.begin(),
+            devices.end(),
+            [&saved](const AttachedDevice& device)
+            {
+                return device.id == saved.id;
+            }
+        );
+
+        if (it == devices.end())
+            return false;
+
+        // Verify controller/peripheral identity.
+        if ((it->device != nullptr) != saved.peripheral)
+            return false;
+    }
+
+    // -----------------------------------------
+    // Read pending transitions
+    // -----------------------------------------
+    uint32_t transitionCount = 0;
+
+    if (!rdr.readU32(transitionCount))
+        return false;
+
+    // Match the existing dispatch safety limit.
+    if (transitionCount > 4096)
+        return false;
+
+    std::deque<BusTransition> restoredTransitions;
+
+    for (uint32_t i = 0; i < transitionCount; ++i)
+    {
+        BusTransition transition;
+
+        BusState& oldState = transition.oldState;
+        BusState& newState = transition.newState;
+
+        // Previous bus state
+        if (!rdr.readBool(oldState.dav))
+            return false;
+
+        if (!rdr.readBool(oldState.nrfd))
+            return false;
+
+        if (!rdr.readBool(oldState.ndac))
+            return false;
+
+        if (!rdr.readBool(oldState.atn))
+            return false;
+
+        if (!rdr.readBool(oldState.eoi))
+            return false;
+
+        if (!rdr.readBool(oldState.ifc))
+            return false;
+
+        if (!rdr.readBool(oldState.ren))
+            return false;
+
+        if (!rdr.readBool(oldState.srq))
+            return false;
+
+        if (!rdr.readU8(oldState.dio))
+            return false;
+
+        // New bus state
+        if (!rdr.readBool(newState.dav))
+            return false;
+
+        if (!rdr.readBool(newState.nrfd))
+            return false;
+
+        if (!rdr.readBool(newState.ndac))
+            return false;
+
+        if (!rdr.readBool(newState.atn))
+            return false;
+
+        if (!rdr.readBool(newState.eoi))
+            return false;
+
+        if (!rdr.readBool(newState.ifc))
+            return false;
+
+        if (!rdr.readBool(newState.ren))
+            return false;
+
+        if (!rdr.readBool(newState.srq))
+            return false;
+
+        if (!rdr.readU8(newState.dio))
+            return false;
+
+        restoredTransitions.push_back(transition);
+    }
+
+    // -----------------------------------------
+    // Apply restored participant outputs
+    // -----------------------------------------
+    for (const SavedDevice& saved : savedDevices)
+    {
+        AttachedDevice* device = findDevice(saved.id);
+
+        // Already validated above.
+        if (!device)
+            return false;
+
+        device->dio = saved.dio;
+
+        device->dav = saved.dav;
+        device->nrfd = saved.nrfd;
+        device->ndac = saved.ndac;
+        device->atn = saved.atn;
+        device->eoi = saved.eoi;
+        device->ifc = saved.ifc;
+        device->ren = saved.ren;
+        device->srq = saved.srq;
+    }
+
+    // -----------------------------------------
+    // Restore pending transitions
+    // -----------------------------------------
+    pendingTransitions = std::move(restoredTransitions);
+
+    // -----------------------------------------
+    // Recalculate physical bus levels
+    // -----------------------------------------
+    // This does not generate callbacks or queue
+    // additional transitions.
+    resolveSignalsWithoutNotification();
+
+    dispatchingChanges = false;
+
+    return true;
+}
 
 void IEEE488Bus::reset()
 {
@@ -504,6 +811,11 @@ IEEE488Bus::AttachedDevice* IEEE488Bus::findDevice(DeviceId id)
     }
 
     return nullptr;
+}
+
+void IEEE488Bus::resolveSignalsWithoutNotification()
+{
+    resolveSignals();
 }
 
 IEEE488Bus::BusState IEEE488Bus::captureState() const
