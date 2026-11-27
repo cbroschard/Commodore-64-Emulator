@@ -459,16 +459,28 @@ void D4040::getDriveIndicators(std::vector<Indicator>& out) const
 {
     out.clear();
 
+    const MOS6532& riot2 = d4040mem.getRIOT2();
+
+    const uint8_t portB = riot2.getPortBOutput();
+    const uint8_t ddrB = riot2.getDDRB();
+
+    // Candidate activity LED signals:
+    // PB4 = mechanism 0
+    // PB3 = mechanism 1
+    //
+    // Only consider pins configured as outputs.
+
     Indicator unit0;
     unit0.name = "0";
-    unit0.on = mechanisms[0].isMotorRunning();
+    unit0.on = (ddrB & 0x10) != 0 && (portB & 0x10) != 0;
     unit0.color = IDriveIndicatorView::DriveIndicatorColor::Red;
 
     out.push_back(std::move(unit0));
 
     Indicator unit1;
     unit1.name = "1";
-    unit1.on = mechanisms[1].isMotorRunning();
+    unit1.on = (ddrB & 0x08) != 0 &&
+               (portB & 0x08) != 0;
     unit1.color = IDriveIndicatorView::DriveIndicatorColor::Red;
 
     out.push_back(std::move(unit1));
