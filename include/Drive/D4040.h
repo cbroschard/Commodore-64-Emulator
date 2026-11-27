@@ -55,8 +55,8 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         inline bool isDiskLoaded() const override { return isDiskLoaded(0) || isDiskLoaded(1); }
 
         // Position
-        inline uint8_t getCurrentTrack() const override { return mechanisms[0].track; }
-        inline uint8_t getCurrentSector() const override { return mechanisms[0].sector; }
+        inline uint8_t getCurrentTrack() const override { return mechanisms[0].getTrack(); }
+        inline uint8_t getCurrentSector() const override { return mechanisms[0].getSector(); }
 
         // Drive model
         inline DriveModel getDriveModel() const override { return DriveModel::D4040; }
@@ -92,12 +92,12 @@ class D4040 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         uint8_t getSelectedMechanism() const;
 
          // Disk path
-        inline std::string getCurrentDiskPath() const override { return mechanisms[0].diskPath; }
-        inline std::string getMountedImagePath() const override { return mechanisms[0].diskPath; }
-        inline const std::string& getLoadedDiskName() const override { return mechanisms[0].diskPath; }
+        inline std::string getCurrentDiskPath() const override { return mechanisms[0].getDiskPath(); }
+        inline std::string getMountedImagePath() const override { return mechanisms[0].getDiskPath(); }
+        inline const std::string& getLoadedDiskName() const override { return mechanisms[0].getDiskPath(); }
 
         // Motor state
-        inline bool isMotorOn() const override {  return mechanisms[0].motorOn || mechanisms[1].motorOn; }
+        inline bool isMotorOn() const override {  return mechanisms[0].isMotorRunning() || mechanisms[1].isMotorRunning(); }
 
         inline D4040Mechanism& getMechanism(uint8_t unit) { return mechanisms[unit & 0x01]; }
         inline const D4040Mechanism& getMechanism(uint8_t unit) const { return mechanisms[unit & 0x01]; }

@@ -14,244 +14,183 @@
 #include <string>
 #include <unordered_map>
 #include "Floppy/DiskFactory.h"
+#include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
-struct D4040Mechanism
+class D4040Mechanism
 {
-    // Media
-    bool diskInserted = false;
-    std::string diskPath;
-    std::unique_ptr<Disk> diskImage;
+    public:
+        D4040Mechanism();
+        ~D4040Mechanism();
 
-    // Electrical command from the controller VIA.
-    bool motorCommandOn = false;
+        // Save/load state
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
 
-    // Physical spindle state.
-    bool motorOn = false;
+        void reset();
 
-    // Emulated controller cycles remaining before
-    // the spindle stops after motor power is removed.
-    uint32_t motorSpinDownCycles = 0;
+        void updateStepperPhase(uint8_t newPhase);
+        bool writeGCRByte(size_t position, uint8_t value,  bool writeSync = false);
 
-    uint8_t track = 18;
-    uint8_t sector = 0;
-    uint8_t stepperPhase = 0;
+        // GCR dirty-track management
+        bool hasUncommittedGCR() const;
+        void cacheActiveTrack();
+        bool restoreCachedTrack(uint8_t trackNumber);
+        void clearDirtyTrackCache();
 
-    // Physical head position: track number * 2.
-    // Track 1 = 2, track 18 = 36, track 35 = 70.
-    uint8_t halfTrack = 36;
+        // Media management
+        void insertDisk(std::unique_ptr<Disk> image, const std::string& path);
+        void removeDisk();
 
-    // Whether we have observed an initial stepper phase.
-    bool stepperInitialized = false;
+        // Media information
+        bool hasDisk() const;
+        bool isWriteProtected() const;
 
-    // Disk signals
-    bool writeProtected = false;
-    bool syncDetected = false;
-    bool byteReady = false;
+        const std::string& getDiskPath() const;
 
-    // Data transfer
-    uint8_t readLatch = 0xFF;
-    uint8_t writeLatch = 0xFF;
+        Disk* getDiskImage();
+        const Disk* getDiskImage() const;
 
-    // Per-mechanism GCR state
-    GCRTrackStream gcrTrack;
+        // Motor control
+        void setMotorCommand(bool enabled);
+        bool getMotorCommand() const;
+        bool isMotorRunning() const;
 
-    // GCR read decoder state.
-    //
-    // The physical track contains five GCR bytes for
-    // every four decoded data bytes.
-    //
-    // The controller receives decoded bytes through VIA Port A.
-    uint8_t gcrEncodedBuffer[5] = {};
-    uint8_t gcrEncodedCount = 0;
+        // Head position
+        uint8_t getTrack() const;
+        uint8_t getSector() const;
+        uint8_t getHalfTrack() const;
+        uint8_t getStepperPhase() const;
 
-    uint8_t gcrDecodedBuffer[4] = {};
-    uint8_t gcrDecodedIndex = 4;
+        // Motor timing
+        uint32_t getMotorSpinDownCycles() const;
 
-    // Only modified tracks are cached.
-    // Key: physical whole-track number (1-35).
-    std::unordered_map<uint8_t, GCRTrackStream> dirtyTracks;
+        // Advance physical motor state.
+        void advanceMotor(uint32_t cycles);
 
-    bool hasUncommittedGCR() const
-    {
-        return gcrDirty || !dirtyTracks.empty();
-    }
+        // Disk signals
+        bool isSyncDetected() const;
+        void setSyncDetected(bool detected);
 
-    void cacheActiveTrack()
-    {
-        if (!gcrDirty || !gcrValid ||
-            loadedGCRTrack == 0)
-            return;
+        bool isByteReady() const;
+        void setByteReady(bool ready);
 
-        // Copy both recorded bytes and sync metadata.
-        dirtyTracks[loadedGCRTrack] = gcrTrack;
-        gcrDirty = false;
-    }
+        // Data latches
+        uint8_t getReadLatch() const;
+        void setReadLatch(uint8_t value);
 
-    bool restoreCachedTrack(uint8_t trackNumber)
-    {
-        auto it = dirtyTracks.find(trackNumber);
+        uint8_t getWriteLatch() const;
+        void setWriteLatch(uint8_t value);
 
-        if (it == dirtyTracks.end())
-            return false;
+        // GCR track access
+        GCRTrackStream& getGCRTrack();
+        const GCRTrackStream& getGCRTrack() const;
 
-        const auto& data = it->second.getTrackData();
-        const auto& sync = it->second.getSyncMap();
+        // Active GCR stream state
+        size_t getGCRPosition() const;
+        void setGCRPosition(size_t position);
 
-        if (data.empty() || sync.size() != data.size())
-            return false;
+        uint8_t getLoadedGCRTrack() const;
+        void setLoadedGCRTrack(uint8_t track);
 
-        gcrTrack = it->second;
-        loadedGCRTrack = trackNumber;
-        gcrValid = true;
-        gcrDirty = true;
-        gcrPos = 0;
+        bool isGCRValid() const;
+        void setGCRValid(bool valid);
 
-        return true;
-    }
+        // GCR timing
+        uint32_t getGCRCycleAccumulator() const;
+        void setGCRCycleAccumulator(uint32_t cycles);
 
-    void clearDirtyTrackCache()
-    {
-        dirtyTracks.clear();
-        gcrDirty = false;
-        gcrBytesWritten = 0;
-        gcrSyncBytesWritten = 0;
-    }
+        // GCR modification state
+        bool isGCRDirty() const;
+        void setGCRDirty(bool dirty);
 
-    size_t gcrPos = 0;
+        // Write statistics
+        uint32_t getGCRBytesWritten() const;
+        uint32_t getGCRSyncBytesWritten() const;
+        void resetGCRWriteStatistics();
 
-    // Track number currently represented by gcrTrack.
-    uint8_t loadedGCRTrack = 0;
+        // GCR decoder
+        void resetGCRDecoder();
 
-    // Indicates whether the stream matches the mounted
-    // disk and current physical head position.
-    bool gcrValid = false;
+        // Feed one encoded GCR byte into the decoder.
+        // Returns true when a decoded byte is available.
+        bool decodeGCRByte(uint8_t encodedByte, const GCRCodec& codec, uint8_t& decodedByte);
 
-    // Accumulated emulated cycles since the last GCR byte.
-    uint32_t gcrCycleAccumulator = 0;
+        const GCRTrackStream* findDirtyTrack(uint8_t track) const;
 
-    // In-memory GCR track has been modified.
-    bool gcrDirty = false;
+        const std::unordered_map<uint8_t, GCRTrackStream>& getDirtyTracks() const;
 
-    // Number of GCR bytes recorded on the current track.
-    uint32_t gcrBytesWritten = 0;
+    private:
+        // Per-mechanism GCR state
+        GCRTrackStream gcrTrack;
 
-    uint32_t gcrSyncBytesWritten = 0;
+        // Media
+        std::unique_ptr<Disk> diskImage;
 
-    void reset()
-    {
-        motorCommandOn = false;
-        motorOn = false;
-        motorSpinDownCycles = 0;
+        bool diskInserted;
+        std::string diskPath;
+        bool writeProtected;
 
-        stepperPhase = 0;
+        bool motorCommandOn;
+        bool motorOn;
+        uint32_t motorSpinDownCycles;
 
-        syncDetected = false;
-        byteReady = false;
+        uint8_t track;
+        uint8_t sector;
+        uint8_t stepperPhase;
 
-        readLatch = 0xFF;
-        writeLatch = 0xFF;
+        // Physical head position: track number * 2.
+        // Track 1 = 2, track 18 = 36, track 35 = 70.
+        uint8_t halfTrack;
 
-        // Preserve physical head position across a controller reset.
-        // A reset does not physically reposition the disk head.
-        track = static_cast<uint8_t>(halfTrack / 2);
+        // Whether we have observed an initial stepper phase.
+        bool stepperInitialized;
 
-        // Force the next electrical stepper phase to establish
-        // a new baseline without moving the head.
-        stepperInitialized = false;
+        // Disk signals
+        bool syncDetected;
+        bool byteReady;
 
-        // Preserve unsaved GCR data before resetting
-        // the active mechanism state.
-        cacheActiveTrack();
-        gcrTrack.clear();
+        // Data transfer
+        uint8_t readLatch;
+        uint8_t writeLatch;
 
-        gcrPos = 0;
-        loadedGCRTrack = 0;
-        gcrValid = false;
-        gcrCycleAccumulator = 0;
-        gcrEncodedCount = 0;
-        gcrDecodedIndex = 4;
-        gcrDirty = false;
-        gcrBytesWritten = 0;
-        gcrSyncBytesWritten = 0;
-    }
+        size_t gcrPos;
 
-    void updateStepperPhase(uint8_t newPhase)
-    {
-        newPhase &= 0x03;
+        // Track number currently represented by gcrTrack.
+        uint8_t loadedGCRTrack;
 
-        // First observation establishes the phase baseline.
-        // It must not move the head.
-        if (!stepperInitialized)
-        {
-            stepperPhase = newPhase;
-            stepperInitialized = true;
-            return;
-        }
+        // Indicates whether the stream matches the mounted
+        // disk and current physical head position.
+        bool gcrValid;
 
-        if (newPhase == stepperPhase)
-            return;
+        // Accumulated emulated cycles since the last GCR byte.
+        uint32_t gcrCycleAccumulator;
 
-        const uint8_t oldPhase = stepperPhase;
+        // In-memory GCR track has been modified.
+        bool gcrDirty;
 
-        // Four-phase stepper sequence.
-        const uint8_t forward = static_cast<uint8_t>((oldPhase + 1) & 0x03);
-        const uint8_t backward = static_cast<uint8_t>((oldPhase + 3) & 0x03);
+        // Number of GCR bytes recorded on the current track.
+        uint32_t gcrBytesWritten;
 
-        if (newPhase == forward)
-        {
-            // Move inward.
-            if (halfTrack < 70)
-                ++halfTrack;
-        }
-        else if (newPhase == backward)
-        {
-            // Move outward.
-            if (halfTrack > 2)
-                --halfTrack;
-        }
+        uint32_t gcrSyncBytesWritten;
 
-        // Ignore non-adjacent phase jumps for movement,
-        // but remember the latest electrical phase.
-        stepperPhase = newPhase;
+        // GCR read decoder state.
+        //
+        // The physical track contains five GCR bytes for
+        // every four decoded data bytes.
+        //
+        // The controller receives decoded bytes through VIA Port A.
+        uint8_t gcrEncodedBuffer[5];
+        uint8_t gcrEncodedCount;
 
-        // Update displayed track.
-        track = static_cast<uint8_t>(halfTrack / 2);
-    }
+        uint8_t gcrDecodedBuffer[4];
+        uint8_t gcrDecodedIndex;
 
-    bool writeGCRByte(size_t position, uint8_t value,  bool writeSync = false)
-    {
-        if (!diskImage || writeProtected || !gcrValid)
-            return false;
-
-        auto& data = gcrTrack.getTrackData();
-        auto& sync = gcrTrack.getSyncMap();
-
-        if (data.empty() || sync.size() != data.size())
-            return false;
-
-        position %= data.size();
-
-        if (writeSync)
-        {
-            // Approximate a continuous sync field
-            // using bytes containing all one bits.
-            data[position] = 0xFF;
-            sync[position] = 1;
-            ++gcrSyncBytesWritten;
-        }
-        else
-        {
-            // Record normal outgoing GCR data.
-            data[position] = value;
-            sync[position] = 0;
-        }
-
-        gcrDirty = true;
-        ++gcrBytesWritten;
-
-        return true;
-    }
+        // Only modified tracks are cached.
+        // Key: physical whole-track number (1-35).
+        std::unordered_map<uint8_t, GCRTrackStream> dirtyTracks;
 };
 
 #endif // D4040MECHANISM_H_INCLUDED

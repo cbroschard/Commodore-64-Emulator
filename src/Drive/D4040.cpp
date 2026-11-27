@@ -295,8 +295,6 @@ void D4040::unloadDisk()
         std::cerr << "[D4040] Failed to eject disks\n";
         return;
     }
-
-    diskImage.reset();
 }
 
 bool D4040::mountDiskToMechanism(uint32_t mechanismId, const std::string& path)
@@ -350,27 +348,9 @@ bool D4040::mountDisk(uint8_t unit, const std::string& path)
         return false;
     }
 
-    mech.diskImage = std::move(img);
-
-    // A newly mounted disk must not inherit
-    // cached GCR tracks from the previous disk.
-    mech.clearDirtyTrackCache();
-
-    mech.diskInserted = true;
-    mech.diskPath = path;
-    mech.writeProtected = mech.diskImage->isWriteProtected();
-
-    // Reset media-dependent controller state.
-    mech.syncDetected = false;
-    mech.byteReady = false;
-    mech.readLatch = 0xFF;
-    mech.writeLatch = 0xFF;
-
-    mech.gcrTrack.clear();
-    mech.gcrPos = 0;
-    mech.loadedGCRTrack = 0;
-    mech.gcrValid = false;
-    mech.gcrCycleAccumulator = 0;
+    // The outgoing disk has already been saved successfully.
+    // Install the replacement.
+    mech.insertDisk(std::move(img), path);
 
     lastError = DriveError::NONE;
     status = DriveStatus::READY;
@@ -390,7 +370,7 @@ bool D4040::isDiskLoaded(uint8_t unit) const
     if (unit >= mechanisms.size())
         return false;
 
-    return mechanisms[unit].diskImage != nullptr;
+    return mechanisms[unit].hasDisk();
 }
 
 std::string D4040::getDiskPath(uint8_t unit) const
@@ -398,17 +378,17 @@ std::string D4040::getDiskPath(uint8_t unit) const
     if (unit >= mechanisms.size())
         return {};
 
-    return mechanisms[unit].diskPath;
+    return mechanisms[unit].getDiskPath();
 }
 
 void D4040::startMotor()
 {
-    mechanisms[0].motorOn = true;
+    mechanisms[0].setMotorCommand(true);
 }
 
 void D4040::stopMotor()
 {
-    mechanisms[0].motorOn = false;
+    mechanisms[0].setMotorCommand(false);
 }
 
 bool D4040::tryUnloadDisk(uint8_t unit)
@@ -416,28 +396,12 @@ bool D4040::tryUnloadDisk(uint8_t unit)
     if (unit >= mechanisms.size())
         return false;
 
-    // Refuse ejection when pending changes cannot be saved.
+    // Refuse ejection if pending changes cannot be saved.
     if (!flushMechanism(unit))
         return false;
 
-    D4040Mechanism& mech = mechanisms[unit];
-
-    mech.clearDirtyTrackCache();
-    mech.diskImage.reset();
-    mech.diskInserted = false;
-    mech.diskPath.clear();
-    mech.writeProtected = false;
-
-    mech.syncDetected = false;
-    mech.byteReady = false;
-    mech.readLatch = 0xFF;
-    mech.writeLatch = 0xFF;
-
-    mech.gcrTrack.clear();
-    mech.gcrPos = 0;
-    mech.loadedGCRTrack = 0;
-    mech.gcrValid = false;
-    mech.gcrCycleAccumulator = 0;
+    // Remove the disk only after a successful save.
+    mechanisms[unit].removeDisk();
 
     if (!isDiskLoaded(0) && !isDiskLoaded(1))
         status = DriveStatus::IDLE;
@@ -515,21 +479,21 @@ void D4040::updateMechanisms()
 
         // Record the electrical motor command.
         // Physical spindle movement is handled by advanceGCR().
-        mech.motorCommandOn = (unit == 0) ? signals.motor0On : signals.motor1On;
+        mech.setMotorCommand((unit == 0) ? signals.motor0On : signals.motor1On);
 
-        const uint8_t oldHalfTrack = mech.halfTrack;
+        const uint8_t oldHalfTrack = mech.getHalfTrack();
 
         // Apply stepper transition exactly once.
         mech.updateStepperPhase(newPhase);
 
-        if (mech.halfTrack != oldHalfTrack)
+        if (mech.getHalfTrack() != oldHalfTrack)
         {
             // Preserve an outgoing modified track.
             mech.cacheActiveTrack();
 
-            mech.gcrValid = false;
-            mech.syncDetected = false;
-            mech.byteReady = false;
+            mech.setGCRValid(false);
+            mech.setSyncDetected(false);
+            mech.setByteReady(false);
         }
     }
 }
@@ -541,21 +505,21 @@ bool D4040::flushMechanism(uint8_t unit)
 
     D4040Mechanism& mech = mechanisms[unit];
 
-    if (!mech.diskImage)
+    if (!mech.hasDisk())
         return true;
 
     const bool hasGCRWrites = mech.hasUncommittedGCR();
 
     // No pending changes.
-    if (!hasGCRWrites && !mech.diskImage->isDirty())
+    if (!hasGCRWrites && !mech.getDiskImage()->isDirty())
         return true;
 
-    if (mech.diskPath.empty() || mech.writeProtected)
+    if (mech.getDiskPath().empty() || mech.isWriteProtected())
         return false;
 
     // Only sector-backed Commodore images are
     // supported by this writeback path.
-    CBMImage* image = dynamic_cast<CBMImage*>(mech.diskImage.get());
+    CBMImage* image = dynamic_cast<CBMImage*>(mech.getDiskImage());
 
     if (!image)
         return false;
@@ -659,12 +623,12 @@ bool D4040::flushMechanism(uint8_t unit)
     // Save the sector-backed image to disk.
     if (image->isDirty())
     {
-        if (!image->saveDisk(mech.diskPath))
+        if (!image->saveDisk(mech.getDiskPath()))
         {
             std::cerr
                 << "[D4040] Failed saving unit "
                 << static_cast<int>(unit)
-                << ": " << mech.diskPath << '\n';
+                << ": " << mech.getDiskPath() << '\n';
 
             // Keep dirty GCR state for retry.
             return false;
@@ -693,11 +657,11 @@ void D4040::updateControllerInputs()
 
     // PB3: write protection, active high.
     // Treat an absent disk as protected.
-    if (mech.diskImage && !mech.writeProtected)
+    if (mech.hasDisk() && !mech.isWriteProtected())
         pb &= static_cast<uint8_t>(~0x08);
 
     // PB6: SYNC detection, active low.
-    if (mech.diskImage && mech.syncDetected)
+    if (mech.hasDisk() && mech.isSyncDetected())
         pb &= static_cast<uint8_t>(~0x40);
 
     rriot.setPortBInput(pb);
@@ -714,27 +678,27 @@ bool D4040::rebuildGCRTrack(uint8_t unit)
     mech.cacheActiveTrack();
 
     // Invalidate the previous stream.
-    mech.gcrTrack.clear();
-    mech.gcrPos = 0;
-    mech.gcrValid = false;
-    mech.loadedGCRTrack = 0;
-    mech.syncDetected = false;
-    mech.byteReady = false;
+    mech.getGCRTrack().clear();
+    mech.setGCRPosition(0);
+    mech.setGCRValid(false);
+    mech.setLoadedGCRTrack(0);
+    mech.setSyncDetected(false);
+    mech.setByteReady(false);
 
-    if (!mech.diskImage)
+    if (!mech.hasDisk())
         return false;
 
-    CBMImage* image = dynamic_cast<CBMImage*>(mech.diskImage.get());
+    CBMImage* image = dynamic_cast<CBMImage*>(mech.getDiskImage());
 
     if (!image)
         return false;
 
     // D64 contains complete sectors on whole tracks.
     // Do not pretend an off-track head is aligned.
-    if ((mech.halfTrack & 1) != 0)
+    if ((mech.getHalfTrack() & 1) != 0)
         return false;
 
-    const uint8_t track = static_cast<uint8_t>(mech.halfTrack / 2);
+    const uint8_t track = static_cast<uint8_t>(mech.getHalfTrack() / 2);
 
     if (track < 1 || track > 35)
         return false;
@@ -755,8 +719,8 @@ bool D4040::rebuildGCRTrack(uint8_t unit)
     const uint8_t id1 = bam[0xA2];
     const uint8_t id2 = bam[0xA3];
 
-    auto& data = mech.gcrTrack.getTrackData();
-    auto& sync = mech.gcrTrack.getSyncMap();
+    auto& data = mech.getGCRTrack().getTrackData();
+    auto& sync = mech.getGCRTrack().getSyncMap();
 
     // Append bytes with sync metadata.
     auto appendBytes = [&](uint8_t value, size_t count, bool isSync)
@@ -791,7 +755,7 @@ bool D4040::rebuildGCRTrack(uint8_t unit)
 
         if (sectorData.size() != 256)
         {
-            mech.gcrTrack.clear();
+            mech.getGCRTrack().clear();
             return false;
         }
 
@@ -836,15 +800,15 @@ bool D4040::rebuildGCRTrack(uint8_t unit)
 
     appendBytes(0x55, 128, false);
 
-    mech.loadedGCRTrack = track;
-    mech.gcrValid = !mech.gcrTrack.empty() && sync.size() == data.size();
+    mech.setLoadedGCRTrack(track);
+    mech.setGCRValid(!mech.getGCRTrack().empty() && sync.size() == data.size());
 
     // A newly generated GCR stream represents
     // the currently mounted D64 sector data.
-    mech.gcrDirty = false;
-    mech.gcrBytesWritten = 0;
+    mech.setGCRDirty(false);
+    mech.resetGCRWriteStatistics();
 
-    return mech.gcrValid;
+    return mech.isGCRValid();
 }
 
 void D4040::advanceGCR(uint32_t cycles)
@@ -871,41 +835,14 @@ void D4040::advanceGCR(uint32_t cycles)
     {
         D4040Mechanism& mech = mechanisms[unit];
 
-        static constexpr uint32_t MOTOR_SPINDOWN_CYCLES = 200000;
+        // Advance the mechanism's physical spindle state.
+        mech.advanceMotor(cycles);
 
-        if (mech.motorCommandOn)
+        if (!mech.isMotorRunning() || !mech.hasDisk())
         {
-            // Motor power is enabled.
-            // The spindle is running.
-            mech.motorOn = true;
-
-            // Maintain a full spin-down interval
-            // while motor power remains enabled.
-            mech.motorSpinDownCycles = MOTOR_SPINDOWN_CYCLES;
-        }
-        else if (mech.motorOn)
-        {
-            // Motor power has been removed.
-            // Allow the spindle to coast.
-
-            if (cycles >= mech.motorSpinDownCycles)
-            {
-                // Spin-down has completed.
-                mech.motorSpinDownCycles = 0;
-                mech.motorOn = false;
-            }
-            else
-            {
-                // Continue rotating while slowing down.
-                mech.motorSpinDownCycles -= cycles;
-            }
-        }
-
-        if (!mech.motorOn || !mech.diskImage)
-        {
-            mech.gcrCycleAccumulator = 0;
-            mech.syncDetected = false;
-            mech.byteReady = false;
+            mech.setGCRCycleAccumulator(0);
+            mech.setSyncDetected(false);
+            mech.setByteReady(false);
 
             if (unit == selectedUnit)
             {
@@ -913,40 +850,44 @@ void D4040::advanceGCR(uint32_t cycles)
                 via.setSyncDetected(false);
             }
 
+            mech.resetGCRDecoder();
+
             continue;
         }
 
-        const uint8_t physicalTrack = static_cast<uint8_t>(mech.halfTrack / 2);
+        const uint8_t physicalTrack = static_cast<uint8_t>(mech.getHalfTrack() / 2);
 
-        if ((mech.halfTrack & 1) != 0)
+        if ((mech.getHalfTrack() & 1) != 0)
         {
             // The head is between whole tracks.
             // No valid D64 sector track is available.
-            mech.gcrValid = false;
-            mech.gcrCycleAccumulator = 0;
-            mech.syncDetected = false;
-            mech.byteReady = false;
+            mech.setGCRValid(false);
+            mech.setGCRCycleAccumulator(0);
+            mech.setSyncDetected(false);
+            mech.setByteReady(false);
 
             if (unit == selectedUnit)
                 via.clearMechBytePending();
+
+            mech.resetGCRDecoder();
 
             continue;
         }
 
         // Rebuild only if the stream is invalid or
         // represents a different track.
-        if (!mech.gcrValid || mech.loadedGCRTrack != physicalTrack)
+        if (!mech.isGCRValid() || mech.getLoadedGCRTrack() != physicalTrack)
         {
             if (!rebuildGCRTrack(unit))
             {
-                mech.gcrCycleAccumulator = 0;
-                mech.syncDetected = false;
-                mech.byteReady = false;
+                mech.setGCRCycleAccumulator(0);
+                mech.setSyncDetected(false);
+                mech.setByteReady(false);
                 continue;
             }
         }
 
-        const size_t trackSize = mech.gcrTrack.size();
+        const size_t trackSize = mech.getGCRTrack().size();
 
         if (trackSize == 0)
             continue;
@@ -970,29 +911,29 @@ void D4040::advanceGCR(uint32_t cycles)
 
         const uint32_t interval = cyclesPerByte[density];
 
-        mech.gcrCycleAccumulator += cycles;
+        mech.setGCRCycleAccumulator(mech.getGCRCycleAccumulator() + cycles);
 
-        const auto& data = mech.gcrTrack.getTrackData();
-        const auto& sync = mech.gcrTrack.getSyncMap();
+        const auto& data = mech.getGCRTrack().getTrackData();
+        const auto& sync = mech.getGCRTrack().getSyncMap();
 
-        while (mech.gcrCycleAccumulator >= interval)
+        while (mech.getGCRCycleAccumulator() >= interval)
         {
-            mech.gcrCycleAccumulator -= interval;
+            mech.setGCRCycleAccumulator(mech.getGCRCycleAccumulator() - interval);
 
-            const size_t pos = mech.gcrPos % trackSize;
+            const size_t pos = mech.getGCRPosition() % trackSize;
             const uint8_t byte = data[pos];
             const bool inSync = pos < sync.size() && sync[pos] != 0;
 
             // Advance the rotational position.
-            mech.gcrPos = (pos + 1) % trackSize;
+            mech.setGCRPosition((pos + 1) % trackSize);
 
             // Only the selected mechanism can exchange
             // data with the controller.
             if (unit != selectedUnit)
             {
-                mech.syncDetected = inSync;
-                mech.byteReady = !inSync;
-                mech.readLatch = byte;
+                mech.setSyncDetected(inSync);
+                mech.setByteReady(!inSync);
+                mech.setReadLatch(byte);
                 continue;
             }
 
@@ -1002,8 +943,8 @@ void D4040::advanceGCR(uint32_t cycles)
             if (via.isDiskWriteMode())
             {
                 // No incoming read data while writing.
-                mech.syncDetected = false;
-                mech.byteReady = false;
+                mech.setSyncDetected(false);
+                mech.setByteReady(false);
 
                 via.clearMechBytePending();
                 via.setSyncDetected(false);
@@ -1017,7 +958,7 @@ void D4040::advanceGCR(uint32_t cycles)
 
                 if (mech.writeGCRByte(pos, writeByte, writeSync))
                 {
-                    mech.writeLatch = writeByte;
+                    mech.setWriteLatch(writeByte);
 
                     // Notify the controller that another
                     // disk-byte interval has completed.
@@ -1037,13 +978,12 @@ void D4040::advanceGCR(uint32_t cycles)
                 // -------------------------------------
                 if (inSync)
                 {
-                    mech.syncDetected = true;
-                    mech.byteReady = false;
+                    mech.setSyncDetected(true);
+                    mech.setByteReady(false);
 
                     // A SYNC field establishes a new GCR
                     // decoding boundary.
-                    mech.gcrEncodedCount = 0;
-                    mech.gcrDecodedIndex = 4;
+                    mech.resetGCRDecoder();
 
                     // Report SYNC to the controller.
                     via.diskByteFromMedia(0xFF, true);
@@ -1051,62 +991,34 @@ void D4040::advanceGCR(uint32_t cycles)
                     continue;
                 }
 
-                mech.syncDetected = false;
-                mech.byteReady = false;
+                mech.setSyncDetected(false);
+                mech.setByteReady(false);
 
                 // -------------------------------------
-                // Collect five encoded GCR bytes
+                // Decode incoming GCR byte
                 // -------------------------------------
-                mech.gcrEncodedBuffer[mech.gcrEncodedCount++] = byte;
+                uint8_t decodedByte = 0;
 
-                if (mech.gcrEncodedCount == 5)
+                if (mech.decodeGCRByte(byte, gcrCodec, decodedByte))
                 {
-                    // Decode five physical GCR bytes into
-                    // four bytes visible to the controller.
-                    const bool decoded = gcrCodec.decode5Bytes(mech.gcrEncodedBuffer, mech.gcrDecodedBuffer);
-
-                    mech.gcrEncodedCount = 0;
-
-                    if (decoded)
-                    {
-                        // Four decoded bytes are now available.
-                        mech.gcrDecodedIndex = 0;
-                    }
-                    else
-                    {
-                        // Invalid GCR group, typically a gap
-                        // between disk blocks.
-                        mech.gcrDecodedIndex = 4;
-                    }
-                }
-
-                // -------------------------------------
-                // Deliver one decoded byte
-                // -------------------------------------
-                if (mech.gcrDecodedIndex < 4)
-                {
-                    const uint8_t decodedByte = mech.gcrDecodedBuffer[mech.gcrDecodedIndex++];
-
-                    mech.readLatch = decodedByte;
-                    mech.byteReady = true;
+                    mech.setReadLatch(decodedByte);
+                    mech.setByteReady(true);
 
                     // Present decoded data and generate
                     // the controller's byte-ready signal.
                     via.diskByteFromMedia(decodedByte, false);
                 }
                 else
-                {
                     via.setSyncDetected(false);
-                }
             }
             else
             {
                 // Controller is not actively reading.
-                mech.syncDetected = false;
-                mech.byteReady = false;
+                mech.setSyncDetected(false);
+                mech.setByteReady(false);
 
-                mech.gcrEncodedCount = 0;
-                mech.gcrDecodedIndex = 4;
+                // Discard any partially decoded GCR group.
+                mech.resetGCRDecoder();
 
                 via.clearMechBytePending();
                 via.setSyncDetected(false);
@@ -1291,14 +1203,14 @@ bool D4040::getModifiedGCRSectors(uint8_t unit, uint8_t track, std::vector<Decod
 
     D4040Mechanism& mech = mechanisms[unit];
 
-    if (!mech.diskImage)
+    if (!mech.hasDisk())
         return false;
 
     // This implementation supports complete D64 tracks.
     if (track < 1 || track > 35)
         return false;
 
-    CBMImage* image = dynamic_cast<CBMImage*>(mech.diskImage.get());
+    CBMImage* image = dynamic_cast<CBMImage*>(mech.getDiskImage());
 
     if (!image)
         return false;
@@ -1309,15 +1221,12 @@ bool D4040::getModifiedGCRSectors(uint8_t unit, uint8_t track, std::vector<Decod
 
     // Prefer the active track, since it can contain
     // newer modifications than the cached copy.
-    if (mech.gcrValid && mech.loadedGCRTrack == track)
-        stream = &mech.gcrTrack;
+    if (mech.isGCRValid() && mech.getLoadedGCRTrack() == track)
+        stream = &mech.getGCRTrack();
     else
     {
-        // Look for a previously modified track.
-        const auto it = mech.dirtyTracks.find(track);
-
-        if (it != mech.dirtyTracks.end())
-            stream = &it->second;
+        if (const GCRTrackStream* cached = mech.findDirtyTrack(track))
+            stream = cached;
     }
 
     if (!stream)
@@ -1367,13 +1276,13 @@ bool D4040::collectModifiedGCRSectors(uint8_t unit, std::vector<DecodedGCRSector
 
     D4040Mechanism& mech = mechanisms[unit];
 
-    if (!mech.diskImage)
+    if (!mech.hasDisk())
         return false;
 
     std::vector<DecodedGCRSector> changes;
 
     // First process all cached dirty tracks.
-    for (const auto& entry : mech.dirtyTracks)
+    for (const auto& entry : mech.getDirtyTracks())
     {
         const uint8_t track = entry.first;
 
@@ -1387,13 +1296,13 @@ bool D4040::collectModifiedGCRSectors(uint8_t unit, std::vector<DecodedGCRSector
 
     // The active track may also contain writes
     // that have not been copied into the cache.
-    if (mech.gcrDirty)
+    if (mech.isGCRDirty())
     {
-        const uint8_t track = mech.loadedGCRTrack;
+        const uint8_t track = mech.getLoadedGCRTrack();
 
         // Avoid processing the active track twice
         // if a cached entry exists for it.
-        if (mech.dirtyTracks.find(track) == mech.dirtyTracks.end())
+        if (!mech.findDirtyTrack(track))
         {
             std::vector<DecodedGCRSector> trackChanges;
 
@@ -1648,46 +1557,46 @@ bool D4040::getHardwareMechanismDebug(uint32_t hardwareId, DriveMechanismDebugVi
     view.name = mechanismIndex == 0 ? "FLOPPY-0" : "FLOPPY-1";
 
     // Media
-    view.diskInserted = mechanism.diskInserted;
-    view.diskPath = mechanism.diskPath;
+    view.diskInserted = mechanism.hasDisk();
+    view.diskPath = mechanism.getDiskPath();
 
     // Motor and head
-    view.motorOn = mechanism.motorOn;
-    view.track = mechanism.track;
-    view.sector = mechanism.sector;
+    view.motorOn = mechanism.isMotorRunning();
+    view.track = mechanism.getTrack();
+    view.sector = mechanism.getSector();
 
     // Physical head position
     view.hasHalfTrack = true;
-    view.halfTrack = mechanism.halfTrack;
+    view.halfTrack = mechanism.getHalfTrack();
 
     // Stepper
     view.hasStepperPhase = true;
-    view.stepperPhase = mechanism.stepperPhase;
+    view.stepperPhase = mechanism.getStepperPhase();
 
     // Write protection
     view.hasWriteProtect = true;
-    view.writeProtected = mechanism.writeProtected;
+    view.writeProtected = mechanism.isWriteProtected();
 
     // GCR state
     view.hasGCR = true;
-    view.gcrValid = mechanism.gcrValid;
-    view.gcrPosition = mechanism.gcrPos;
-    view.loadedGCRTrack = mechanism.loadedGCRTrack;
+    view.gcrValid = mechanism.isGCRValid();
+    view.gcrPosition = mechanism.getGCRPosition();
+    view.loadedGCRTrack = mechanism.getLoadedGCRTrack();
 
     // Disk signals
     view.hasDiskSignals = true;
-    view.syncDetected = mechanism.syncDetected;
-    view.byteReady = mechanism.byteReady;
+    view.syncDetected = mechanism.isSyncDetected();
+    view.byteReady = mechanism.isByteReady();
 
     // Data latches
     view.hasDataLatches = true;
-    view.readLatch = mechanism.readLatch;
-    view.writeLatch = mechanism.writeLatch;
+    view.readLatch = mechanism.getReadLatch();
+    view.writeLatch = mechanism.getWriteLatch();
 
     // Modified-track information
     view.hasDirtyState = true;
     view.gcrDirty = mechanism.hasUncommittedGCR();
-    view.gcrBytesWritten = mechanism.gcrBytesWritten;
+    view.gcrBytesWritten = mechanism.getGCRBytesWritten();
 
     return true;
 }
