@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include <algorithm>
+#include <bit>
 #include <utility>
 #include "Drive/D4040.h"
 #include "Floppy/CBMImage.h"
@@ -92,8 +93,67 @@ void D4040::reset()
 void D4040::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("4040");
-    wrtr.writeU32(1); // Version
+
+    // Version 2
+    wrtr.writeU32(2);
+
     wrtr.writeU8(static_cast<uint8_t>(deviceNumber));
+
+    // -----------------------------------------
+    // DOS CPU (6502)
+    // -----------------------------------------
+    driveCPU.saveStatePayload(wrtr);
+    driveCPU.saveStateExtendedPayload(wrtr);
+
+    // -----------------------------------------
+    // Controller CPU (6504)
+    // -----------------------------------------
+    controllerCPU.saveStatePayload(wrtr);
+    controllerCPU.saveStateExtendedPayload(wrtr);
+
+    // -----------------------------------------
+    // Shared drive memory
+    // -----------------------------------------
+    d4040mem.saveState(wrtr);
+
+    // -----------------------------------------
+    // DOS processor hardware
+    // -----------------------------------------
+    d4040mem.getRIOT1().save(wrtr);
+    d4040mem.getRIOT2().save(wrtr);
+
+    // -----------------------------------------
+    // Controller processor hardware
+    // -----------------------------------------
+    d4040mem.getVIA().saveState(wrtr);
+    d4040mem.getRRIOT().save(wrtr);
+
+    // -----------------------------------------
+    // Both floppy mechanisms
+    // -----------------------------------------
+    mechanisms[0].saveState(wrtr);
+    mechanisms[1].saveState(wrtr);
+
+    // -----------------------------------------
+    // CPU scheduling state
+    // -----------------------------------------
+    wrtr.writeU64(static_cast<uint64_t>(driveCycleBalance));
+    wrtr.writeU64(static_cast<uint64_t>(controllerCycleBalance));
+
+    wrtr.writeU64(dosInstructionsExecuted);
+    wrtr.writeU64(controllerInstructionsExecuted);
+
+    // -----------------------------------------
+    // Drive position
+    // -----------------------------------------
+    wrtr.writeU8(currentTrack);
+    wrtr.writeU8(currentSector);
+
+    // -----------------------------------------
+    // Drive status
+    // -----------------------------------------
+    wrtr.writeU8(static_cast<uint8_t>(lastError));
+    wrtr.writeU8(static_cast<uint8_t>(status));
 
     wrtr.endChunk();
 }
@@ -106,10 +166,140 @@ bool D4040::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     rdr.enterChunkPayload(chunk);
 
     uint32_t ver = 0;
-    if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
-    if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
+    uint8_t savedDeviceNumber = 0;
+
+    bool ok = true;
+
+    // -----------------------------------------
+    // Header
+    // -----------------------------------------
+    if (!rdr.readU32(ver))
+        ok = false;
+
+    if (ok && ver != 2)
+        ok = false;
+
+    if (ok && !rdr.readU8(savedDeviceNumber))
+        ok = false;
+
+    if (ok && savedDeviceNumber !=
+        static_cast<uint8_t>(deviceNumber))
+        ok = false;
+
+    // -----------------------------------------
+    // DOS CPU (6502)
+    // -----------------------------------------
+    if (ok && !driveCPU.loadStatePayload(rdr))
+        ok = false;
+
+    if (ok && !driveCPU.loadStateExtendedPayload(chunk, rdr))
+        ok = false;
+
+    // -----------------------------------------
+    // Controller CPU (6504)
+    // -----------------------------------------
+    if (ok && !controllerCPU.loadStatePayload(rdr))
+        ok = false;
+
+    if (ok && !controllerCPU.loadStateExtendedPayload(chunk, rdr))
+        ok = false;
+
+    // -----------------------------------------
+    // Shared drive memory
+    // -----------------------------------------
+    if (ok && !d4040mem.loadState(rdr))
+        ok = false;
+
+    // -----------------------------------------
+    // DOS processor hardware
+    // -----------------------------------------
+    if (ok && !d4040mem.getRIOT1().load(rdr))
+        ok = false;
+
+    if (ok && !d4040mem.getRIOT2().load(rdr))
+        ok = false;
+
+    // -----------------------------------------
+    // Controller processor hardware
+    // -----------------------------------------
+    if (ok && !d4040mem.getVIA().loadState(rdr))
+        ok = false;
+
+    if (ok && !d4040mem.getRRIOT().load(rdr))
+        ok = false;
+
+    // -----------------------------------------
+    // Both floppy mechanisms
+    // -----------------------------------------
+    if (ok && !mechanisms[0].loadState(rdr))
+        ok = false;
+
+    if (ok && !mechanisms[1].loadState(rdr))
+        ok = false;
+
+    // -----------------------------------------
+    // CPU scheduling state
+    // -----------------------------------------
+    uint64_t savedDriveBalance = 0;
+    uint64_t savedControllerBalance = 0;
+
+    if (ok && !rdr.readU64(savedDriveBalance))
+        ok = false;
+
+    if (ok && !rdr.readU64(savedControllerBalance))
+        ok = false;
+
+    if (ok)
+    {
+        driveCycleBalance =
+            std::bit_cast<int64_t>(savedDriveBalance);
+
+        controllerCycleBalance =
+            std::bit_cast<int64_t>(savedControllerBalance);
+    }
+
+    if (ok && !rdr.readU64(dosInstructionsExecuted))
+        ok = false;
+
+    if (ok && !rdr.readU64(controllerInstructionsExecuted))
+        ok = false;
+
+    // -----------------------------------------
+    // Drive position
+    // -----------------------------------------
+    if (ok && !rdr.readU8(currentTrack))
+        ok = false;
+
+    if (ok && !rdr.readU8(currentSector))
+        ok = false;
+
+    // -----------------------------------------
+    // Drive status
+    // -----------------------------------------
+    uint8_t savedError = 0;
+    uint8_t savedStatus = 0;
+
+    if (ok && !rdr.readU8(savedError))
+        ok = false;
+
+    if (ok && !rdr.readU8(savedStatus))
+        ok = false;
+
+    if (ok)
+    {
+        lastError = static_cast<decltype(lastError)>(savedError);
+        status = static_cast<decltype(status)>(savedStatus);
+    }
 
     rdr.exitChunkPayload(chunk);
+
+    if (!ok)
+        return false;
+
+    // Recompute interrupt outputs from restored
+    // hardware state.
+    updateIRQ();
+
     return true;
 }
 
