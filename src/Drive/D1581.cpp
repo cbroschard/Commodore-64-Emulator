@@ -132,20 +132,37 @@ bool D1581::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readU8(savedLastError))                        { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readU8(savedDriveStatus))                      { rdr.exitChunkPayload(chunk); return false; }
 
-    // Mount or remove media before restoring CPU and chip state because
-    // loadDisk() and resetForMediaChange() reset drive runtime state.
     if (savedDiskLoaded)
     {
-        if (savedDiskName.empty())                          { rdr.exitChunkPayload(chunk); return false; }
+        if (savedDiskName.empty())
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
 
+        // Mount the image referenced by the saved state.
         loadDisk(savedDiskName);
 
-        if (!diskLoaded || !diskImage)                      { rdr.exitChunkPayload(chunk); return false; }
+        // Verify that the requested image was actually mounted.
+        if (!diskLoaded || !diskImage || loadedDiskName != savedDiskName)
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
     }
     else
     {
-        // Preserve any pending writes from the currently mounted image.
-        flushAndSaveDisk();
+        // The saved state contains no disk.
+        // Refuse to remove the current disk if saving fails.
+        if (!tryFlushAndSaveDisk())
+        {
+            std::cerr
+                << "[D1581] Cannot restore diskless state: "
+                   "unsaved disk changes remain.\n";
+
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
 
         resetForMediaChange();
 

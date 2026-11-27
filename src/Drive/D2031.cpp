@@ -211,8 +211,19 @@ bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             return false;
         }
 
-        // Replace the mounted image only after successful loading.
-        // No disk flush or drive CPU reset is performed.
+        // The replacement image has loaded successfully.
+        // Preserve pending changes to the existing disk.
+        if (!tryFlushAndSaveDisk())
+        {
+            std::cerr
+                << "[D2031] Cannot restore disk state: "
+                   "unsaved disk changes remain.\n";
+
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
+
+        // Replace the mounted image without resetting the drive CPU.
         diskImage = std::move(restoredImage);
 
         diskLoaded = true;
@@ -222,7 +233,17 @@ bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     else
     {
         // The snapshot had no mounted disk.
-        // Do not flush the currently mounted image.
+        // Save pending changes before removing the current image.
+        if (!tryFlushAndSaveDisk())
+        {
+            std::cerr
+                << "[D2031] Cannot restore diskless state: "
+                   "unsaved disk changes remain.\n";
+
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
+
         diskImage.reset();
 
         diskLoaded = false;

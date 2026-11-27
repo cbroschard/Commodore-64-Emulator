@@ -133,10 +133,26 @@ bool D1541::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         loadDisk(savedDiskName);
 
-        if (!diskLoaded || !diskImage)                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!diskLoaded || !diskImage || loadedDiskName != savedDiskName)
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
     }
     else
     {
+        // The saved state has no disk mounted.
+        // Save the current disk before removing it.
+        if (!tryFlushAndSaveDisk())
+        {
+            std::cerr
+                << "[D1541] Cannot restore diskless state: "
+                   "unsaved disk changes remain.\n";
+
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
+
         resetForMediaChange();
 
         diskImage.reset();
