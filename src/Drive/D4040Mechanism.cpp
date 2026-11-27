@@ -5,6 +5,10 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
+#include <limits>
+#include <utility>
+#include <vector>
 #include "Drive/D4040Mechanism.h"
 
 D4040Mechanism::D4040Mechanism() :
@@ -32,11 +36,304 @@ D4040Mechanism::D4040Mechanism() :
     gcrEncodedCount(0),
     gcrDecodedIndex(4)
 {
-    gcrEncodedBuffer[5] = {};
-    gcrDecodedBuffer[4] = {};
+
 }
 
 D4040Mechanism::~D4040Mechanism() = default;
+
+void D4040Mechanism::saveState(StateWriter& wrtr) const
+{
+    // Motor state
+    wrtr.writeBool(motorCommandOn);
+    wrtr.writeBool(motorOn);
+    wrtr.writeU32(motorSpinDownCycles);
+
+    // Head position
+    wrtr.writeU8(track);
+    wrtr.writeU8(sector);
+    wrtr.writeU8(stepperPhase);
+    wrtr.writeU8(halfTrack);
+    wrtr.writeBool(stepperInitialized);
+
+    // Disk signals
+    wrtr.writeBool(syncDetected);
+    wrtr.writeBool(byteReady);
+
+    // Data latches
+    wrtr.writeU8(readLatch);
+    wrtr.writeU8(writeLatch);
+
+    // -----------------------------------------
+    // GCR rotational state
+    // -----------------------------------------
+    wrtr.writeU64(static_cast<uint64_t>(gcrPos));
+    wrtr.writeU8(loadedGCRTrack);
+    wrtr.writeBool(gcrValid);
+
+    // -----------------------------------------
+    // GCR timing
+    // -----------------------------------------
+    wrtr.writeU32(gcrCycleAccumulator);
+
+    // -----------------------------------------
+    // GCR modification state
+    // -----------------------------------------
+    wrtr.writeBool(gcrDirty);
+    wrtr.writeU32(gcrBytesWritten);
+    wrtr.writeU32(gcrSyncBytesWritten);
+
+    // -----------------------------------------
+    // GCR decoder state
+    // -----------------------------------------
+
+    // Five encoded GCR bytes.
+    for (uint8_t value : gcrEncodedBuffer)
+    {
+        wrtr.writeU8(value);
+    }
+
+    wrtr.writeU8(gcrEncodedCount);
+
+    // Four decoded data bytes.
+    for (uint8_t value : gcrDecodedBuffer)
+    {
+        wrtr.writeU8(value);
+    }
+
+    wrtr.writeU8(gcrDecodedIndex);
+
+    // -----------------------------------------
+    // Active GCR track
+    // -----------------------------------------
+    wrtr.writeVectorU8(gcrTrack.getTrackData());
+    wrtr.writeVectorU8(gcrTrack.getSyncMap());
+
+    // -----------------------------------------
+    // Modified GCR track cache
+    // -----------------------------------------
+    wrtr.writeU32(static_cast<uint32_t>(dirtyTracks.size()));
+
+    // Write tracks in numerical order for deterministic saves.
+    std::vector<uint8_t> trackNumbers;
+    trackNumbers.reserve(dirtyTracks.size());
+
+    for (const auto& entry : dirtyTracks)
+    {
+        trackNumbers.push_back(entry.first);
+    }
+
+    std::sort(trackNumbers.begin(), trackNumbers.end());
+
+    for (uint8_t trackNumber : trackNumbers)
+    {
+        const GCRTrackStream& stream = dirtyTracks.at(trackNumber);
+
+        wrtr.writeU8(trackNumber);
+        wrtr.writeVectorU8(stream.getTrackData());
+        wrtr.writeVectorU8(stream.getSyncMap());
+    }
+}
+
+bool D4040Mechanism::loadState(StateReader& rdr)
+{
+    // Motor state
+    if (!rdr.readBool(motorCommandOn))
+        return false;
+
+    if (!rdr.readBool(motorOn))
+        return false;
+
+    if (!rdr.readU32(motorSpinDownCycles))
+        return false;
+
+    // Head position
+    if (!rdr.readU8(track))
+        return false;
+
+    if (!rdr.readU8(sector))
+        return false;
+
+    if (!rdr.readU8(stepperPhase))
+        return false;
+
+    if (!rdr.readU8(halfTrack))
+        return false;
+
+    if (!rdr.readBool(stepperInitialized))
+        return false;
+
+    // Disk signals
+    if (!rdr.readBool(syncDetected))
+        return false;
+
+    if (!rdr.readBool(byteReady))
+        return false;
+
+    // Data latches
+    if (!rdr.readU8(readLatch))
+        return false;
+
+    if (!rdr.readU8(writeLatch))
+        return false;
+
+    // -----------------------------------------
+    // GCR rotational state
+    // -----------------------------------------
+    uint64_t savedGCRPosition = 0;
+
+    if (!rdr.readU64(savedGCRPosition))
+        return false;
+
+    if (savedGCRPosition > static_cast<uint64_t>(
+            std::numeric_limits<size_t>::max()))
+        return false;
+
+    gcrPos = static_cast<size_t>(savedGCRPosition);
+
+    if (!rdr.readU8(loadedGCRTrack))
+        return false;
+
+    if (!rdr.readBool(gcrValid))
+        return false;
+
+    // -----------------------------------------
+    // GCR timing
+    // -----------------------------------------
+    if (!rdr.readU32(gcrCycleAccumulator))
+        return false;
+
+    // -----------------------------------------
+    // GCR modification state
+    // -----------------------------------------
+    if (!rdr.readBool(gcrDirty))
+        return false;
+
+    if (!rdr.readU32(gcrBytesWritten))
+        return false;
+
+    if (!rdr.readU32(gcrSyncBytesWritten))
+        return false;
+
+    // -----------------------------------------
+    // GCR decoder state
+    // -----------------------------------------
+
+    // Five encoded GCR bytes.
+    for (uint8_t& value : gcrEncodedBuffer)
+    {
+        if (!rdr.readU8(value))
+            return false;
+    }
+
+    if (!rdr.readU8(gcrEncodedCount))
+        return false;
+
+    // Four decoded data bytes.
+    for (uint8_t& value : gcrDecodedBuffer)
+    {
+        if (!rdr.readU8(value))
+            return false;
+    }
+
+    if (!rdr.readU8(gcrDecodedIndex))
+        return false;
+
+    // Validate decoder indices before using them.
+    if (gcrEncodedCount >= 5)
+        return false;
+
+    if (gcrDecodedIndex > 4)
+        return false;
+
+    // -----------------------------------------
+    // Active GCR track
+    // -----------------------------------------
+    std::vector<uint8_t> trackData;
+    std::vector<uint8_t> syncMap;
+
+    if (!rdr.readVectorU8(trackData))
+        return false;
+
+    if (!rdr.readVectorU8(syncMap))
+        return false;
+
+    // Data and SYNC metadata must have matching sizes.
+    if (trackData.size() != syncMap.size())
+        return false;
+
+    // A valid track must contain GCR data.
+    if (gcrValid && trackData.empty())
+        return false;
+
+    // Validate the saved rotational position.
+    if (!trackData.empty() && gcrPos >= trackData.size())
+        return false;
+
+    if (trackData.empty() && gcrPos != 0)
+        return false;
+
+    // Restore the active GCR stream.
+    gcrTrack.clear();
+
+    gcrTrack.getTrackData() = std::move(trackData);
+    gcrTrack.getSyncMap() = std::move(syncMap);
+
+    // -----------------------------------------
+    // Modified GCR track cache
+    // -----------------------------------------
+    uint32_t dirtyTrackCount = 0;
+
+    if (!rdr.readU32(dirtyTrackCount))
+        return false;
+
+    // A D64-backed 4040 mechanism has at most 35 tracks.
+    if (dirtyTrackCount > 35)
+        return false;
+
+    // Build the cache separately so an invalid entry
+    // doesn't partially replace the current cache.
+    std::unordered_map<uint8_t, GCRTrackStream> restoredTracks;
+
+    for (uint32_t i = 0; i < dirtyTrackCount; ++i)
+    {
+        uint8_t trackNumber = 0;
+        std::vector<uint8_t> trackData;
+        std::vector<uint8_t> syncMap;
+
+        if (!rdr.readU8(trackNumber))
+            return false;
+
+        if (trackNumber < 1 || trackNumber > 35)
+            return false;
+
+        if (!rdr.readVectorU8(trackData))
+            return false;
+
+        if (!rdr.readVectorU8(syncMap))
+            return false;
+
+        // Modified tracks must contain matching GCR
+        // data and SYNC metadata.
+        if (trackData.empty() || trackData.size() != syncMap.size())
+            return false;
+
+        // Reject duplicate track numbers.
+        if (restoredTracks.find(trackNumber) != restoredTracks.end())
+            return false;
+
+        GCRTrackStream stream;
+
+        stream.getTrackData() = std::move(trackData);
+        stream.getSyncMap() = std::move(syncMap);
+
+        restoredTracks.emplace(trackNumber, std::move(stream));
+    }
+
+    // Only replace the cache once every entry is valid.
+    dirtyTracks = std::move(restoredTracks);
+
+    return true;
+}
 
 void D4040Mechanism::reset()
 {

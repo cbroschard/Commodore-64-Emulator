@@ -182,10 +182,10 @@ class D4040Mechanism
         // every four decoded data bytes.
         //
         // The controller receives decoded bytes through VIA Port A.
-        uint8_t gcrEncodedBuffer[5];
+        uint8_t gcrEncodedBuffer[5] = {};
         uint8_t gcrEncodedCount;
 
-        uint8_t gcrDecodedBuffer[4];
+        uint8_t gcrDecodedBuffer[4] = {};
         uint8_t gcrDecodedIndex;
 
         // Only modified tracks are cached.
