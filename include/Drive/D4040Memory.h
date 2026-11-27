@@ -18,6 +18,8 @@
 #include "Drive/D4040VIA.h"
 #include "Drive/DriveChips.h"
 #include "Peripheral.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class D4040Memory : public DriveMemoryBase
 {
@@ -26,6 +28,9 @@ class D4040Memory : public DriveMemoryBase
         ~D4040Memory();
 
         void attachPeripheralInstance(Peripheral* parentPeripheral);
+
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
 
         void reset();
 

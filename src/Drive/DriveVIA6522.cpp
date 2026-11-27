@@ -79,6 +79,14 @@ void DriveVIA6522::saveVIAState(StateWriter& wrtr) const
     wrtr.writeBool(timer2InhibitIRQ);
     wrtr.writeU8(timer2LowLatchByte);
 
+    wrtr.writeBool(ca1Level);
+    wrtr.writeBool(ca2Level);
+    wrtr.writeBool(cb1Level);
+    wrtr.writeBool(cb2Level);
+
+    wrtr.writeU8(srShiftReg);
+    wrtr.writeU8(srBitCount);
+
     wrtr.writeBool(ca2OutputLevel);
     wrtr.writeBool(cb2OutputLevel);
 }
@@ -123,6 +131,14 @@ bool DriveVIA6522::loadVIAState(StateReader& rdr)
     if (!rdr.readBool(timer2JustLoaded)) return false;
     if (!rdr.readBool(timer2InhibitIRQ)) return false;
     if (!rdr.readU8(timer2LowLatchByte)) return false;
+
+    if (!rdr.readBool(ca1Level)) return false;
+    if (!rdr.readBool(ca2Level)) return false;
+    if (!rdr.readBool(cb1Level)) return false;
+    if (!rdr.readBool(cb2Level)) return false;
+
+    if (!rdr.readU8(srShiftReg)) return false;
+    if (!rdr.readU8(srBitCount)) return false;
 
     if (!rdr.readBool(ca2OutputLevel)) return false;
     if (!rdr.readBool(cb2OutputLevel)) return false;

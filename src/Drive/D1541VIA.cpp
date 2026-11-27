@@ -48,8 +48,6 @@ void D1541VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(iecRxPending);
     wrtr.writeU8(iecRxByte);
 
-    wrtr.writeU8(srShiftReg);
-    wrtr.writeU8(srBitCount);
     wrtr.writeI32(srCount);
     wrtr.writeBool(srShiftInMode);
 
@@ -57,11 +55,6 @@ void D1541VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(syncDetected);
     wrtr.writeU8(mechDataLatch);
     wrtr.writeBool(mechBytePending);
-
-    wrtr.writeBool(ca1Level);
-    wrtr.writeBool(ca2Level);
-    wrtr.writeBool(cb1Level);
-    wrtr.writeBool(cb2Level);
 }
 
 bool D1541VIA::loadState(StateReader& rdr)
@@ -90,8 +83,6 @@ bool D1541VIA::loadState(StateReader& rdr)
     if (!rdr.readU8(iecRxByte)) return false;
 
     // Serial shift pipeline
-    if (!rdr.readU8(srShiftReg)) return false;
-    if (!rdr.readU8(srBitCount)) return false;
     if (!rdr.readI32(srCount)) return false;
     if (!rdr.readBool(srShiftInMode)) return false;
 
@@ -100,12 +91,6 @@ bool D1541VIA::loadState(StateReader& rdr)
     if (!rdr.readBool(syncDetected)) return false;
     if (!rdr.readU8(mechDataLatch)) return false;
     if (!rdr.readBool(mechBytePending)) return false;
-
-    // CA/CB pin levels
-    if (!rdr.readBool(ca1Level)) return false;
-    if (!rdr.readBool(ca2Level)) return false;
-    if (!rdr.readBool(cb1Level)) return false;
-    if (!rdr.readBool(cb2Level)) return false;
 
     // Post-load resync
     if (viaRole == VIARole::VIA1_IECBus)

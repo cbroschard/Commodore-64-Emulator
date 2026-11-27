@@ -25,6 +25,27 @@ void D4040Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
     via.attachPeripheralInstance(parentPeripheral, DriveVIA6522::VIARole::VIA2_Mechanics);
 }
 
+void D4040Memory::saveState(StateWriter& wrtr) const
+{
+    wrtr.writeU32(1); // Version
+    wrtr.writeU32(static_cast<uint32_t>(D4040RAM.size()));
+    wrtr.writeVectorU8(D4040RAM);
+}
+
+bool D4040Memory::loadState(StateReader& rdr)
+{
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver)) return false;
+    if (ver != 1) return false;
+
+    uint32_t ramSize = 0;
+    if (!rdr.readU32(ramSize)) return false;
+    if (ramSize != D4040RAM.size()) return false;
+
+    if (!rdr.readVectorU8(D4040RAM)) return false;
+    return true;
+}
+
 void D4040Memory::reset()
 {
     riot1.reset();

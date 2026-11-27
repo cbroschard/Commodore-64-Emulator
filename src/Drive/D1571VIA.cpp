@@ -29,8 +29,6 @@ void D1571VIA::saveState(StateWriter& wrtr) const
     saveVIAState(wrtr);
 
     // Serial shift runtime
-    wrtr.writeU8(srShiftReg);
-    wrtr.writeU8(srBitCount);
     wrtr.writeBool(srShiftInMode);
 
     // Mechanical signals
@@ -40,12 +38,6 @@ void D1571VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(mechReadBytePending);
     wrtr.writeBool(mechWriteByteRequest);
     wrtr.writeBool(byteReadyActive);
-
-    // VIA control pin levels (introduced in version 3)
-    wrtr.writeBool(ca1Level);
-    wrtr.writeBool(ca2Level);
-    wrtr.writeBool(cb1Level);
-    wrtr.writeBool(cb2Level);
 }
 
 bool D1571VIA::loadState(StateReader& rdr)
@@ -62,12 +54,6 @@ bool D1571VIA::loadState(StateReader& rdr)
         return false;
 
     // Serial shift runtime
-    if (!rdr.readU8(srShiftReg))
-        return false;
-
-    if (!rdr.readU8(srBitCount))
-        return false;
-
     if (!rdr.readBool(srShiftInMode))
         return false;
 
@@ -102,42 +88,6 @@ bool D1571VIA::loadState(StateReader& rdr)
 
         if (!rdr.readBool(byteReadyActive))
             return false;
-    }
-
-    // VIA control pin levels (version 3+)
-    if (ver >= 3)
-    {
-        bool savedCA1 = false;
-        bool savedCA2 = false;
-        bool savedCB1 = false;
-        bool savedCB2 = false;
-
-        if (!rdr.readBool(savedCA1))
-            return false;
-
-        if (!rdr.readBool(savedCA2))
-            return false;
-
-        if (!rdr.readBool(savedCB1))
-            return false;
-
-        if (!rdr.readBool(savedCB2))
-            return false;
-
-        // Direct assignment prevents synthetic interrupts during load.
-        ca1Level = savedCA1;
-        ca2Level = savedCA2;
-        cb1Level = savedCB1;
-        cb2Level = savedCB2;
-    }
-    else
-    {
-        // Legacy versions 1 and 2 did not serialize CA/CB pin levels.
-        // Preserve the historical reset baseline.
-        ca1Level = false;
-        ca2Level = false;
-        cb1Level = false;
-        cb2Level = false;
     }
 
     // Post-restore fixups / derived state
