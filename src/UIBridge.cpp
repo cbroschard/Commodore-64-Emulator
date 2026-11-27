@@ -468,9 +468,15 @@ void UIBridge::processCommands()
             }
 
             case UiCommand::Type::EjectCRT:
-                if (media_)
-                    media_->detachCRTImage();
+            {
+                if (media_ && !media_->detachCRTImage())
+                {
+                    std::cerr
+                        << "[UIBridge] Cartridge ejection failed: "
+                           "one or more drives could not save their disks.\n";
+                }
                 break;
+            }
 
             case UiCommand::Type::EjectDisk:
                 if (media_)
@@ -688,7 +694,16 @@ void UIBridge::processCommands()
 
             case UiCommand::Type::Quit:
             {
-                if (media_) media_->flushAndSaveMedia();
+                // Refuse normal shutdown if disk data cannot be saved.
+                if (media_ && !media_->flushAndSaveMedia())
+                {
+                    std::cerr
+                        << "[UIBridge] Cannot quit: "
+                           "one or more disk images could not be saved.\n";
+
+                    break;
+                }
+
                 running_ = false;
                 break;
             }

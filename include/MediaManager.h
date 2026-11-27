@@ -131,7 +131,7 @@ public:
     // Detachments
     bool ejectDiskImage(int dev, uint32_t mechanism = 0);
     bool detachDiskImage(int dev);
-    void detachCRTImage();
+    bool detachCRTImage();
     void detachREU();
 
     // Drive Reset
@@ -174,7 +174,7 @@ public:
 
     void fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>& out) const;
 
-    void flushAndSaveMedia();
+    bool flushAndSaveMedia();
 
 private:
     MachineComponents& components_;

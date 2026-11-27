@@ -419,10 +419,16 @@ MediaLoadResult MediaManager::attachPRGImage(PRGLoadMode mode)
         {
             if (mode == PRGLoadMode::Standalone)
             {
-                // detach cartridge and reset the C64.
-                detachCRTImage();
+                // Standalone PRGs require the cartridge to be removed.
+                // Abort if attached drives cannot safely save their disks.
+                if (!detachCRTImage())
+                {
+                    return MediaLoadResult::fail(
+                        "Cannot load standalone PRG: cartridge removal "
+                        "was refused because a disk could not be saved."
+                    );
+                }
             }
-
         }
         else if (coldReset_)
             coldReset_();
@@ -890,9 +896,30 @@ bool MediaManager::detachDiskImage(int dev)
     }
     else
     {
-        // Preserve current behavior for existing drive models.
-        drive->flushAndSaveDisk();
+        // Save pending changes before removing the drive.
+        if (!drive->tryFlushAndSaveDisk())
+        {
+            std::cerr
+                << "[MediaManager] Drive "
+                << dev
+                << " cannot be detached: disk save failed\n";
+
+            return false;
+        }
+
+        // Eject the disk using the drive's own cleanup logic.
         drive->unloadDisk();
+
+        // Never destroy a drive if its disk is still mounted.
+        if (drive->isDiskLoaded())
+        {
+            std::cerr
+                << "[MediaManager] Drive "
+                << dev
+                << " cannot be detached: disk remains mounted\n";
+
+            return false;
+        }
     }
 
     // Disconnect from the appropriate bus.
@@ -927,10 +954,10 @@ bool MediaManager::detachDiskImage(int dev)
     return true;
 }
 
-void MediaManager::detachCRTImage()
+bool MediaManager::detachCRTImage()
 {
     if (!state_.cartAttached)
-        return;
+        return true;
 
     // --------------------------------------------------
     // Detach IEEE-488 drives before removing the cartridge.
@@ -942,6 +969,8 @@ void MediaManager::detachCRTImage()
     // flushed and the drive is removed from its bus.
     // --------------------------------------------------
 
+    // First, verify that every IEEE-488 drive can save its disks.
+    // Do not detach any drives until all save checks succeed.
     for (int dev = 8; dev <= 11; ++dev)
     {
         const auto& drive = components_.drives[dev];
@@ -949,8 +978,44 @@ void MediaManager::detachCRTImage()
         if (!drive)
             continue;
 
-        if (drive->getDriveModel() == DriveModel::D2031 || drive->getDriveModel() == DriveModel::D4040)
-            detachDiskImage(dev);
+        const DriveModel model = drive->getDriveModel();
+
+        if (model != DriveModel::D2031 && model != DriveModel::D4040)
+            continue;
+
+        if (!drive->tryFlushAndSaveDisk())
+        {
+            std::cerr
+                << "[MediaManager] Cannot detach IEEE-488 cartridge: "
+                << "drive " << dev
+                << " has unsaved disk changes.\n";
+
+            return false;
+        }
+    }
+
+    // All save checks succeeded.
+    // Now safely detach the IEEE-488 drives.
+    for (int dev = 8; dev <= 11; ++dev)
+    {
+        const auto& drive = components_.drives[dev];
+
+        if (!drive)
+            continue;
+
+        const DriveModel model = drive->getDriveModel();
+
+        if (model != DriveModel::D2031 && model != DriveModel::D4040)
+            continue;
+
+        if (!detachDiskImage(dev))
+        {
+            std::cerr
+                << "[MediaManager] Cannot detach IEEE-488 cartridge: "
+                << "failed to detach drive " << dev << ".\n";
+
+            return false;
+        }
     }
 
     // --------------------------------------------------
@@ -967,6 +1032,8 @@ void MediaManager::detachCRTImage()
 
     if (coldReset_)
         coldReset_();
+
+    return true;
 }
 
 void MediaManager::detachREU()
@@ -1661,14 +1728,27 @@ DiskFormat MediaManager::diskFormatForDriveModel(DriveModel model)
     }
 }
 
-void MediaManager::flushAndSaveMedia()
+bool MediaManager::flushAndSaveMedia()
 {
+    bool allSaved = true;
+
     for (int dev = 8; dev <= 11; ++dev)
     {
-        if (!components_.drives[dev])
+        Drive* drive = components_.drives[dev].get();
+
+        if (!drive)
             continue;
 
-        // Best option if Drive base has/gets a virtual flush method:
-        components_.drives[dev]->flushAndSaveDisk();
+        // Attempt every drive, even if an earlier save failed.
+        if (!drive->tryFlushAndSaveDisk())
+        {
+            std::cerr
+                << "[MediaManager] Failed to save disk data "
+                << "for drive " << dev << ".\n";
+
+            allSaved = false;
+        }
     }
+
+    return allSaved;
 }
