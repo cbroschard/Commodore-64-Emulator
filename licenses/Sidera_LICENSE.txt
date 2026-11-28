@@ -1,4 +1,4 @@
-Sidera
+Sidera 
 ======
 
 Sidera is an MIT-licensed SID (MOS 6581/8580) emulator by Sébastien Béchet.
